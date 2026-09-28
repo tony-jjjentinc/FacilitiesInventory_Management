@@ -1,0 +1,125 @@
+/* Enterprise Minimalist Theme */
+:root {
+  --app-bg: #f8fafc;
+  --card-bg: #ffffff;
+  --border-color: #e2e8f0;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --primary-accent: #0f172a;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--app-bg);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.925rem;
+  line-height: 1.5;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Minimal Table Styles */
+.data-table-container {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.table {
+  margin-bottom: 0;
+  font-size: 0.875rem;
+}
+
+.table th {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 14px;
+}
+
+.table td {
+  padding: 10px 14px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-main);
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Form controls minimal */
+.form-control, .form-select {
+  font-size: 0.875rem;
+  border-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: #475569;
+  box-shadow: 0 0 0 1px #475569;
+}
+
+/* Clean badges */
+.badge {
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* Offcanvas mobile drawer */
+.mobile-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  z-index: 1040;
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 280px;
+  background: #ffffff;
+  z-index: 1050;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease-in-out;
+}
+
+.mobile-drawer.open {
+  transform: translateX(0);
+}
+
+/* Utility */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
