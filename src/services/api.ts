@@ -22,6 +22,8 @@ export async function apiRequest<T = any>(action: string, payload: any = {}): Pr
 
   const response = await fetch(API_URL, {
     method: 'POST',
+    mode: 'cors',
+    redirect: 'follow',
     headers: {
       'Content-Type': 'text/plain;charset=utf-8'
     },
