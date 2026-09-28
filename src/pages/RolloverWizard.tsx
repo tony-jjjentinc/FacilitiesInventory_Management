@@ -53,13 +53,13 @@ export const RolloverWizard: React.FC = () => {
         <div className="card-body p-4">
           {/* Progress Tabs */}
           <div className="d-flex border-bottom mb-4 text-center">
-            <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 1 ? 'border-dark text-dark' : 'text-muted border-transparent'}`}>
+            <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 1 ? 'border-primary text-primary' : 'text-muted border-transparent'}`}>
               1. Pre-Check Audits
             </div>
-            <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 2 ? 'border-dark text-dark' : 'text-muted border-transparent'}`}>
+            <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 2 ? 'border-primary text-primary' : 'text-muted border-transparent'}`}>
               2. Target Ledger Setup
             </div>
-            <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 3 ? 'border-dark text-dark' : 'text-muted border-transparent'}`}>
+            <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 3 ? 'border-primary text-primary' : 'text-muted border-transparent'}`}>
               3. Completion
             </div>
           </div>
@@ -85,11 +85,20 @@ export const RolloverWizard: React.FC = () => {
 
               <button
                 type="button"
-                className="btn btn-dark btn-sm"
+                className="btn btn-primary btn-sm"
                 onClick={handleRunChecks}
                 disabled={isChecking}
               >
-                {isChecking ? 'Verifying...' : 'Run Audit Checks'}
+                {isChecking ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-shield-check me-1"></i> Run Audit Checks
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -130,15 +139,24 @@ export const RolloverWizard: React.FC = () => {
                   onClick={() => setStep(1)}
                   disabled={isExecuting}
                 >
-                  Back
+                  <i className="bi bi-arrow-left me-1"></i> Back
                 </button>
                 <button
                   type="button"
-                  className="btn btn-dark btn-sm"
+                  className="btn btn-primary btn-sm"
                   onClick={handleExecute}
                   disabled={isExecuting}
                 >
-                  {isExecuting ? 'Executing Rollover...' : 'Confirm & Execute Rollover'}
+                  {isExecuting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                      Executing Rollover...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-arrow-repeat me-1"></i> Confirm & Execute Rollover
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -146,8 +164,10 @@ export const RolloverWizard: React.FC = () => {
 
           {step === 3 && (
             <div>
-              <div className="alert alert-secondary py-3 px-3 mb-4 small" role="alert">
-                <div className="fw-bold mb-1">Fiscal Rollover Completed Successfully</div>
+              <div className="alert alert-success py-3 px-3 mb-4 small border" role="alert">
+                <div className="fw-bold mb-1">
+                  <i className="bi bi-check-circle-fill me-1 text-success"></i> Fiscal Rollover Completed Successfully
+                </div>
                 <div>The new operational ledger has been provisioned and registered in Master Config.</div>
               </div>
 
@@ -162,7 +182,7 @@ export const RolloverWizard: React.FC = () => {
                 className="btn btn-outline-secondary btn-sm"
                 onClick={() => setStep(1)}
               >
-                Restart Wizard
+                <i className="bi bi-arrow-counterclockwise me-1"></i> Restart Wizard
               </button>
             </div>
           )}

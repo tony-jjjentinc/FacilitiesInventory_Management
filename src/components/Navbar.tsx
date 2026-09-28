@@ -25,7 +25,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
     ...(isHeadOrAdmin
       ? [
           { id: 'approvals', label: 'Approvals' },
-          { id: 'rollover', label: 'Fiscal Rollover' },
           { id: 'config', label: 'Configuration' }
         ]
       : [])
@@ -76,14 +75,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
                     type="button"
                     className={`btn btn-sm ${
                       isActive
-                        ? 'btn-dark fw-medium'
+                        ? 'btn-primary fw-medium'
                         : 'btn-link text-secondary text-decoration-none'
                     }`}
-                    style={
-                      isActive
-                        ? { backgroundColor: '#0f172a', borderColor: '#0f172a' }
-                        : { fontSize: '0.875rem' }
-                    }
+                    style={{ fontSize: '0.875rem' }}
                     onClick={() => handleNavClick(item.id)}
                   >
                     {item.label}
@@ -109,11 +104,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
                 </div>
                 <button
                   type="button"
-                  className="btn btn-outline-secondary btn-sm"
+                  className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
                   onClick={onLogout}
                   title="Sign Out"
                 >
-                  Sign Out
+                  <i className="bi bi-box-arrow-right"></i>
+                  <span className="d-none d-md-inline">Sign Out</span>
                 </button>
               </div>
             )}
@@ -156,13 +152,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
                   key={item.id}
                   type="button"
                   className={`btn text-start btn-sm py-2 px-3 ${
-                    isActive ? 'btn-dark fw-medium' : 'btn-light text-dark'
+                    isActive ? 'btn-primary fw-medium' : 'btn-light text-dark'
                   }`}
-                  style={
-                    isActive
-                      ? { backgroundColor: '#0f172a', borderColor: '#0f172a' }
-                      : {}
-                  }
                   onClick={() => handleNavClick(item.id)}
                 >
                   {item.label}

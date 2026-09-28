@@ -34,12 +34,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
     <div className="position-relative">
       <button
         type="button"
-        className="btn btn-outline-secondary btn-sm position-relative"
+        className="btn btn-outline-secondary btn-sm position-relative d-flex align-items-center justify-content-center"
         onClick={() => setIsOpen(!isOpen)}
         title="Notifications"
-        style={{ padding: '4px 10px' }}
+        style={{ width: '34px', height: '31px', padding: 0 }}
       >
-        <span style={{ fontSize: '0.85rem' }}>Alerts</span>
+        <i className="bi bi-bell fs-6"></i>
         {totalCount > 0 && (
           <span
             className={`position-absolute top-0 start-100 translate-middle badge rounded-pill ${

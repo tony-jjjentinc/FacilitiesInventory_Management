@@ -93,10 +93,13 @@ export function DataTable<T extends Record<string, any>>({
         <div className="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
             {onSearchChange !== undefined && (
-              <div style={{ minWidth: '240px', maxWidth: '360px' }} className="flex-grow-1">
+              <div className="input-group input-group-sm flex-grow-1" style={{ minWidth: '240px', maxWidth: '360px' }}>
+                <span className="input-group-text bg-white border-end-0 text-muted">
+                  <i className="bi bi-search"></i>
+                </span>
                 <input
                   type="text"
-                  className="form-control form-control-sm"
+                  className="form-control border-start-0 ps-0"
                   placeholder={searchPlaceholder}
                   value={searchQuery || ''}
                   onChange={(e) => {
@@ -134,7 +137,11 @@ export function DataTable<T extends Record<string, any>>({
                     <span>{col.label}</span>
                     {col.sortable && (
                       <span className="ms-1 text-muted small">
-                        {sortKey === col.key ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ⇅'}
+                        {sortKey === col.key ? (
+                          sortDirection === 'asc' ? <i className="bi bi-arrow-up"></i> : <i className="bi bi-arrow-down"></i>
+                        ) : (
+                          <i className="bi bi-arrow-down-up opacity-50"></i>
+                        )}
                       </span>
                     )}
                   </th>
@@ -205,8 +212,9 @@ export function DataTable<T extends Record<string, any>>({
               style={{ height: '28px' }}
               disabled={activePage <= 1}
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              title="Previous Page"
             >
-              Previous
+              <i className="bi bi-chevron-left"></i>
             </button>
             <span className="btn btn-outline-secondary disabled py-0 px-2" style={{ height: '28px' }}>
               {activePage} / {totalPages}
@@ -216,8 +224,9 @@ export function DataTable<T extends Record<string, any>>({
               style={{ height: '28px' }}
               disabled={activePage >= totalPages}
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              title="Next Page"
             >
-              Next
+              <i className="bi bi-chevron-right"></i>
             </button>
           </div>
         </div>

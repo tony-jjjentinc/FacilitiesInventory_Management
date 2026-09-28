@@ -8,7 +8,6 @@ import { MasterCatalog } from './pages/MasterCatalog';
 import { WarehouseStock } from './pages/WarehouseStock';
 import { RopAlertCenter } from './pages/RopAlertCenter';
 import { ApprovalsQueue } from './pages/ApprovalsQueue';
-import { RolloverWizard } from './pages/RolloverWizard';
 import { Configuration } from './pages/Configuration';
 
 export const App: React.FC = () => {
@@ -61,7 +60,6 @@ export const App: React.FC = () => {
         {currentTab === 'warehouse' && <WarehouseStock />}
         {currentTab === 'alerts' && <RopAlertCenter />}
         {currentTab === 'approvals' && isHeadOrAdmin && <ApprovalsQueue />}
-        {currentTab === 'rollover' && isHeadOrAdmin && <RolloverWizard />}
         {currentTab === 'config' && isHeadOrAdmin && <Configuration />}
       </main>
 

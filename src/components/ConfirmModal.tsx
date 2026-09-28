@@ -59,10 +59,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${isDanger ? 'btn-danger' : 'btn-dark'}`}
+              className={`btn btn-sm ${isDanger ? 'btn-danger' : 'btn-primary'}`}
               onClick={onConfirm}
               disabled={isLoading}
-              style={!isDanger ? { backgroundColor: '#0f172a', borderColor: '#0f172a' } : {}}
             >
               {isLoading ? (
                 <>

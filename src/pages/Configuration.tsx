@@ -3,6 +3,7 @@ import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import { DataTable, type Column } from '../components/DataTable';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { RolloverWizard } from './RolloverWizard';
 
 type ConfigTableKey =
   | 'Item'
@@ -12,7 +13,8 @@ type ConfigTableKey =
   | 'UOM'
   | 'UOM_Category'
   | 'Warehouse_Location'
-  | 'Sheet_Records';
+  | 'Sheet_Records'
+  | 'Rollover';
 
 interface ConfigTabDef {
   key: ConfigTableKey;
@@ -29,7 +31,8 @@ const CONFIG_TABS: ConfigTabDef[] = [
   { key: 'UOM', label: 'Units of Measure', idField: 'UOM_Code', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
   { key: 'UOM_Category', label: 'UOM Categories', idField: 'UOM_Category_ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
   { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'Location_ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
-  { key: 'Sheet_Records', label: 'Fiscal Ledgers', idField: 'Year', description: 'Active and archived annual operational spreadsheets' }
+  { key: 'Sheet_Records', label: 'Fiscal Ledgers', idField: 'Year', description: 'Active and archived annual operational spreadsheets' },
+  { key: 'Rollover', label: 'Fiscal Rollover', idField: 'Year', description: 'Annual operational ledger transition and opening balance carryover' }
 ];
 
 export const Configuration: React.FC = () => {
@@ -88,7 +91,9 @@ export const Configuration: React.FC = () => {
 
   useEffect(() => {
     setSearch('');
-    loadTableData(activeTab);
+    if (activeTab !== 'Rollover') {
+      loadTableData(activeTab);
+    }
   }, [activeTab]);
 
   // Open Form for Editing
@@ -180,8 +185,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -198,8 +207,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -216,8 +229,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -232,8 +249,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -248,8 +269,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -264,8 +289,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -282,8 +311,12 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
@@ -299,12 +332,20 @@ export const Configuration: React.FC = () => {
           {
             key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>Edit</button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>Archive</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive me-1"></i>Archive
+                </button>
               </div>
             )
           }
         ];
+
+      case 'Rollover':
+      default:
+        return [];
     }
   };
 
@@ -325,9 +366,11 @@ export const Configuration: React.FC = () => {
           </p>
         </div>
 
-        <button className="btn btn-dark btn-sm" onClick={handleCreateNew}>
-          Add {currentTabDef.label.slice(0, -1) || 'Record'}
-        </button>
+        {activeTab !== 'Rollover' && (
+          <button className="btn btn-primary btn-sm" onClick={handleCreateNew}>
+            <i className="bi bi-plus-lg me-1"></i> Add {currentTabDef.label.slice(0, -1) || 'Record'}
+          </button>
+        )}
       </div>
 
       {/* Minimal Underline Tab Navigation */}
@@ -339,11 +382,11 @@ export const Configuration: React.FC = () => {
               key={tab.key}
               type="button"
               className={`btn btn-link text-decoration-none p-0 pb-2 border-0 bg-transparent text-nowrap ${
-                isActive ? 'text-dark fw-semibold' : 'text-secondary'
+                isActive ? 'text-primary fw-semibold' : 'text-secondary'
               }`}
               style={{
                 fontSize: '0.875rem',
-                borderBottom: isActive ? '2px solid #0f172a' : '2px solid transparent',
+                borderBottom: isActive ? '2px solid var(--bs-primary, #184421)' : '2px solid transparent',
                 borderRadius: 0,
                 marginBottom: '-1px',
                 cursor: 'pointer'
@@ -356,33 +399,52 @@ export const Configuration: React.FC = () => {
         })}
       </nav>
 
-      {/* Tab Context Subtitle */}
-      <div className="mb-3 d-flex justify-content-between align-items-center">
-        <div className="small text-muted">
-          Managing <strong>{currentTabDef.key}</strong>: {currentTabDef.description}
+      {/* Tab Context Subtitle & Toolbar */}
+      {activeTab !== 'Rollover' && (
+        <div className="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div className="small text-muted">
+            Managing <strong>{currentTabDef.key}</strong>: {currentTabDef.description}
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            {activeTab === 'Sheet_Records' && (
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm py-0 px-2"
+                style={{ height: '28px' }}
+                onClick={() => setActiveTab('Rollover')}
+              >
+                <i className="bi bi-arrow-repeat me-1"></i> Launch Rollover Wizard
+              </button>
+            )}
+            <button
+              className="btn btn-link btn-sm text-decoration-none text-muted py-0"
+              onClick={() => {
+                invalidateCache(`config:${activeTab}`);
+                loadTableData(activeTab);
+              }}
+              disabled={isLoading}
+            >
+              <i className="bi bi-arrow-clockwise me-1"></i>
+              {isLoading ? 'Revalidating...' : 'Refresh'}
+            </button>
+          </div>
         </div>
-        <button
-          className="btn btn-link btn-sm text-decoration-none text-muted py-0"
-          onClick={() => {
-            invalidateCache(`config:${activeTab}`);
-            loadTableData(activeTab);
-          }}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Revalidating...' : 'Refresh'}
-        </button>
-      </div>
+      )}
 
-      {/* DataTable */}
-      <DataTable
-        columns={getColumnsForTab(activeTab)}
-        data={filteredRecords}
-        keyField={currentTabDef.idField}
-        searchQuery={search}
-        onSearchChange={setSearch}
-        searchPlaceholder={`Filter ${currentTabDef.label}...`}
-        emptyMessage={`No ${currentTabDef.label} records found.`}
-      />
+      {/* Content View: Rollover Wizard or Master Registry DataTable */}
+      {activeTab === 'Rollover' ? (
+        <RolloverWizard />
+      ) : (
+        <DataTable
+          columns={getColumnsForTab(activeTab)}
+          data={filteredRecords}
+          keyField={currentTabDef.idField}
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchPlaceholder={`Filter ${currentTabDef.label}...`}
+          emptyMessage={`No ${currentTabDef.label} records found.`}
+        />
+      )}
 
       {/* Edit / Create Modal Form */}
       {isEditing && (
@@ -417,7 +479,7 @@ export const Configuration: React.FC = () => {
                 <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setIsEditing(false)}>
                   Cancel
                 </button>
-                <button type="button" className="btn btn-dark btn-sm" onClick={promptSaveConfirmation}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={promptSaveConfirmation}>
                   Save Changes
                 </button>
               </div>
