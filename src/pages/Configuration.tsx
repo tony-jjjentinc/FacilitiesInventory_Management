@@ -330,23 +330,31 @@ export const Configuration: React.FC = () => {
         </button>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="d-flex flex-wrap gap-1 border-bottom mb-4 bg-white p-2 rounded border">
+      {/* Minimal Underline Tab Navigation */}
+      <nav className="d-flex border-bottom mb-4 overflow-auto" aria-label="Configuration categories" style={{ gap: '1.75rem' }}>
         {CONFIG_TABS.map(tab => {
           const isActive = activeTab === tab.key;
           return (
             <button
               key={tab.key}
               type="button"
-              className={`btn btn-sm ${isActive ? 'btn-dark fw-medium' : 'btn-light text-dark'}`}
-              style={isActive ? { backgroundColor: '#0f172a', borderColor: '#0f172a' } : {}}
+              className={`btn btn-link text-decoration-none p-0 pb-2 border-0 bg-transparent text-nowrap ${
+                isActive ? 'text-dark fw-semibold' : 'text-secondary'
+              }`}
+              style={{
+                fontSize: '0.875rem',
+                borderBottom: isActive ? '2px solid #0f172a' : '2px solid transparent',
+                borderRadius: 0,
+                marginBottom: '-1px',
+                cursor: 'pointer'
+              }}
               onClick={() => setActiveTab(tab.key)}
             >
               {tab.label}
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Tab Context Subtitle */}
       <div className="mb-3 d-flex justify-content-between align-items-center">
