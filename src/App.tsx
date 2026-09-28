@@ -9,6 +9,7 @@ import { WarehouseStock } from './pages/WarehouseStock';
 import { RopAlertCenter } from './pages/RopAlertCenter';
 import { ApprovalsQueue } from './pages/ApprovalsQueue';
 import { RolloverWizard } from './pages/RolloverWizard';
+import { Configuration } from './pages/Configuration';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserClaims | null>(null);
@@ -26,6 +27,10 @@ export const App: React.FC = () => {
     setCurrentUser(null);
     setCurrentTab('overview');
   };
+
+  const isHeadOrAdmin = currentUser?.roles?.some(r =>
+    ['Super Admin', 'Head'].includes(r.trim())
+  );
 
   if (isLoading) {
     return (
@@ -55,8 +60,9 @@ export const App: React.FC = () => {
         {currentTab === 'catalog' && <MasterCatalog />}
         {currentTab === 'warehouse' && <WarehouseStock />}
         {currentTab === 'alerts' && <RopAlertCenter />}
-        {currentTab === 'approvals' && <ApprovalsQueue />}
-        {currentTab === 'rollover' && <RolloverWizard />}
+        {currentTab === 'approvals' && isHeadOrAdmin && <ApprovalsQueue />}
+        {currentTab === 'rollover' && isHeadOrAdmin && <RolloverWizard />}
+        {currentTab === 'config' && isHeadOrAdmin && <Configuration />}
       </main>
 
       <footer className="bg-white border-top py-3 text-center small text-muted mt-auto">

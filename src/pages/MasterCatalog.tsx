@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
+import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { InventoryTypeCode } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 
@@ -60,13 +61,17 @@ export const MasterCatalog: React.FC = () => {
     uom: 'pc',
     propertiesJson: '{}'
   });
-
   const loadItems = async () => {
     try {
-      const data = await apiRequest<RawCatalogItem[]>('catalog:getItems');
-      if (Array.isArray(data)) {
-        setItems(data);
-      }
+      await fetchWithSwr<RawCatalogItem[]>(
+        'catalog:items',
+        () => apiRequest<RawCatalogItem[]>('catalog:getItems'),
+        (data) => {
+          if (Array.isArray(data)) {
+            setItems(data);
+          }
+        }
+      );
     } catch (err) {
       console.error('Failed to load catalog items:', err);
     }
@@ -98,6 +103,7 @@ export const MasterCatalog: React.FC = () => {
       Status: 'ACTIVE'
     };
 
+    invalidateCache('catalog:items');
     setItems([newItem, ...items]);
     setShowModal(false);
     setFormData({

@@ -3,6 +3,8 @@ import { apiRequest } from '../services/api';
 import type { WarehouseStockItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 
+import { fetchWithSwr, invalidateCache } from '../services/cache';
+
 export const RopAlertCenter: React.FC = () => {
   const [stock, setStock] = useState<WarehouseStockItem[]>([]);
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -11,10 +13,15 @@ export const RopAlertCenter: React.FC = () => {
 
   const fetchStock = async () => {
     try {
-      const data = await apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock');
-      if (Array.isArray(data)) {
-        setStock(data);
-      }
+      await fetchWithSwr<WarehouseStockItem[]>(
+        'inventory:stock:all',
+        () => apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock'),
+        (data) => {
+          if (Array.isArray(data)) {
+            setStock(data);
+          }
+        }
+      );
     } catch (err) {
       console.error('Failed to load stock for ROP:', err);
     }
@@ -29,6 +36,7 @@ export const RopAlertCenter: React.FC = () => {
     try {
       const result = await apiRequest('rop:evaluate');
       setEvalResult(result);
+      invalidateCache('inventory:stock');
       await fetchStock();
     } catch (err) {
       console.error('Failed to evaluate ROP:', err);

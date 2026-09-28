@@ -151,7 +151,7 @@ export function DataTable<T extends Record<string, any>>({
               </tr>
             ) : (
               pageData.map((row, idx) => (
-                <tr key={String(row[keyField] || idx)}>
+                <tr key={`${String(row[keyField] ?? 'row')}-${startIndex + idx}`}>
                   {columns.map((col) => {
                     const alignClass = getAlignmentClass(col.align);
                     return (

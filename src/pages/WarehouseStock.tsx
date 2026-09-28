@@ -3,21 +3,31 @@ import { apiRequest } from '../services/api';
 import type { WarehouseStockItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 
+import { fetchWithSwr } from '../services/cache';
+
 export const WarehouseStock: React.FC = () => {
   const [stock, setStock] = useState<WarehouseStockItem[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchStock = async () => {
-    setIsLoading(true);
+    const cacheKey = `inventory:stock:${locationFilter || 'all'}`;
     try {
-      const data = await apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock', {
-        location: locationFilter
-      });
-      if (Array.isArray(data)) {
-        setStock(data);
-      }
+      await fetchWithSwr<WarehouseStockItem[]>(
+        cacheKey,
+        () => apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock', {
+          location: locationFilter
+        }),
+        (data, isInitialCache) => {
+          if (Array.isArray(data)) {
+            setStock(data);
+          }
+          if (isInitialCache) {
+            setIsLoading(false);
+          }
+        }
+      );
     } catch (err) {
       console.error('Failed to load warehouse stock:', err);
     } finally {

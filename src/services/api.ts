@@ -172,6 +172,61 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
           resolve({ ready: true, issues: [] });
           break;
 
+        case 'config:getTable': {
+          const table = payload.table;
+          const mockTables: Record<string, any[]> = {
+            Item: [
+              { ID: 'ITM-0001', SKU: 'CNS-PLB-0001', Name: 'PPR Pipe 1/2" x 4m', Category_ID: 'PLB', Inventory_Type_Code: 'CNS', UOM: 'pc', Status: 'ACTIVE' },
+              { ID: 'ITM-0045', SKU: 'TLS-PWR-0045', Name: 'Dewalt Cordless Impact Driver 18V', Category_ID: 'PWR', Inventory_Type_Code: 'TLS', UOM: 'set', Status: 'ACTIVE' }
+            ],
+            Supplier: [
+              { Supplier_ID: 'SUP-001', Supplier_Name: 'Amco Industrial Hardware', Contact_Person: 'Eduardo Santos', Contact_Number: '0917-555-0192', Email: 'sales@amco-ph.com', Status: 'ACTIVE' },
+              { Supplier_ID: 'SUP-002', Supplier_Name: 'Pipelife Philippines Corp.', Contact_Person: 'Maria Reyes', Contact_Number: '0922-888-4411', Email: 'orders@pipelife.ph', Status: 'ACTIVE' }
+            ],
+            Item_Supplier_and_Pricing: [
+              { Mapping_ID: 'MAP-0001', SKU: 'CNS-PLB-0001', Supplier_Name: 'Pipelife Philippines Corp.', Price: 245.00, Lead_Time_Days: 3, Is_Primary_Supplier: true, Status: 'ACTIVE' },
+              { Mapping_ID: 'MAP-0002', SKU: 'TLS-PWR-0045', Supplier_Name: 'Amco Industrial Hardware', Price: 8500.00, Lead_Time_Days: 7, Is_Primary_Supplier: true, Status: 'ACTIVE' }
+            ],
+            Inventory_Category: [
+              { Category_ID: 'PLB', Category_Name: 'Plumbing Supplies', Description: 'Pipes, fittings, valves, drains', Status: 'ACTIVE' },
+              { Category_ID: 'ELE', Category_Name: 'Electrical Supplies', Description: 'Wires, breakers, conduit, fixtures', Status: 'ACTIVE' },
+              { Category_ID: 'HVA', Category_Name: 'HVAC & Refrigeration', Description: 'Compressors, refrigerant, filters', Status: 'ACTIVE' },
+              { Category_ID: 'CIV', Category_Name: 'Civil & Masonry', Description: 'Cement, sand, aggregates, tiles', Status: 'ACTIVE' },
+              { Category_ID: 'PWR', Category_Name: 'Power Tools', Description: 'Drills, saws, grinders, impacts', Status: 'ACTIVE' }
+            ],
+            UOM: [
+              { UOM_Code: 'pc', UOM_Name: 'Piece', UOM_Category_ID: 'COUNT', Status: 'ACTIVE' },
+              { UOM_Code: 'box', UOM_Name: 'Box', UOM_Category_ID: 'COUNT', Status: 'ACTIVE' },
+              { UOM_Code: 'mtr', UOM_Name: 'Meter', UOM_Category_ID: 'LENGTH', Status: 'ACTIVE' },
+              { UOM_Code: 'set', UOM_Name: 'Set / Kit', UOM_Category_ID: 'COUNT', Status: 'ACTIVE' },
+              { UOM_Code: 'cyl', UOM_Name: 'Cylinder', UOM_Category_ID: 'VOLUME', Status: 'ACTIVE' }
+            ],
+            UOM_Category: [
+              { UOM_Category_ID: 'COUNT', UOM_Category_Name: 'Discrete Item Count', Description: 'Unit count of discrete objects', Status: 'ACTIVE' },
+              { UOM_Category_ID: 'LENGTH', UOM_Category_Name: 'Linear Measurement', Description: 'Meters, feet, inches', Status: 'ACTIVE' },
+              { UOM_Category_ID: 'VOLUME', UOM_Category_Name: 'Volumetric Measure', Description: 'Liters, gallons, cylinders', Status: 'ACTIVE' }
+            ],
+            Warehouse_Location: [
+              { Location_ID: 'FACILITIES_WAREHOUSE_MAIN', Location_Name: 'Central Facilities Depot', Location_Type: 'CENTRAL', Building: 'Building A', Capacity: 5000, Is_Active: true },
+              { Location_ID: 'FACILITIES_WAREHOUSE_SUB_NORTH', Location_Name: 'North Sub-Warehouse', Location_Type: 'SUB_WAREHOUSE', Building: 'Building C', Capacity: 1500, Is_Active: true }
+            ],
+            Sheet_Records: [
+              { Year: 2026, Spreadsheet_ID: '1qZw8yXoPmLkRt9vBn4uCe7dAw1sEf2Gh3Jk5LmNoPqR', Spreadsheet_Name: 'JJJEI - Facilities Inventory Ledger 2026', Status: 'ACTIVE', Created_At: '2026-01-01' }
+            ]
+          };
+
+          resolve({ headers: [], records: mockTables[table] || [] });
+          break;
+        }
+
+        case 'config:saveRecord':
+          resolve({ success: true, table: payload.table, record: payload.record });
+          break;
+
+        case 'config:deleteRecord':
+          resolve({ success: true, table: payload.table, id: payload.id });
+          break;
+
         default:
           resolve({ success: true, message: `Action ${action} executed.` });
       }

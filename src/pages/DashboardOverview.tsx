@@ -15,6 +15,8 @@ import type { WarehouseStockItem } from '../types';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
+import { fetchWithSwr } from '../services/cache';
+
 interface DashboardOverviewProps {
   onNavigate: (tab: string) => void;
 }
@@ -25,10 +27,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock');
-        if (Array.isArray(data)) {
-          setStockItems(data);
-        }
+        await fetchWithSwr<WarehouseStockItem[]>(
+          'inventory:stock:all',
+          () => apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock'),
+          (data) => {
+            if (Array.isArray(data)) {
+              setStockItems(data);
+            }
+          }
+        );
       } catch (err) {
         console.error('Failed to load stock data:', err);
       }

@@ -25,7 +25,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
     ...(isHeadOrAdmin
       ? [
           { id: 'approvals', label: 'Approvals' },
-          { id: 'rollover', label: 'Fiscal Rollover' }
+          { id: 'rollover', label: 'Fiscal Rollover' },
+          { id: 'config', label: 'Configuration' }
         ]
       : [])
   ];
