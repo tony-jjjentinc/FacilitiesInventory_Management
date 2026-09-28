@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api';
-import { fetchWithSwr, invalidateCache } from '../services/cache';
+import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
 import { DataTable, type Column } from '../components/DataTable';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { RolloverWizard } from './RolloverWizard';
@@ -40,6 +40,11 @@ export const Configuration: React.FC = () => {
   const [records, setRecords] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRevalidating, setIsRevalidating] = useState(false);
+
+  // Synchronous ref to prevent stale in-flight responses from overwriting current tab data
+  const activeTabRef = useRef<ConfigTableKey>(activeTab);
+  activeTabRef.current = activeTab;
 
   // Edit / Create Record Modal State
   const [isEditing, setIsEditing] = useState(false);
@@ -64,9 +69,22 @@ export const Configuration: React.FC = () => {
 
   const currentTabDef = CONFIG_TABS.find(t => t.key === activeTab)!;
 
-  const loadTableData = async (tableKey: ConfigTableKey) => {
-    setIsLoading(true);
+  const loadTableData = async (tableKey: ConfigTableKey, isManualRefresh = false) => {
+    if (tableKey === 'Rollover') return;
+
     const cacheKey = `config:${tableKey}`;
+    const cached = getCachedData<any[]>(cacheKey);
+
+    // Immediately isolate data: show cached data instantly (0ms) or clear stale previous tab data
+    if (cached && !isManualRefresh) {
+      setRecords(cached);
+      setIsLoading(false);
+      setIsRevalidating(true);
+    } else {
+      setRecords([]);
+      setIsLoading(true);
+      setIsRevalidating(false);
+    }
 
     try {
       await fetchWithSwr(
@@ -76,16 +94,28 @@ export const Configuration: React.FC = () => {
           return res.records || [];
         },
         (data, isInitialCache) => {
+          // Strict race-condition guard: discard if user already navigated to another tab
+          if (activeTabRef.current !== tableKey) {
+            return;
+          }
+
           setRecords(data);
           if (isInitialCache) {
             setIsLoading(false);
+            setIsRevalidating(true);
+          } else {
+            setIsLoading(false);
+            setIsRevalidating(false);
           }
         }
       );
     } catch (err) {
       console.error(`Failed to load ${tableKey}:`, err);
     } finally {
-      setIsLoading(false);
+      if (activeTabRef.current === tableKey) {
+        setIsLoading(false);
+        setIsRevalidating(false);
+      }
     }
   };
 
@@ -93,6 +123,10 @@ export const Configuration: React.FC = () => {
     setSearch('');
     if (activeTab !== 'Rollover') {
       loadTableData(activeTab);
+    } else {
+      setRecords([]);
+      setIsLoading(false);
+      setIsRevalidating(false);
     }
   }, [activeTab]);
 
@@ -420,12 +454,13 @@ export const Configuration: React.FC = () => {
               className="btn btn-link btn-sm text-decoration-none text-muted py-0"
               onClick={() => {
                 invalidateCache(`config:${activeTab}`);
-                loadTableData(activeTab);
+                loadTableData(activeTab, true);
               }}
-              disabled={isLoading}
+              disabled={isLoading || isRevalidating}
+              title={isRevalidating ? 'Synchronizing fresh data in background' : 'Force re-fetch from database'}
             >
-              <i className="bi bi-arrow-clockwise me-1"></i>
-              {isLoading ? 'Revalidating...' : 'Refresh'}
+              <i className={`bi bi-arrow-clockwise me-1 ${isRevalidating ? 'spin-animation' : ''}`}></i>
+              {isRevalidating ? 'Syncing...' : isLoading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
         </div>
@@ -443,6 +478,7 @@ export const Configuration: React.FC = () => {
           onSearchChange={setSearch}
           searchPlaceholder={`Filter ${currentTabDef.label}...`}
           emptyMessage={`No ${currentTabDef.label} records found.`}
+          isLoading={isLoading}
         />
       )}
 

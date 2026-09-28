@@ -21,6 +21,7 @@ interface DataTableProps<T> {
   actions?: React.ReactNode;
   emptyMessage?: string;
   initialPageSize?: number;
+  isLoading?: boolean;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -33,7 +34,8 @@ export function DataTable<T extends Record<string, any>>({
   filters,
   actions,
   emptyMessage = 'No records found.',
-  initialPageSize = 10
+  initialPageSize = 10,
+  isLoading = false
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -150,7 +152,18 @@ export function DataTable<T extends Record<string, any>>({
             </tr>
           </thead>
           <tbody>
-            {pageData.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={columns.length} className="text-center py-5 text-muted">
+                  <div className="d-flex flex-column align-items-center justify-content-center py-2">
+                    <div className="spinner-border text-primary mb-2" role="status" style={{ width: '1.75rem', height: '1.75rem' }}>
+                      <span className="visually-hidden">Loading records...</span>
+                    </div>
+                    <span className="small text-secondary fw-medium">Loading data, please wait...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : pageData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="text-center py-4 text-muted">
                   {emptyMessage}
