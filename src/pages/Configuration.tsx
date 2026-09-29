@@ -252,6 +252,24 @@ export const Configuration: React.FC = () => {
     return `${type}-${cat}-${id}`;
   };
 
+  // Helper to resolve UOM Name and Unit symbol
+  const getUomInfo = (unitOrId: string | undefined) => {
+    if (!unitOrId) return { unit: '—', name: '' };
+    const clean = String(unitOrId).trim();
+    const matched = lookupUoms.find(u =>
+      (u.Unit && u.Unit.toLowerCase() === clean.toLowerCase()) ||
+      (u.ID && u.ID.toLowerCase() === clean.toLowerCase()) ||
+      (u.UOM_Code && u.UOM_Code.toLowerCase() === clean.toLowerCase())
+    );
+    if (matched) {
+      return {
+        unit: matched.Unit || matched.ID || clean,
+        name: matched.Name || matched.UOM_Name || clean
+      };
+    }
+    return { unit: clean, name: clean };
+  };
+
   // Trigger Save with Confirmation
   const promptSaveConfirmation = () => {
     const payloadData = { ...editFormData };
@@ -374,13 +392,19 @@ export const Configuration: React.FC = () => {
             key: 'UOM',
             label: 'Unit of Measurement',
             align: 'center',
-            minWidth: '130px',
+            minWidth: '140px',
             sortable: true,
-            render: (r) => (
-              <span className="badge bg-light text-dark border font-monospace px-2 py-1">
-                {r.UOM || '—'}
-              </span>
-            )
+            render: (r) => {
+              const uom = getUomInfo(r.UOM);
+              return (
+                <div className="d-flex align-items-center justify-content-center gap-1">
+                  <span className="small text-dark">{uom.name}</span>
+                  <span className="badge bg-light text-dark border font-monospace px-1" style={{ fontSize: '0.7rem' }}>
+                    {uom.unit}
+                  </span>
+                </div>
+              );
+            }
           },
           {
             key: 'Category_Name',
@@ -504,7 +528,24 @@ export const Configuration: React.FC = () => {
             sortable: true,
             render: (r) => <span className="font-monospace small">PHP {Number(r.Price_per_Unit || r.Price || 0).toFixed(2)}</span>
           },
-          { key: 'UOM', label: 'UOM', align: 'center', minWidth: '80px', sortable: true, render: (r) => r.UOM || '—' },
+          {
+            key: 'UOM',
+            label: 'UOM',
+            align: 'center',
+            minWidth: '110px',
+            sortable: true,
+            render: (r) => {
+              const uom = getUomInfo(r.UOM);
+              return (
+                <div className="d-flex align-items-center justify-content-center gap-1">
+                  <span className="small text-dark">{uom.name}</span>
+                  <span className="badge bg-light text-dark border font-monospace px-1" style={{ fontSize: '0.7rem' }}>
+                    {uom.unit}
+                  </span>
+                </div>
+              );
+            }
+          },
           {
             key: 'Discount_Percentage',
             label: 'Discount',
@@ -797,7 +838,17 @@ export const Configuration: React.FC = () => {
                     </li>
                     <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
                       <span className="text-muted small">Unit of Measurement (UOM)</span>
-                      <span className="badge bg-light text-dark border font-monospace px-2">{viewingItem.UOM || '—'}</span>
+                      {(() => {
+                        const uom = getUomInfo(viewingItem.UOM);
+                        return (
+                          <div className="d-flex align-items-center gap-1">
+                            <span className="small text-dark fw-medium">{uom.name}</span>
+                            <span className="badge bg-light text-dark border font-monospace px-1" style={{ fontSize: '0.7rem' }}>
+                              {uom.unit}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </li>
                     <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
                       <span className="text-muted small">Status</span>
@@ -846,7 +897,7 @@ export const Configuration: React.FC = () => {
                       onClick={() => setIsPropertiesExpanded(!isPropertiesExpanded)}
                     >
                       <span className="fw-semibold text-dark small">
-                        <i className="bi bi-sliders me-2 text-primary"></i>Properties
+                        Properties
                       </span>
                       <i className={`bi bi-chevron-down text-muted small transition-all ${isPropertiesExpanded ? 'rotate-180' : ''}`}></i>
                     </button>
@@ -948,7 +999,7 @@ export const Configuration: React.FC = () => {
                     <div>
                       <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
                         <h6 className="fw-bold text-dark mb-0">
-                          <i className="bi bi-box me-2 text-primary"></i>Product Information
+                          Product Information
                         </h6>
                         {/* Live Item SKU Preview */}
                         <div className="d-flex align-items-center gap-1">
@@ -1034,7 +1085,7 @@ export const Configuration: React.FC = () => {
                       <div className="mt-3 p-3 bg-light rounded-2 border">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <label className="form-label small fw-semibold text-dark mb-0">
-                            <i className="bi bi-tags me-1 text-primary"></i>Properties (Key-Value Specifications)
+                            Properties (Key-Value Specifications)
                           </label>
                           <button
                             type="button"
@@ -1097,7 +1148,7 @@ export const Configuration: React.FC = () => {
                     <div>
                       <div className="mb-3 border-bottom pb-2">
                         <h6 className="fw-bold text-dark mb-0">
-                          <i className="bi bi-diagram-3 me-2 text-primary"></i>Product Category & Hierarchy
+                          Product Category & Hierarchy
                         </h6>
                       </div>
 
@@ -1190,67 +1241,67 @@ export const Configuration: React.FC = () => {
                     </div>
 
                     {/* Section 3: Advanced (Collapsible, Collapsed by Default) */}
-                    <div className="border rounded-2 overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-100 btn btn-light text-start py-2 px-3 d-flex justify-content-between align-items-center border-0 rounded-0"
+                    <div>
+                      <div
+                        className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 cursor-pointer user-select-none"
                         onClick={() => setIsAdvancedSectionExpanded(!isAdvancedSectionExpanded)}
                       >
-                        <span className="fw-semibold text-dark small">
-                          <i className="bi bi-gear me-2 text-secondary"></i>Advanced Identifiers & Metadata
-                        </span>
-                        <i className={`bi bi-chevron-down text-muted small transition-all ${isAdvancedSectionExpanded ? 'rotate-180' : ''}`}></i>
-                      </button>
+                        <h6 className="fw-bold text-dark mb-0">
+                          Advanced Identifiers & Metadata
+                        </h6>
+                        <div className="d-flex align-items-center gap-1 text-muted small">
+                          <span>{isAdvancedSectionExpanded ? 'Hide' : 'Show'}</span>
+                          <i className={`bi bi-chevron-down transition-all ${isAdvancedSectionExpanded ? 'rotate-180' : ''}`} style={{ fontSize: '0.75rem' }}></i>
+                        </div>
+                      </div>
 
                       {isAdvancedSectionExpanded && (
-                        <div className="p-3 border-top bg-white">
-                          <div className="row g-3">
-                            <div className="col-12 col-md-6">
-                              <label className="form-label small text-muted mb-1">Item ID (PK)</label>
-                              <input
-                                type="text"
-                                className="form-control form-control-sm font-monospace"
-                                disabled={!isCreatingNew}
-                                value={editFormData.ID || ''}
-                                placeholder="Auto-generated (e.g. ITM-0001)"
-                                onChange={(e) => setEditFormData({ ...editFormData, ID: e.target.value })}
-                              />
-                            </div>
+                        <div className="row g-3">
+                          <div className="col-12 col-md-6">
+                            <label className="form-label small text-muted mb-1">Item ID (PK)</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm font-monospace"
+                              disabled={!isCreatingNew}
+                              value={editFormData.ID || ''}
+                              placeholder="Auto-generated (e.g. ITM-0001)"
+                              onChange={(e) => setEditFormData({ ...editFormData, ID: e.target.value })}
+                            />
+                          </div>
 
-                            <div className="col-12 col-md-6">
-                              <label className="form-label small text-muted mb-1">Status</label>
-                              <select
-                                className="form-select form-select-sm"
-                                value={editFormData.Status || 'ACTIVE'}
-                                onChange={(e) => setEditFormData({ ...editFormData, Status: e.target.value })}
-                              >
-                                <option value="ACTIVE">ACTIVE</option>
-                                <option value="INACTIVE">INACTIVE</option>
-                                <option value="DISCONTINUED">DISCONTINUED</option>
-                                <option value="PHASED_OUT">PHASED_OUT</option>
-                              </select>
-                            </div>
+                          <div className="col-12 col-md-6">
+                            <label className="form-label small text-muted mb-1">Status</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={editFormData.Status || 'ACTIVE'}
+                              onChange={(e) => setEditFormData({ ...editFormData, Status: e.target.value })}
+                            >
+                              <option value="ACTIVE">ACTIVE</option>
+                              <option value="INACTIVE">INACTIVE</option>
+                              <option value="DISCONTINUED">DISCONTINUED</option>
+                              <option value="PHASED_OUT">PHASED_OUT</option>
+                            </select>
+                          </div>
 
-                            <div className="col-12">
-                              <label className="form-label small text-muted mb-1">Property Fingerprint (Surrogate Key)</label>
-                              <input
-                                type="text"
-                                className="form-control form-control-sm font-monospace"
-                                value={editFormData.Property_Fingerprint || computeItemFingerprint(editFormData)}
-                                onChange={(e) => setEditFormData({ ...editFormData, Property_Fingerprint: e.target.value })}
-                              />
-                            </div>
+                          <div className="col-12">
+                            <label className="form-label small text-muted mb-1">Property Fingerprint (Surrogate Key)</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm font-monospace"
+                              value={editFormData.Property_Fingerprint || computeItemFingerprint(editFormData)}
+                              onChange={(e) => setEditFormData({ ...editFormData, Property_Fingerprint: e.target.value })}
+                            />
+                          </div>
 
-                            <div className="col-12">
-                              <label className="form-label small text-muted mb-1">Search Tags (Comma-separated)</label>
-                              <input
-                                type="text"
-                                className="form-control form-control-sm"
-                                placeholder="ppr, pipe, water, plumbing"
-                                value={editFormData.Search_Tags || ''}
-                                onChange={(e) => setEditFormData({ ...editFormData, Search_Tags: e.target.value })}
-                              />
-                            </div>
+                          <div className="col-12">
+                            <label className="form-label small text-muted mb-1">Search Tags (Comma-separated)</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              placeholder="ppr, pipe, water, plumbing"
+                              value={editFormData.Search_Tags || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, Search_Tags: e.target.value })}
+                            />
                           </div>
                         </div>
                       )}
