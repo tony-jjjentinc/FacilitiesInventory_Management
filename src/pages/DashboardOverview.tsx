@@ -334,11 +334,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   };
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
+    <div className="container py-4 px-3 px-md-4">
       {/* ------------------------------------------------------------------- */}
       {/* 1. Header Section */}
       {/* ------------------------------------------------------------------- */}
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3 pb-3 border-bottom">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-3 border-bottom">
         <div>
           <div className="d-flex align-items-center gap-2 mb-1">
             <h4 className="fw-bold mb-0 text-dark">Executive Command Center</h4>
@@ -349,27 +349,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           <p className="text-muted small mb-0">
             Real-time physical asset valuation, reorder thresholds, inventory velocity, and operational activity.
           </p>
-        </div>
-
-        <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
-            onClick={handleTriggerRop}
-            disabled={isEvaluatingRop}
-            title="Evaluate Reorder Point algorithms across all warehouses"
-          >
-            <i className={`bi bi-arrow-repeat ${isEvaluatingRop ? 'spin-animation' : ''}`}></i>
-            <span>{isEvaluatingRop ? 'Evaluating ROP...' : 'Evaluate ROP'}</span>
-          </button>
-          <button
-            type="button"
-            className="btn btn-dark btn-sm d-flex align-items-center gap-1"
-            onClick={() => onNavigate('warehouse')}
-          >
-            <i className="bi bi-box-seam me-1"></i>
-            <span>View Full Stock</span>
-          </button>
         </div>
       </div>
 
@@ -385,113 +364,128 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* 2. Executive KPIs (6 Cards) */}
+      {/* 2. Executive KPIs (6 Clickable Cards) */}
       {/* ------------------------------------------------------------------- */}
       <div className="row g-3 mb-4">
-        {/* Total Stock Valuation */}
+        {/* Total Stock Valuation -> Navigates to Warehouse */}
         <div className="col-12 col-sm-6 col-xl-2">
-          <div className="card border shadow-sm p-3 h-100 bg-white">
-            <div className="d-flex align-items-center justify-content-between mb-1">
+          <div
+            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
+            onClick={() => onNavigate('warehouse')}
+            role="button"
+            tabIndex={0}
+            title="View Warehouse Stock Valuation"
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-muted small text-uppercase fw-semibold" style={{ fontSize: '0.7rem', letterSpacing: '0.04em' }}>
                 Total Valuation
               </span>
-              <span className="badge bg-success-subtle text-success border px-1" style={{ fontSize: '0.68rem' }}>
-                +4.2% MoM
-              </span>
+              <i className="bi bi-cash-stack text-muted" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-dark">
               PHP 5.14M
             </h5>
-            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              All 4 warehouse sites
-            </div>
           </div>
         </div>
 
-        {/* Tracked Master SKUs */}
+        {/* Tracked Master SKUs -> Navigates to Catalog */}
         <div className="col-12 col-sm-6 col-xl-2">
-          <div className="card border shadow-sm p-3 h-100 bg-white">
-            <div className="d-flex align-items-center justify-content-between mb-1">
+          <div
+            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
+            onClick={() => onNavigate('catalog')}
+            role="button"
+            tabIndex={0}
+            title="View Master Catalog SKUs"
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-muted small text-uppercase fw-semibold" style={{ fontSize: '0.7rem', letterSpacing: '0.04em' }}>
-                Tracked SKUs
+                Tracked Inventory
               </span>
-              <i className="bi bi-tags text-muted" style={{ fontSize: '0.85rem' }}></i>
+              <i className="bi bi-tags text-muted" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-dark">
-              184 SKUs
+              184 Inventory Items
             </h5>
-            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              Across 9 trade categories
-            </div>
           </div>
         </div>
 
-        {/* Critical Stockouts */}
+        {/* Critical Stockouts -> Navigates to Alerts */}
         <div className="col-12 col-sm-6 col-xl-2">
-          <div className="card border shadow-sm p-3 h-100 bg-white border-danger-subtle">
-            <div className="d-flex align-items-center justify-content-between mb-1">
+          <div
+            className="card border shadow-sm p-3 h-100 bg-white border-danger-subtle cursor-pointer hover-shadow transition-all"
+            onClick={() => onNavigate('alerts')}
+            role="button"
+            tabIndex={0}
+            title="View Critical Stockouts in ROP Alert Center"
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-danger small text-uppercase fw-semibold" style={{ fontSize: '0.7rem', letterSpacing: '0.04em' }}>
                 Critical Stockout
               </span>
-              <span className="badge bg-danger text-white rounded-pill px-1" style={{ fontSize: '0.65rem' }}>
-                URGENT
-              </span>
+              <i className="bi bi-exclamation-triangle-fill text-danger" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-danger">
               3 Items
             </h5>
-            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              Below safety stock baseline
-            </div>
           </div>
         </div>
 
-        {/* Reorder Warnings */}
+        {/* Reorder Warnings -> Navigates to Alerts */}
         <div className="col-12 col-sm-6 col-xl-2">
-          <div className="card border shadow-sm p-3 h-100 bg-white border-warning-subtle">
-            <div className="d-flex align-items-center justify-content-between mb-1">
+          <div
+            className="card border shadow-sm p-3 h-100 bg-white border-warning-subtle cursor-pointer hover-shadow transition-all"
+            onClick={() => onNavigate('alerts')}
+            role="button"
+            tabIndex={0}
+            title="View Reorder Warnings in ROP Alert Center"
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-warning-emphasis small text-uppercase fw-semibold" style={{ fontSize: '0.7rem', letterSpacing: '0.04em' }}>
                 Reorder Warnings
               </span>
-              <span className="badge bg-warning text-dark rounded-pill px-1" style={{ fontSize: '0.65rem' }}>
-                90D ROP
-              </span>
+              <i className="bi bi-exclamation-circle text-warning-emphasis" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-warning-emphasis">
               7 Items
             </h5>
-            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              Lead time reorder alert
-            </div>
           </div>
         </div>
 
-        {/* Pending Loss Approvals */}
+        {/* Pending Loss Approvals -> Navigates to Approvals */}
         <div className="col-12 col-sm-6 col-xl-2">
-          <div className="card border shadow-sm p-3 h-100 bg-white">
-            <div className="d-flex align-items-center justify-content-between mb-1">
+          <div
+            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
+            onClick={() => onNavigate('approvals')}
+            role="button"
+            tabIndex={0}
+            title="View Pending Incident Approvals"
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-muted small text-uppercase fw-semibold" style={{ fontSize: '0.7rem', letterSpacing: '0.04em' }}>
-                Pending Approvals
+                Incident Verification
               </span>
-              <i className="bi bi-shield-exclamation text-warning" style={{ fontSize: '0.85rem' }}></i>
+              <i className="bi bi-shield-exclamation text-warning" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-dark">
               3 Incidents
             </h5>
-            <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              Est. PHP 28,450.00
-            </div>
           </div>
         </div>
 
-        {/* In-House Custody Tools */}
+        {/* In-House Custody Tools -> Navigates to Warehouse */}
         <div className="col-12 col-sm-6 col-xl-2">
-          <div className="card border shadow-sm p-3 h-100 bg-white">
-            <div className="d-flex align-items-center justify-content-between mb-1">
+          <div
+            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
+            onClick={() => onNavigate('warehouse')}
+            role="button"
+            tabIndex={0}
+            title="View In-House Custody and Assigned Assets"
+          >
+            <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="text-muted small text-uppercase fw-semibold" style={{ fontSize: '0.7rem', letterSpacing: '0.04em' }}>
                 Custody Assets
               </span>
-              <i className="bi bi-wrench-adjustable text-muted" style={{ fontSize: '0.85rem' }}></i>
+              <i className="bi bi-wrench-adjustable text-muted" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-dark">
               42 Tools
@@ -508,109 +502,106 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       {/* ------------------------------------------------------------------- */}
       <div className="card border shadow-sm mb-4 bg-white">
         <div className="card-body p-3">
-          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom">
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
             <span className="text-uppercase text-muted fw-semibold small" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
-              Quick Actions & Operational Shortcuts
+              Quick Actions & Navigations
             </span>
             <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              Direct access to facilities workflows
+              Frequently accessed facilities operations
             </span>
           </div>
 
           <div className="row g-2">
+            {/* 1. Item Masterlist */}
             <div className="col-6 col-md-4 col-xl-2">
               <button
                 type="button"
-                className="btn btn-light border w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
+                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
                 onClick={() => onNavigate('catalog')}
               >
-                <div className="rounded p-1 bg-secondary-subtle text-dark d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className="bi bi-box-seam"></i>
-                </div>
-                <div>
-                  <div className="fw-semibold text-dark small" style={{ fontSize: '0.82rem' }}>Item Masterlist</div>
-                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>Specifications & SKUs</div>
+                <i className="bi bi-box-seam text-secondary fs-5"></i>
+                <div className="text-truncate">
+                  <div className="fw-semibold small text-truncate" style={{ fontSize: '0.82rem' }}>Item Masterlist</div>
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.7rem' }}>Catalog & Specs</div>
                 </div>
               </button>
             </div>
 
+            {/* 2. Warehouse Stock */}
             <div className="col-6 col-md-4 col-xl-2">
               <button
                 type="button"
-                className="btn btn-light border w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
+                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
                 onClick={() => onNavigate('warehouse')}
               >
-                <div className="rounded p-1 bg-secondary-subtle text-dark d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className="bi bi-buildings"></i>
-                </div>
-                <div>
-                  <div className="fw-semibold text-dark small" style={{ fontSize: '0.82rem' }}>Warehouse Stock</div>
-                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>Bins & Valuations</div>
+                <i className="bi bi-buildings text-secondary fs-5"></i>
+                <div className="text-truncate">
+                  <div className="fw-semibold small text-truncate" style={{ fontSize: '0.82rem' }}>Warehouse Stock</div>
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.7rem' }}>Locations & Bins</div>
                 </div>
               </button>
             </div>
 
+            {/* 3. ROP Stockout Alerts */}
             <div className="col-6 col-md-4 col-xl-2">
               <button
                 type="button"
-                className="btn btn-light border w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
+                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
                 onClick={() => onNavigate('alerts')}
               >
-                <div className="rounded p-1 bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className="bi bi-exclamation-triangle"></i>
-                </div>
-                <div>
-                  <div className="fw-semibold text-dark small" style={{ fontSize: '0.82rem' }}>ROP Stockout Alerts</div>
-                  <div className="text-danger" style={{ fontSize: '0.7rem' }}>10 items requiring reorder</div>
+                <i className="bi bi-exclamation-triangle text-danger fs-5"></i>
+                <div className="text-truncate">
+                  <div className="fw-semibold small text-truncate" style={{ fontSize: '0.82rem' }}>Stockout Alerts</div>
+                  <div className="text-danger text-truncate" style={{ fontSize: '0.7rem' }}>10 items reorder</div>
                 </div>
               </button>
             </div>
 
+            {/* 4. Approvals Queue */}
             <div className="col-6 col-md-4 col-xl-2">
               <button
                 type="button"
-                className="btn btn-light border w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
+                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
                 onClick={() => onNavigate('approvals')}
               >
-                <div className="rounded p-1 bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className="bi bi-clipboard-check"></i>
-                </div>
-                <div>
-                  <div className="fw-semibold text-dark small" style={{ fontSize: '0.82rem' }}>Approvals Queue</div>
-                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>3 incidents pending</div>
+                <i className="bi bi-clipboard-check text-warning-emphasis fs-5"></i>
+                <div className="text-truncate">
+                  <div className="fw-semibold small text-truncate" style={{ fontSize: '0.82rem' }}>Approvals Queue</div>
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.7rem' }}>Incident sign-offs</div>
                 </div>
               </button>
             </div>
 
+            {/* 5. Configuration */}
             <div className="col-6 col-md-4 col-xl-2">
               <button
                 type="button"
-                className="btn btn-light border w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
+                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
                 onClick={() => onNavigate('config')}
               >
-                <div className="rounded p-1 bg-secondary-subtle text-dark d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className="bi bi-sliders"></i>
-                </div>
-                <div>
-                  <div className="fw-semibold text-dark small" style={{ fontSize: '0.82rem' }}>Configuration</div>
-                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>Suppliers & Categories</div>
+                <i className="bi bi-sliders text-secondary fs-5"></i>
+                <div className="text-truncate">
+                  <div className="fw-semibold small text-truncate" style={{ fontSize: '0.82rem' }}>Configuration</div>
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.7rem' }}>Master references</div>
                 </div>
               </button>
             </div>
 
+            {/* 6. Evaluate ROP (Moved from Header) */}
             <div className="col-6 col-md-4 col-xl-2">
               <button
                 type="button"
-                className="btn btn-outline-dark border w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
+                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
                 onClick={handleTriggerRop}
                 disabled={isEvaluatingRop}
+                title="Run Reorder Point algorithms across all warehouses"
               >
-                <div className="rounded p-1 bg-dark text-white d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
-                  <i className={`bi bi-calculator ${isEvaluatingRop ? 'spin-animation' : ''}`}></i>
-                </div>
-                <div>
-                  <div className="fw-semibold text-dark small" style={{ fontSize: '0.82rem' }}>Calculate Safety</div>
-                  <div className="text-muted" style={{ fontSize: '0.7rem' }}>Run lead-time math</div>
+                <i className={`bi bi-arrow-repeat text-primary fs-5 ${isEvaluatingRop ? 'spin-animation' : ''}`}></i>
+                <div className="text-truncate">
+                  <div className="fw-semibold small text-truncate" style={{ fontSize: '0.82rem' }}>
+                    {isEvaluatingRop ? 'Evaluating...' : 'Evaluate ROP'}
+                  </div>
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.7rem' }}>Lead-time math</div>
                 </div>
               </button>
             </div>
@@ -801,9 +792,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   onClick={() => setActiveTableTab('alerts')}
                 >
                   Critical Stock Alerts
-                  <span className={`badge ms-2 ${activeTableTab === 'alerts' ? 'bg-danger text-white' : 'bg-danger-subtle text-danger'}`}>
-                    {MOCK_STOCK_ALERTS.length}
-                  </span>
                 </button>
               </li>
               <li className="nav-item">
@@ -813,9 +801,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   onClick={() => setActiveTableTab('activity')}
                 >
                   Recent Transactions
-                  <span className={`badge ms-2 ${activeTableTab === 'activity' ? 'bg-light text-dark' : 'bg-secondary-subtle text-secondary'}`}>
-                    {MOCK_RECENT_TRANSACTIONS.length}
-                  </span>
                 </button>
               </li>
               <li className="nav-item">
@@ -825,9 +810,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                   onClick={() => setActiveTableTab('approvals')}
                 >
                   Pending Incident Approvals
-                  <span className={`badge ms-2 ${activeTableTab === 'approvals' ? 'bg-warning text-dark' : 'bg-warning-subtle text-warning-emphasis'}`}>
-                    {MOCK_PENDING_INCIDENTS.length}
-                  </span>
                 </button>
               </li>
             </ul>
@@ -835,34 +817,46 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
           <div>
             {activeTableTab === 'alerts' && (
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm py-1 px-2"
+              <a
+                href="#alerts"
+                className="text-muted small text-decoration-none hover-dark d-inline-flex align-items-center gap-1"
                 style={{ fontSize: '0.75rem' }}
-                onClick={() => onNavigate('alerts')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate('alerts');
+                }}
               >
-                Go to Alert Center &rarr;
-              </button>
+                <span>Go to Alert Center</span>
+                <i className="bi bi-arrow-right"></i>
+              </a>
             )}
             {activeTableTab === 'activity' && (
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm py-1 px-2"
+              <a
+                href="#warehouse"
+                className="text-muted small text-decoration-none hover-dark d-inline-flex align-items-center gap-1"
                 style={{ fontSize: '0.75rem' }}
-                onClick={() => onNavigate('warehouse')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate('warehouse');
+                }}
               >
-                View Full Stock Records &rarr;
-              </button>
+                <span>View Full Stock Records</span>
+                <i className="bi bi-arrow-right"></i>
+              </a>
             )}
             {activeTableTab === 'approvals' && (
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm py-1 px-2"
+              <a
+                href="#approvals"
+                className="text-muted small text-decoration-none hover-dark d-inline-flex align-items-center gap-1"
                 style={{ fontSize: '0.75rem' }}
-                onClick={() => onNavigate('approvals')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate('approvals');
+                }}
               >
-                Open Approvals Queue &rarr;
-              </button>
+                <span>Open Approvals Queue</span>
+                <i className="bi bi-arrow-right"></i>
+              </a>
             )}
           </div>
         </div>
