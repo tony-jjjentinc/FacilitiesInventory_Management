@@ -5,6 +5,7 @@
  */
 
 import type { ApiResponse } from '../types';
+import { getStoredToken } from './auth';
 
 const API_URL = import.meta.env.VITE_GAS_API_URL || '';
 
@@ -12,7 +13,7 @@ const API_URL = import.meta.env.VITE_GAS_API_URL || '';
  * Dispatches a POST request to the Google Apps Script Web App.
  */
 export async function apiRequest<T = any>(action: string, payload: any = {}): Promise<T> {
-  const token = sessionStorage.getItem('jjjei_jwt_token') || '';
+  const token = getStoredToken() || '';
 
   // Local sandbox mock fallback if no API_URL is provided in development
   if (!API_URL) {

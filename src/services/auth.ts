@@ -54,12 +54,53 @@ export function parseTokenClaims(token: string): UserClaims | null {
 }
 
 /**
- * Authenticates user via AuthLib endpoint and stores JWT in sessionStorage.
+ * Retrieves the stored JWT from sessionStorage or localStorage.
  */
-export async function login(email: string, password: string): Promise<UserClaims> {
+export function getStoredToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+  } catch (err) {
+    console.warn('[Auth] Error accessing storage:', err);
+    return null;
+  }
+}
+
+/**
+ * Stores the token according to the user's preference.
+ */
+export function setStoredToken(token: string, rememberMe: boolean): void {
+  try {
+    if (rememberMe) {
+      localStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.removeItem(TOKEN_KEY);
+    } else {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch (err) {
+    console.warn('[Auth] Error writing token to storage:', err);
+  }
+}
+
+/**
+ * Purges the JWT from all browser storage mechanisms.
+ */
+export function clearStoredToken(): void {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+  } catch (err) {
+    console.warn('[Auth] Error clearing storage:', err);
+  }
+}
+
+/**
+ * Authenticates user via AuthLib endpoint and stores JWT in session/local storage.
+ */
+export async function login(email: string, password: string, rememberMe = false): Promise<UserClaims> {
   const result = await apiRequest<{ token: string }>('auth:login', { email, password });
   const token = result.token;
-  sessionStorage.setItem(TOKEN_KEY, token);
+  setStoredToken(token, rememberMe);
 
   const claims = parseTokenClaims(token);
   if (!claims) {
@@ -69,17 +110,17 @@ export async function login(email: string, password: string): Promise<UserClaims
 }
 
 /**
- * Clears authenticated session from sessionStorage.
+ * Clears authenticated session from all storage.
  */
 export function logout(): void {
-  sessionStorage.removeItem(TOKEN_KEY);
+  clearStoredToken();
 }
 
 /**
  * Retrieves the currently active user claims, or null if unauthenticated/expired.
  */
 export function getCurrentUser(): UserClaims | null {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+  const token = getStoredToken();
   if (!token) return null;
 
   const claims = parseTokenClaims(token);

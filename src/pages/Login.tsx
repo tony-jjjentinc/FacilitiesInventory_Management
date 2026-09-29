@@ -10,6 +10,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -19,7 +20,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setErrorMessage('');
 
     try {
-      const user = await login(email, password);
+      const user = await login(email, password, rememberMe);
       onLoginSuccess(user);
     } catch (err: any) {
       setErrorMessage(err.message || 'Authentication failed. Please check your credentials.');
@@ -33,7 +34,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       <div className="card border shadow-sm p-4 p-md-5" style={{ maxWidth: '400px', width: '100%', borderRadius: '8px' }}>
         <div className="text-center mb-4">
           <Logo size={44} className="mb-3" />
-          <h5 className="fw-bold mb-1" style={{ color: '#0f172a' }}>Facilities Inventory Management</h5>
+          <h5 className="fw-bold mb-1 text-dark">Facilities Inventory Management</h5>
           <div className="text-muted small">Juan Jamora Jr. Enterprises, Inc. • <span className="badge bg-secondary-subtle text-secondary border">v1.0.0</span></div>
         </div>
 
@@ -57,7 +58,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             />
           </div>
 
-          <div className="mb-4">
+          <div className="mb-3">
             <label className="form-label small text-muted mb-1">Password</label>
             <input
               type="password"
@@ -69,11 +70,25 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             />
           </div>
 
+          <div className="mb-4 d-flex justify-content-between align-items-center">
+            <div className="form-check mb-0">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="rememberMeCheckbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <label className="form-check-label small text-muted user-select-none" htmlFor="rememberMeCheckbox">
+                Remember me
+              </label>
+            </div>
+          </div>
+
           <button
             type="submit"
-            className="btn btn-dark w-100 py-2 fw-medium"
+            className="btn btn-primary w-100 py-2 fw-medium"
             disabled={isLoading}
-            style={{ backgroundColor: '#0f172a', borderColor: '#0f172a' }}
           >
             {isLoading ? (
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>

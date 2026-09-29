@@ -19,6 +19,22 @@ export const App: React.FC = () => {
     const user = getCurrentUser();
     setCurrentUser(user);
     setIsLoading(false);
+
+    // Cross-tab synchronization: sync session state when localStorage changes in another tab
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'jjjei_jwt_token') {
+        const updatedUser = getCurrentUser();
+        setCurrentUser(updatedUser);
+        if (!updatedUser) {
+          setCurrentTab('overview');
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const handleLogout = () => {
