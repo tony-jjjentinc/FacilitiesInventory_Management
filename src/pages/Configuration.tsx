@@ -89,6 +89,19 @@ export const Configuration: React.FC = () => {
 
   const currentTabDef = CONFIG_TABS.find(t => t.key === activeTab)!;
 
+  // Lock body scroll whenever a modal is open
+  const isAnyModalOpen = Boolean(viewingItem || isEditing || confirmModal.isOpen);
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isAnyModalOpen]);
+
   // Load lookup options for Item edit modal (UOMs, Categories, Types)
   useEffect(() => {
     const loadLookups = async () => {

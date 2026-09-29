@@ -110,7 +110,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
                   className={`nav-tab-link ${isActive ? 'active' : ''}`}
                   onClick={() => handleNavClick(item.id)}
                 >
-                  <i className={`bi ${item.icon} ${isActive ? 'text-primary' : 'text-muted'}`} style={{ fontSize: '0.85rem' }}></i>
                   <span>{item.label}</span>
                 </button>
               );

@@ -135,6 +135,17 @@ body {
   transform: translateX(0);
 }
 
+/* Modal scroll locking & display */
+body.modal-open {
+  overflow: hidden !important;
+  padding-right: 0 !important;
+}
+
+.modal.show {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 /* Utility */
 .cursor-pointer {
   cursor: pointer;

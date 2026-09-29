@@ -81,6 +81,18 @@ export const MasterCatalog: React.FC = () => {
     loadItems();
   }, []);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (showModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showModal]);
+
   const computedFingerprint = `${formData.categoryId}|${(formData.brand || 'GEN').toUpperCase().trim()}|${(formData.model || 'GEN').toUpperCase().trim()}|${(formData.variant || 'STD').toUpperCase().trim()}`.replace(/\s+/g, '_');
 
   const handleSaveItem = () => {
