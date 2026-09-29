@@ -56,10 +56,20 @@ export const Configuration: React.FC = () => {
   // Item View Modal State
   const [viewingItem, setViewingItem] = useState<any | null>(null);
 
+  // State for config dropdown lookups in Item Masterlist editor
+  const [lookupUoms, setLookupUoms] = useState<any[]>([]);
+  const [lookupCategories, setLookupCategories] = useState<any[]>([]);
+  const [lookupTypes, setLookupTypes] = useState<any[]>([]);
+
+  // Item preview modal collapsible state
+  const [isPropertiesExpanded, setIsPropertiesExpanded] = useState(false);
+
   // Edit / Create Record Modal State
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [itemPropertiesPairs, setItemPropertiesPairs] = useState<{ key: string; value: string }[]>([]);
+  const [isAdvancedSectionExpanded, setIsAdvancedSectionExpanded] = useState(false);
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -78,6 +88,25 @@ export const Configuration: React.FC = () => {
   const [isActionPending, setIsActionPending] = useState(false);
 
   const currentTabDef = CONFIG_TABS.find(t => t.key === activeTab)!;
+
+  // Load lookup options for Item edit modal (UOMs, Categories, Types)
+  useEffect(() => {
+    const loadLookups = async () => {
+      try {
+        const [uomRes, catRes, typeRes] = await Promise.all([
+          apiRequest('config:getTable', { table: 'UOM' }).catch(() => ({ records: [] })),
+          apiRequest('config:getTable', { table: 'Inventory_Category' }).catch(() => ({ records: [] })),
+          apiRequest('config:getTable', { table: 'Inventory_Type' }).catch(() => ({ records: [] }))
+        ]);
+        if (uomRes.records && uomRes.records.length > 0) setLookupUoms(uomRes.records);
+        if (catRes.records && catRes.records.length > 0) setLookupCategories(catRes.records);
+        if (typeRes.records && typeRes.records.length > 0) setLookupTypes(typeRes.records);
+      } catch (err) {
+        console.warn('Failed to prefetch lookups:', err);
+      }
+    };
+    loadLookups();
+  }, []);
 
   const loadTableData = async (tableKey: ConfigTableKey, isManualRefresh = false) => {
     if (tableKey === 'Rollover') return;
@@ -149,21 +178,94 @@ export const Configuration: React.FC = () => {
 
   // Open Form for Editing
   const handleEditRecord = (record: any) => {
-    setEditFormData({ ...record });
+    const clone = { ...record };
+    setEditFormData(clone);
     setIsCreatingNew(false);
+    setIsAdvancedSectionExpanded(false);
+
+    // Parse Properties for Item Masterlist
+    if (activeTab === 'Item') {
+      let pairs: { key: string; value: string }[] = [];
+      const propVal = clone.Properties;
+      if (propVal) {
+        try {
+          const parsed = typeof propVal === 'string' ? JSON.parse(propVal) : propVal;
+          if (typeof parsed === 'object' && parsed !== null) {
+            pairs = Object.entries(parsed).map(([k, v]) => ({ key: k, value: String(v) }));
+          }
+        } catch {
+          pairs = [];
+        }
+      }
+      setItemPropertiesPairs(pairs);
+    }
+
     setIsEditing(true);
   };
 
   // Open Form for Creating
   const handleCreateNew = () => {
-    setEditFormData({ Status: 'ACTIVE', Is_Active: true });
+    const defaultData: Record<string, any> = { Status: 'ACTIVE', Is_Active: true };
+    if (activeTab === 'Item') {
+      defaultData.Inventory_Type_Code = 'CNS';
+      defaultData.Category_ID = 'PLB';
+      defaultData.System = 'Plumbing & Sanitary';
+      defaultData.Component = 'Piping Network';
+      defaultData.UOM = 'pc';
+      defaultData.Properties = '{}';
+      setItemPropertiesPairs([]);
+    }
+    setEditFormData(defaultData);
     setIsCreatingNew(true);
+    setIsAdvancedSectionExpanded(false);
     setIsEditing(true);
+  };
+
+  // Helper to compute Property Fingerprint live
+  const computeItemFingerprint = (data: Record<string, any>) => {
+    const cat = (data.Category_ID || 'GEN').toUpperCase().trim();
+    const brand = (data.Brand || 'GEN').toUpperCase().trim();
+    const model = (data.Model || 'GEN').toUpperCase().trim();
+    const variant = (data.Variant || 'STD').toUpperCase().trim();
+    return `${cat}|${brand}|${model}|${variant}`.replace(/\s+/g, '_');
+  };
+
+  // Helper to compute Item SKU live
+  const computeItemSku = (data: Record<string, any>) => {
+    if (data.SKU && !isCreatingNew) return data.SKU;
+    const type = data.Inventory_Type_Code || 'CNS';
+    const cat = data.Category_ID || 'PLB';
+    const id = data.ID ? String(data.ID).replace(/^ITM-/, '') : '####';
+    return `${type}-${cat}-${id}`;
   };
 
   // Trigger Save with Confirmation
   const promptSaveConfirmation = () => {
-    const idVal = editFormData[currentTabDef.idField] || 'New';
+    const payloadData = { ...editFormData };
+
+    // If active tab is Item, serialize interactive properties pairs into JSON string
+    if (activeTab === 'Item') {
+      const obj: Record<string, string> = {};
+      itemPropertiesPairs.forEach(p => {
+        if (p.key.trim()) {
+          obj[p.key.trim()] = p.value.trim();
+        }
+      });
+      payloadData.Properties = JSON.stringify(obj);
+
+      // Auto update surrogate keys
+      if (!payloadData.Property_Fingerprint) {
+        payloadData.Property_Fingerprint = computeItemFingerprint(payloadData);
+      }
+      if (!payloadData.SKU) {
+        payloadData.SKU = computeItemSku(payloadData);
+      }
+      if (!payloadData.Search_Tags && payloadData.Name) {
+        payloadData.Search_Tags = `${payloadData.Name}, ${payloadData.Brand || ''}, ${payloadData.Model || ''}`.toLowerCase();
+      }
+    }
+
+    const idVal = payloadData[currentTabDef.idField] || 'New';
     const actionLabel = isCreatingNew ? 'create' : 'update';
 
     setConfirmModal({
@@ -177,7 +279,7 @@ export const Configuration: React.FC = () => {
           await apiRequest('config:saveRecord', {
             table: currentTabDef.key,
             idField: currentTabDef.idField,
-            record: editFormData
+            record: payloadData
           });
           invalidateCache(`config:${currentTabDef.key}`);
           invalidateCache('catalog:items');
@@ -288,35 +390,40 @@ export const Configuration: React.FC = () => {
             key: 'actions',
             label: 'Actions',
             align: 'right',
-            minWidth: isHeadAdmin ? '180px' : '90px',
+            minWidth: isHeadAdmin ? '110px' : '60px',
             render: (r) => (
-              <div className="d-flex justify-content-end gap-1">
+              <div className="d-flex justify-content-end align-items-center gap-1">
                 <button
                   type="button"
-                  className="btn btn-outline-primary btn-sm py-0 px-2"
-                  style={{ height: '26px', fontSize: '0.75rem' }}
-                  onClick={() => setViewingItem(r)}
-                  title="View item technical specs and properties"
+                  className="btn-icon-action action-view"
+                  onClick={() => {
+                    setIsPropertiesExpanded(false);
+                    setViewingItem(r);
+                  }}
+                  title="View specification details"
+                  aria-label="View specification details"
                 >
-                  <i className="bi bi-eye me-1"></i>View
+                  <i className="bi bi-eye"></i>
                 </button>
                 {isHeadAdmin && (
                   <>
                     <button
                       type="button"
-                      className="btn btn-outline-secondary btn-sm py-0 px-2"
-                      style={{ height: '26px', fontSize: '0.75rem' }}
+                      className="btn-icon-action action-edit"
                       onClick={() => handleEditRecord(r)}
+                      title="Edit record"
+                      aria-label="Edit record"
                     >
-                      <i className="bi bi-pencil me-1"></i>Edit
+                      <i className="bi bi-pencil"></i>
                     </button>
                     <button
                       type="button"
-                      className="btn btn-outline-danger btn-sm py-0 px-2"
-                      style={{ height: '26px', fontSize: '0.75rem' }}
+                      className="btn-icon-action action-delete"
                       onClick={() => promptDeleteConfirmation(r)}
+                      title="Archive record"
+                      aria-label="Archive record"
                     >
-                      <i className="bi bi-archive me-1"></i>Archive
+                      <i className="bi bi-archive"></i>
                     </button>
                   </>
                 )}
@@ -334,13 +441,13 @@ export const Configuration: React.FC = () => {
           { key: 'Email', label: 'Email Address', align: 'left', minWidth: '180px', render: (r) => r.Email || '—' },
           { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status || 'ACTIVE'}</span> },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -403,13 +510,13 @@ export const Configuration: React.FC = () => {
             }
           },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -423,13 +530,13 @@ export const Configuration: React.FC = () => {
           { key: 'Name', label: 'Category Name', align: 'left', minWidth: '200px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.Category_Name}</span> },
           { key: 'Description', label: 'Description', align: 'left', minWidth: '260px', render: (r) => r.Description || '—' },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -443,13 +550,13 @@ export const Configuration: React.FC = () => {
           { key: 'Category', label: 'Dimension Category', align: 'left', minWidth: '160px', sortable: true, render: (r) => r.Category || r.UOM_Category_ID || '—' },
           { key: 'Description', label: 'Description', align: 'left', minWidth: '240px', render: (r) => r.Description || '—' },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -462,13 +569,13 @@ export const Configuration: React.FC = () => {
           { key: 'Name', label: 'Category Name', align: 'left', minWidth: '180px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.UOM_Category_Name}</span> },
           { key: 'Description', label: 'Description', align: 'left', minWidth: '260px', render: (r) => r.Description || '—' },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -481,13 +588,13 @@ export const Configuration: React.FC = () => {
           { key: 'Name', label: 'Location Name', align: 'left', minWidth: '220px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.Location_Name}</span> },
           { key: 'Description', label: 'Description', align: 'left', minWidth: '280px', render: (r) => r.Description || '—' },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -516,13 +623,13 @@ export const Configuration: React.FC = () => {
           { key: 'Status', label: 'Status', align: 'center', minWidth: '95px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status || 'ACTIVE'}</span> },
           { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{r.Created_At || '—'}</span> },
           ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
-              <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
                 </button>
               </div>
             )
@@ -644,94 +751,143 @@ export const Configuration: React.FC = () => {
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}>
           <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div className="modal-content border shadow-sm">
+              {/* Modal Header: SKU removed as requested */}
               <div className="modal-header py-3 px-4 bg-light border-bottom">
-                <div>
-                  <h6 className="modal-title fw-bold text-dark mb-0">Item Specification Details</h6>
-                  <span className="small text-muted font-monospace">{viewingItem.SKU || viewingItem.ID}</span>
-                </div>
+                <h6 className="modal-title fw-bold text-dark mb-0">Item Specification Details</h6>
                 <button type="button" className="btn-close" onClick={() => setViewingItem(null)}></button>
               </div>
 
               <div className="modal-body p-4">
-                <div className="row g-3">
-                  <div className="col-12 col-md-6">
-                    <label className="form-label small text-muted mb-0">Item Name</label>
-                    <div className="fw-semibold text-dark">{viewingItem.Name || '—'}</div>
+                {/* Section 1: Item Information (Flush List Group) */}
+                <div className="mb-4">
+                  <div className="text-uppercase text-muted fw-bold mb-2 small" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
+                    Item Information
                   </div>
-                  <div className="col-12 col-md-3">
-                    <label className="form-label small text-muted mb-0">Brand</label>
-                    <div className="text-dark">{viewingItem.Brand || '—'}</div>
-                  </div>
-                  <div className="col-12 col-md-3">
-                    <label className="form-label small text-muted mb-0">Model</label>
-                    <div className="text-dark">{viewingItem.Model || '—'}</div>
-                  </div>
-
-                  <div className="col-12 col-md-4">
-                    <label className="form-label small text-muted mb-0">Variant</label>
-                    <div className="text-dark">{viewingItem.Variant || '—'}</div>
-                  </div>
-                  <div className="col-12 col-md-4">
-                    <label className="form-label small text-muted mb-0">Default UOM</label>
-                    <div><span className="badge bg-light text-dark border font-monospace">{viewingItem.UOM || '—'}</span></div>
-                  </div>
-                  <div className="col-12 col-md-4">
-                    <label className="form-label small text-muted mb-0">Status</label>
-                    <div>
+                  <ul className="list-group list-group-flush border rounded-2 overflow-hidden">
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Item SKU</span>
+                      <span className="font-monospace fw-semibold text-dark">{viewingItem.SKU || viewingItem.ID || '—'}</span>
+                    </li>
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Product Name</span>
+                      <span className="fw-medium text-dark text-end">{viewingItem.Name || '—'}</span>
+                    </li>
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Brand & Model</span>
+                      <span className="text-dark text-end">
+                        {viewingItem.Brand || '—'} {viewingItem.Model ? `• ${viewingItem.Model}` : ''}
+                      </span>
+                    </li>
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Variant</span>
+                      <span className="text-dark">{viewingItem.Variant || 'Standard'}</span>
+                    </li>
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Unit of Measurement (UOM)</span>
+                      <span className="badge bg-light text-dark border font-monospace px-2">{viewingItem.UOM || '—'}</span>
+                    </li>
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Status</span>
                       <span className={`badge ${viewingItem.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>
                         {viewingItem.Status || 'ACTIVE'}
                       </span>
-                    </div>
-                  </div>
-
-                  <div className="col-12 col-md-6">
-                    <label className="form-label small text-muted mb-0">Product Category</label>
-                    <div className="fw-medium text-dark">{viewingItem.Category_Name || viewingItem.Category_ID || '—'}</div>
-                  </div>
-                  <div className="col-12 col-md-6">
-                    <label className="form-label small text-muted mb-0">Classification Type</label>
-                    <div className="font-monospace text-dark">{viewingItem.Inventory_Type_Code || '—'}</div>
-                  </div>
-
-                  {viewingItem.System && (
-                    <div className="col-12 col-md-6">
-                      <label className="form-label small text-muted mb-0">System Classification</label>
-                      <div className="text-dark">{viewingItem.System}</div>
-                    </div>
-                  )}
-
-                  {viewingItem.Component && (
-                    <div className="col-12 col-md-6">
-                      <label className="form-label small text-muted mb-0">Component</label>
-                      <div className="text-dark">{viewingItem.Component}</div>
-                    </div>
-                  )}
-
-                  {viewingItem.Property_Fingerprint && (
-                    <div className="col-12">
-                      <label className="form-label small text-muted mb-0">Property Fingerprint (Surrogate Key)</label>
-                      <div className="font-monospace small bg-light p-2 rounded border text-muted">{viewingItem.Property_Fingerprint}</div>
-                    </div>
-                  )}
-
-                  {viewingItem.Search_Tags && (
-                    <div className="col-12">
-                      <label className="form-label small text-muted mb-0">Search Tags</label>
-                      <div className="small text-secondary">{viewingItem.Search_Tags}</div>
-                    </div>
-                  )}
-
-                  {viewingItem.Properties && (
-                    <div className="col-12">
-                      <label className="form-label small text-muted mb-1">Extended Technical Properties (JSON)</label>
-                      <pre className="bg-light p-2 rounded border font-monospace small mb-0" style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                        {typeof viewingItem.Properties === 'string'
-                          ? viewingItem.Properties
-                          : JSON.stringify(viewingItem.Properties, null, 2)}
-                      </pre>
-                    </div>
-                  )}
+                    </li>
+                  </ul>
                 </div>
+
+                {/* Section 2: Product Category & Classification (Flush List Group) */}
+                <div className="mb-4">
+                  <div className="text-uppercase text-muted fw-bold mb-2 small" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
+                    Category & Classification
+                  </div>
+                  <ul className="list-group list-group-flush border rounded-2 overflow-hidden">
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Product Category</span>
+                      <span className="fw-medium text-dark">{viewingItem.Category_Name || viewingItem.Category_ID || '—'}</span>
+                    </li>
+                    <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <span className="text-muted small">Inventory Type Code</span>
+                      <span className="badge bg-secondary-subtle text-secondary border font-monospace">{viewingItem.Inventory_Type_Code || '—'}</span>
+                    </li>
+                    {viewingItem.System && (
+                      <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                        <span className="text-muted small">System Classification</span>
+                        <span className="text-dark">{viewingItem.System}</span>
+                      </li>
+                    )}
+                    {viewingItem.Component && (
+                      <li className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                        <span className="text-muted small">Component / Machinery</span>
+                        <span className="text-dark">{viewingItem.Component}</span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Section 3: Collapsible Properties (Collapsed by default) */}
+                <div className="mb-3">
+                  <div className="border rounded-2 overflow-hidden">
+                    <button
+                      type="button"
+                      className="w-100 btn btn-light text-start py-2 px-3 d-flex justify-content-between align-items-center border-0 rounded-0"
+                      onClick={() => setIsPropertiesExpanded(!isPropertiesExpanded)}
+                    >
+                      <span className="fw-semibold text-dark small">
+                        <i className="bi bi-sliders me-2 text-primary"></i>Properties
+                      </span>
+                      <i className={`bi bi-chevron-down text-muted small transition-all ${isPropertiesExpanded ? 'rotate-180' : ''}`}></i>
+                    </button>
+
+                    {isPropertiesExpanded && (
+                      <div className="p-3 border-top bg-white">
+                        {(() => {
+                          let parsedProps: Record<string, any> = {};
+                          if (viewingItem.Properties) {
+                            try {
+                              parsedProps = typeof viewingItem.Properties === 'string'
+                                ? JSON.parse(viewingItem.Properties)
+                                : viewingItem.Properties;
+                            } catch {
+                              parsedProps = {};
+                            }
+                          }
+                          const propKeys = Object.keys(parsedProps);
+                          if (propKeys.length === 0) {
+                            return <div className="text-muted small fst-italic">No custom properties defined for this item.</div>;
+                          }
+                          return (
+                            <ul className="list-group list-group-flush mb-0">
+                              {propKeys.map(key => (
+                                <li key={key} className="list-group-item d-flex justify-content-between align-items-center py-2 px-0">
+                                  <span className="text-muted small">{key.replace(/_/g, ' ')}</span>
+                                  <span className="fw-medium text-dark font-monospace small">{String(parsedProps[key])}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 4: Technical Identifiers (Subdued) */}
+                {(viewingItem.Property_Fingerprint || viewingItem.Search_Tags) && (
+                  <div className="p-3 bg-light rounded-2 border small">
+                    {viewingItem.Property_Fingerprint && (
+                      <div className="mb-2">
+                        <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Property Fingerprint:</span>
+                        <code className="text-dark font-monospace">{viewingItem.Property_Fingerprint}</code>
+                      </div>
+                    )}
+                    {viewingItem.Search_Tags && (
+                      <div>
+                        <span className="text-muted d-block" style={{ fontSize: '0.72rem' }}>Search Tags:</span>
+                        <span className="text-secondary">{viewingItem.Search_Tags}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer py-2 px-4 bg-light border-top d-flex justify-content-between align-items-center">
@@ -762,7 +918,7 @@ export const Configuration: React.FC = () => {
       {/* Edit / Create Modal Form */}
       {isEditing && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div className="modal-content border shadow-sm">
               <div className="modal-header py-3 px-4 bg-light border-bottom">
                 <h6 className="modal-title fw-bold text-dark mb-0">
@@ -772,20 +928,338 @@ export const Configuration: React.FC = () => {
               </div>
 
               <div className="modal-body p-4">
-                <div className="row g-3">
-                  {Object.keys(editFormData).filter(k => k !== 'actions').map(k => (
-                    <div key={k} className="col-12 col-md-6">
-                      <label className="form-label small text-muted mb-1">{k.replace(/_/g, ' ')}</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        value={editFormData[k] !== undefined && editFormData[k] !== null ? String(editFormData[k]) : ''}
-                        disabled={!isCreatingNew && k === currentTabDef.idField}
-                        onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
-                      />
+                {/* Specialized Sectioned Layout for Item Masterlist */}
+                {activeTab === 'Item' ? (
+                  <div className="d-flex flex-column gap-4">
+                    {/* Section 1: Product Information */}
+                    <div>
+                      <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                        <h6 className="fw-bold text-dark mb-0">
+                          <i className="bi bi-box me-2 text-primary"></i>Product Information
+                        </h6>
+                        {/* Live Item SKU Preview */}
+                        <div className="d-flex align-items-center gap-1">
+                          <span className="small text-muted">SKU:</span>
+                          <span className="badge bg-light text-dark border font-monospace">
+                            {computeItemSku(editFormData)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="row g-3">
+                        <div className="col-12">
+                          <label className="form-label small text-muted mb-1">Item Name *</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="e.g. PPR Pipe 1/2in x 4m"
+                            value={editFormData.Name || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, Name: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small text-muted mb-1">Brand</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="e.g. Pipelife"
+                            value={editFormData.Brand || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, Brand: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small text-muted mb-1">Model</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="e.g. PN20"
+                            value={editFormData.Model || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, Model: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-4">
+                          <label className="form-label small text-muted mb-1">Variant</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="e.g. Green / Hot & Cold"
+                            value={editFormData.Variant || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, Variant: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-6">
+                          <label className="form-label small text-muted mb-1">Unit of Measurement (UOM) *</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={editFormData.UOM || 'pc'}
+                            onChange={(e) => setEditFormData({ ...editFormData, UOM: e.target.value })}
+                          >
+                            {lookupUoms.length > 0 ? (
+                              lookupUoms.map((u: any) => (
+                                <option key={u.Unit || u.ID} value={u.Unit || u.ID}>
+                                  {u.Unit || u.ID} — {u.Name}
+                                </option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="pc">pc — Piece</option>
+                                <option value="box">box — Box</option>
+                                <option value="mtr">mtr — Meter</option>
+                                <option value="set">set — Set / Kit</option>
+                                <option value="cyl">cyl — Cylinder</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Interactive Properties Key-Value Pair Editor */}
+                      <div className="mt-3 p-3 bg-light rounded-2 border">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <label className="form-label small fw-semibold text-dark mb-0">
+                            <i className="bi bi-tags me-1 text-primary"></i>Properties (Key-Value Specifications)
+                          </label>
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm py-0 px-2"
+                            style={{ fontSize: '0.75rem', height: '24px' }}
+                            onClick={() => setItemPropertiesPairs([...itemPropertiesPairs, { key: '', value: '' }])}
+                          >
+                            <i className="bi bi-plus me-1"></i>Add Property
+                          </button>
+                        </div>
+
+                        {itemPropertiesPairs.length === 0 ? (
+                          <div className="text-muted small fst-italic py-1">
+                            No custom technical properties added. Click "Add Property" to attach specifications (e.g. pressure_rating, voltage, size).
+                          </div>
+                        ) : (
+                          <div className="d-flex flex-column gap-2 mt-2">
+                            {itemPropertiesPairs.map((pair, idx) => (
+                              <div key={idx} className="d-flex align-items-center gap-2">
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm font-monospace"
+                                  placeholder="Property Key (e.g. diameter)"
+                                  style={{ maxWidth: '200px' }}
+                                  value={pair.key}
+                                  onChange={(e) => {
+                                    const next = [...itemPropertiesPairs];
+                                    next[idx].key = e.target.value;
+                                    setItemPropertiesPairs(next);
+                                  }}
+                                />
+                                <span className="text-muted">:</span>
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm flex-grow-1"
+                                  placeholder="Value (e.g. 1/2in)"
+                                  value={pair.value}
+                                  onChange={(e) => {
+                                    const next = [...itemPropertiesPairs];
+                                    next[idx].value = e.target.value;
+                                    setItemPropertiesPairs(next);
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="btn-icon-action action-delete"
+                                  title="Remove property"
+                                  onClick={() => setItemPropertiesPairs(itemPropertiesPairs.filter((_, i) => i !== idx))}
+                                >
+                                  <i className="bi bi-trash3"></i>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Section 2: Product Category & System */}
+                    <div>
+                      <div className="mb-3 border-bottom pb-2">
+                        <h6 className="fw-bold text-dark mb-0">
+                          <i className="bi bi-diagram-3 me-2 text-primary"></i>Product Category & Hierarchy
+                        </h6>
+                      </div>
+
+                      <div className="row g-3">
+                        <div className="col-12 col-md-6">
+                          <label className="form-label small text-muted mb-1">System (Engineering Domain) *</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={editFormData.System || 'Plumbing & Sanitary'}
+                            onChange={(e) => setEditFormData({ ...editFormData, System: e.target.value })}
+                          >
+                            <option value="Plumbing & Sanitary">Plumbing & Sanitary</option>
+                            <option value="Electrical & Power">Electrical & Power</option>
+                            <option value="HVAC & Refrigeration">HVAC & Refrigeration</option>
+                            <option value="Fire Protection">Fire Protection</option>
+                            <option value="Lifting System">Lifting System</option>
+                            <option value="Civil & Architectural">Civil & Architectural</option>
+                            <option value="Auxiliary & IT">Auxiliary & IT</option>
+                          </select>
+                        </div>
+
+                        <div className="col-12 col-md-6">
+                          <label className="form-label small text-muted mb-1">Component / Subsystem *</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="e.g. Piping Network, Air Handling Unit"
+                            value={editFormData.Component || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, Component: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="col-12 col-md-6">
+                          <label className="form-label small text-muted mb-1">Inventory Category (Trade) *</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={editFormData.Category_ID || 'PLB'}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              const matched = lookupCategories.find(c => (c.ID || c.Category_ID) === selectedId);
+                              setEditFormData({
+                                ...editFormData,
+                                Category_ID: selectedId,
+                                Category_Name: matched ? (matched.Name || matched.Category_Name) : editFormData.Category_Name
+                              });
+                            }}
+                          >
+                            {lookupCategories.length > 0 ? (
+                              lookupCategories.map((c: any) => (
+                                <option key={c.ID || c.Category_ID} value={c.ID || c.Category_ID}>
+                                  {c.ID || c.Category_ID} — {c.Name || c.Category_Name}
+                                </option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="PLB">PLB — Plumbing Supplies</option>
+                                <option value="ELE">ELE — Electrical Supplies</option>
+                                <option value="HVA">HVA — HVAC & Refrigeration</option>
+                                <option value="CIV">CIV — Civil & Masonry</option>
+                                <option value="PWR">PWR — Power Tools</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+
+                        <div className="col-12 col-md-6">
+                          <label className="form-label small text-muted mb-1">Inventory Type *</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={editFormData.Inventory_Type_Code || 'CNS'}
+                            onChange={(e) => setEditFormData({ ...editFormData, Inventory_Type_Code: e.target.value })}
+                          >
+                            {lookupTypes.length > 0 ? (
+                              lookupTypes.map((t: any) => (
+                                <option key={t.ID || t.code} value={t.ID || t.code}>
+                                  {t.ID || t.code} — {t.Name || t.name}
+                                </option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="CNS">CNS — Consumables</option>
+                                <option value="TLS">TLS — Tools & Equipment</option>
+                                <option value="SPR">SPR — Spare Parts</option>
+                                <option value="MSC">MSC — Miscellaneous</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 3: Advanced (Collapsible, Collapsed by Default) */}
+                    <div className="border rounded-2 overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-100 btn btn-light text-start py-2 px-3 d-flex justify-content-between align-items-center border-0 rounded-0"
+                        onClick={() => setIsAdvancedSectionExpanded(!isAdvancedSectionExpanded)}
+                      >
+                        <span className="fw-semibold text-dark small">
+                          <i className="bi bi-gear me-2 text-secondary"></i>Advanced Identifiers & Metadata
+                        </span>
+                        <i className={`bi bi-chevron-down text-muted small transition-all ${isAdvancedSectionExpanded ? 'rotate-180' : ''}`}></i>
+                      </button>
+
+                      {isAdvancedSectionExpanded && (
+                        <div className="p-3 border-top bg-white">
+                          <div className="row g-3">
+                            <div className="col-12 col-md-6">
+                              <label className="form-label small text-muted mb-1">Item ID (PK)</label>
+                              <input
+                                type="text"
+                                className="form-control form-control-sm font-monospace"
+                                disabled={!isCreatingNew}
+                                value={editFormData.ID || ''}
+                                placeholder="Auto-generated (e.g. ITM-0001)"
+                                onChange={(e) => setEditFormData({ ...editFormData, ID: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="col-12 col-md-6">
+                              <label className="form-label small text-muted mb-1">Status</label>
+                              <select
+                                className="form-select form-select-sm"
+                                value={editFormData.Status || 'ACTIVE'}
+                                onChange={(e) => setEditFormData({ ...editFormData, Status: e.target.value })}
+                              >
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                                <option value="DISCONTINUED">DISCONTINUED</option>
+                                <option value="PHASED_OUT">PHASED_OUT</option>
+                              </select>
+                            </div>
+
+                            <div className="col-12">
+                              <label className="form-label small text-muted mb-1">Property Fingerprint (Surrogate Key)</label>
+                              <input
+                                type="text"
+                                className="form-control form-control-sm font-monospace"
+                                value={editFormData.Property_Fingerprint || computeItemFingerprint(editFormData)}
+                                onChange={(e) => setEditFormData({ ...editFormData, Property_Fingerprint: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="col-12">
+                              <label className="form-label small text-muted mb-1">Search Tags (Comma-separated)</label>
+                              <input
+                                type="text"
+                                className="form-control form-control-sm"
+                                placeholder="ppr, pipe, water, plumbing"
+                                value={editFormData.Search_Tags || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, Search_Tags: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Standard Dynamic Form for other Configuration tabs */
+                  <div className="row g-3">
+                    {Object.keys(editFormData).filter(k => k !== 'actions').map(k => (
+                      <div key={k} className="col-12 col-md-6">
+                        <label className="form-label small text-muted mb-1">{k.replace(/_/g, ' ')}</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          value={editFormData[k] !== undefined && editFormData[k] !== null ? String(editFormData[k]) : ''}
+                          disabled={!isCreatingNew && k === currentTabDef.idField}
+                          onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer py-2 px-4 bg-light border-top d-flex justify-content-end gap-2">

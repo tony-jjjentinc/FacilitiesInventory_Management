@@ -33,12 +33,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light p-3">
       <div className="card border shadow-sm p-4 p-md-5" style={{ maxWidth: '400px', width: '100%', borderRadius: '8px' }}>
         <div className="text-center mb-4">
-          <Logo size={42} className="mb-3" />
+          <Logo size={96} variant="default" className="mb-3" />
           <h5 className="fw-bold mb-1 text-dark">Facilities Inventory Management</h5>
           <div className="d-flex align-items-center justify-content-center gap-2 small text-muted">
             <span>Management Dashboard</span>
-            <span>•</span>
-            <span className="badge bg-secondary-subtle text-secondary border">v1.0.0</span>
+            <span>v1.0.0</span>
           </div>
         </div>
 

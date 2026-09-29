@@ -146,23 +146,27 @@ body {
   font-weight: 500;
   color: #64748b;
   text-decoration: none;
-  padding: 0.35rem 0.65rem;
-  border-radius: 6px;
-  transition: all 0.15s ease-in-out;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0px;
+  transition: all 0.18s ease-in-out;
   background: transparent;
   border: none;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .nav-tab-link:hover {
-  color: #1e293b;
-  background-color: #f1f5f9;
+  color: #0f172a;
+  background-color: rgba(24, 68, 33, 0.05);
 }
 
 .nav-tab-link.active {
   color: var(--bs-primary, #184421);
-  background-color: rgba(24, 68, 33, 0.08);
+  background-color: rgba(24, 68, 33, 0.1);
   font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--bs-primary, #184421);
 }
 
 /* User avatar pill */
@@ -178,9 +182,70 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 0.2s ease-in-out;
 }
 
+.user-profile-trigger {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 2px 6px;
+  transition: all 0.18s ease-in-out;
+  cursor: pointer;
+}
+
+.user-profile-trigger:hover,
+.user-profile-trigger.active {
+  background-color: rgba(241, 245, 249, 0.8);
+  border-color: #e2e8f0;
+}
+
+/* Data Table Action Buttons - Borderless with Hover Glow */
+.btn-icon-action {
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  color: #64748b;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.95rem;
+}
+
+.btn-icon-action:hover {
+  background-color: #f8fafc;
+}
+
+/* Specific glows per action */
+.btn-icon-action.action-view:hover {
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.12);
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.45));
+}
+
+.btn-icon-action.action-edit:hover {
+  color: #0284c7;
+  background-color: rgba(2, 132, 199, 0.12);
+  filter: drop-shadow(0 0 6px rgba(2, 132, 199, 0.45));
+}
+
+.btn-icon-action.action-delete:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.12);
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.45));
+}
+
+.btn-icon-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: none !important;
+}
 
 .nowrap {
   white-space: nowrap;
 }
+

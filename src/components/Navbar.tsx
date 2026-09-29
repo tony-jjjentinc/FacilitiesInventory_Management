@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { UserClaims } from '../types';
 import { NotificationBell } from './NotificationBell';
 import { Logo } from './Logo';
@@ -12,6 +12,24 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, onLogout }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close account dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    if (accountMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [accountMenuOpen]);
 
   const isHeadOrAdmin = user?.roles?.some(r =>
     ['Super Admin', 'Head'].includes(r.trim())
@@ -33,6 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
   const handleNavClick = (tabId: string) => {
     onSelectTab(tabId);
     setMobileOpen(false);
+    setAccountMenuOpen(false);
   };
 
   // Extract initials for the avatar badge
@@ -45,17 +64,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
 
   return (
     <>
-      <header className="bg-white border-bottom sticky-top py-2 px-3">
-        <div className="container-fluid d-flex align-items-center justify-content-between">
+      <header className="bg-white border-bottom sticky-top py-2 px-2 px-md-3">
+        <div className="container-fluid d-flex align-items-center justify-content-between p-0">
           {/* Left Section: Mobile Toggle, Brand Logo, System Name, Version Badge */}
-          <div className="d-flex align-items-center gap-2" style={{ minWidth: '260px' }}>
+          <div className="d-flex align-items-center gap-2" style={{ flexShrink: 0 }}>
             <button
-              className="btn btn-sm btn-outline-secondary d-lg-none me-1"
+              className="btn btn-sm btn-outline-secondary d-lg-none p-1 border-0"
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label="Toggle navigation menu"
             >
-              <i className="bi bi-list fs-5"></i>
+              <i className="bi bi-list fs-4 text-dark"></i>
             </button>
 
             <div
@@ -65,15 +84,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
             >
               <Logo size={28} />
               <div className="d-flex flex-column">
-                <div className="d-flex align-items-center gap-2">
-                  <span className="fw-bold lh-1 text-dark" style={{ fontSize: '0.925rem', letterSpacing: '-0.01em' }}>
+                <div className="d-flex align-items-center gap-1 gap-sm-2 flex-wrap">
+                  <span className="fw-bold lh-1 text-dark" style={{ fontSize: '0.9rem', letterSpacing: '-0.01em' }}>
                     Facilities Inventory
                   </span>
-                  <span className="badge bg-secondary-subtle text-secondary border px-1 py-0" style={{ fontSize: '0.65rem' }}>
+                  <span className="badge bg-secondary-subtle text-secondary border px-1 py-0 d-none d-sm-inline" style={{ fontSize: '0.62rem' }}>
                     v1.0.0
                   </span>
                 </div>
-                <span className="text-muted small" style={{ fontSize: '0.72rem', marginTop: '1px' }}>
+                <span className="text-muted d-none d-sm-block" style={{ fontSize: '0.7rem', marginTop: '2px' }}>
                   Management Dashboard
                 </span>
               </div>
@@ -81,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
           </div>
 
           {/* Center Section: Navigation Options (Desktop) */}
-          <nav className="d-none d-lg-flex align-items-center justify-content-center gap-1 flex-grow-1 mx-3" aria-label="Main Navigation">
+          <nav className="d-none d-lg-flex align-items-center justify-content-center gap-1 flex-grow-1 mx-2" aria-label="Main Navigation">
             {navItems.map((item) => {
               const isActive = currentTab === item.id;
               return (
@@ -91,44 +110,97 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
                   className={`nav-tab-link ${isActive ? 'active' : ''}`}
                   onClick={() => handleNavClick(item.id)}
                 >
-                  {item.label}
+                  <i className={`bi ${item.icon} ${isActive ? 'text-primary' : 'text-muted'}`} style={{ fontSize: '0.85rem' }}></i>
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
           {/* Right Section: Notifications & Account Profile */}
-          <div className="d-flex align-items-center justify-content-end gap-2" style={{ minWidth: '240px' }}>
+          <div className="d-flex align-items-center justify-content-end gap-1 gap-sm-2" style={{ flexShrink: 0 }}>
             <NotificationBell onNavigate={(route) => handleNavClick(route.replace('/', ''))} />
 
             {user && (
-              <div className="d-flex align-items-center gap-2 border-start ps-2 ms-1">
-                {/* User Avatar & Details */}
-                <div className="d-flex align-items-center gap-2">
-                  <div className="user-avatar-badge" title={user.name}>
+              <div className="position-relative ms-1" ref={accountMenuRef}>
+                {/* Account Profile Trigger Button */}
+                <button
+                  type="button"
+                  className={`user-profile-trigger d-flex align-items-center gap-2 ${accountMenuOpen ? 'active' : ''}`}
+                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                  aria-expanded={accountMenuOpen}
+                  aria-label="User account menu"
+                  title={`${user.name} (${user.roles?.[0] || 'User'})`}
+                >
+                  <div className="user-avatar-badge">
                     {userInitials}
                   </div>
-                  <div className="d-none d-xl-block text-start lh-sm">
-                    <div className="fw-semibold text-dark text-truncate" style={{ fontSize: '0.8rem', maxWidth: '140px' }} title={user.name}>
+                  <div className="d-none d-md-block text-start lh-sm" style={{ maxWidth: '130px' }}>
+                    <div className="fw-semibold text-dark text-truncate" style={{ fontSize: '0.78rem' }}>
                       {user.name}
                     </div>
-                    <div className="text-muted text-truncate" style={{ fontSize: '0.7rem', maxWidth: '140px' }}>
+                    <div className="text-muted text-truncate" style={{ fontSize: '0.68rem' }}>
                       {user.roles?.[0] || 'User'}
                     </div>
                   </div>
-                </div>
-
-                {/* Sign Out Button */}
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm ms-1 py-1 px-2"
-                  onClick={onLogout}
-                  title="Sign Out"
-                  style={{ height: '32px' }}
-                >
-                  <i className="bi bi-box-arrow-right"></i>
-                  <span className="d-none d-md-inline ms-1" style={{ fontSize: '0.75rem' }}>Sign Out</span>
+                  <i className={`bi bi-chevron-down text-muted small d-none d-md-inline transition-all ${accountMenuOpen ? 'rotate-180' : ''}`} style={{ fontSize: '0.7rem' }}></i>
                 </button>
+
+                {/* Floating Account Dropdown Menu */}
+                {accountMenuOpen && (
+                  <div
+                    className="dropdown-menu show shadow-lg border p-0 position-absolute end-0 mt-2"
+                    style={{
+                      width: '260px',
+                      zIndex: 1060,
+                      borderRadius: '8px',
+                      animation: 'fadeIn 0.15s ease-out'
+                    }}
+                  >
+                    {/* User Profile Summary Header */}
+                    <div className="p-3 bg-light rounded-top border-bottom">
+                      <div className="d-flex align-items-center gap-2">
+                        <div className="user-avatar-badge" style={{ width: '38px', height: '38px', fontSize: '0.9rem' }}>
+                          {userInitials}
+                        </div>
+                        <div className="lh-sm overflow-hidden flex-grow-1">
+                          <div className="fw-bold text-dark text-truncate" style={{ fontSize: '0.85rem' }}>
+                            {user.name}
+                          </div>
+                          <div className="text-muted small text-truncate" style={{ fontSize: '0.72rem' }}>
+                            {user.email}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="d-flex align-items-center gap-1 mt-2 flex-wrap">
+                        <span className="badge bg-primary-subtle text-primary border" style={{ fontSize: '0.68rem' }}>
+                          {user.roles?.[0] || 'User'}
+                        </span>
+                        {user.department && user.department.length > 0 && (
+                          <span className="badge bg-light text-secondary border" style={{ fontSize: '0.68rem' }}>
+                            {user.department.join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions List */}
+                    <div className="p-2">
+                      <button
+                        type="button"
+                        className="dropdown-item d-flex align-items-center gap-2 py-2 px-3 rounded text-danger"
+                        style={{ fontSize: '0.84rem' }}
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          onLogout();
+                        }}
+                      >
+                        <i className="bi bi-box-arrow-right"></i>
+                        <span className="fw-medium">Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
