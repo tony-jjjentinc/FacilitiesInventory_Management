@@ -361,14 +361,6 @@ export const Configuration: React.FC = () => {
       case 'Item':
         return [
           {
-            key: 'SKU',
-            label: 'Item SKU',
-            align: 'left',
-            minWidth: '130px',
-            sortable: true,
-            render: (r) => <span className="font-monospace fw-semibold text-dark">{r.SKU || r.ID}</span>
-          },
-          {
             key: 'Name',
             label: 'Product Information',
             align: 'left',
@@ -387,6 +379,14 @@ export const Configuration: React.FC = () => {
                 </div>
               );
             }
+          },
+          {
+            key: 'SKU',
+            label: 'SKU',
+            align: 'left',
+            minWidth: '130px',
+            sortable: true,
+            render: (r) => <span className="font-monospace text-dark">{r.SKU || r.ID}</span>
           },
           {
             key: 'UOM',
