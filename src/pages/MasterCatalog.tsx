@@ -61,6 +61,9 @@ export const MasterCatalog: React.FC = () => {
     uom: 'pc',
     propertiesJson: '{}'
   });
+  const [lookupPropertyKeys, setLookupPropertyKeys] = useState<any[]>([]);
+  const [propertiesPairs, setPropertiesPairs] = useState<{ key: string; value: string }[]>([]);
+
   const loadItems = async () => {
     try {
       await fetchWithSwr<RawCatalogItem[]>(
@@ -79,6 +82,13 @@ export const MasterCatalog: React.FC = () => {
 
   useEffect(() => {
     loadItems();
+    apiRequest('config:getTable', { table: 'Inventory_Property_Keys' })
+      .then(res => {
+        if (res.records && Array.isArray(res.records)) {
+          setLookupPropertyKeys(res.records);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Lock body scroll when modal is open
@@ -96,6 +106,13 @@ export const MasterCatalog: React.FC = () => {
   const computedFingerprint = `${formData.categoryId}|${(formData.brand || 'GEN').toUpperCase().trim()}|${(formData.model || 'GEN').toUpperCase().trim()}|${(formData.variant || 'STD').toUpperCase().trim()}`.replace(/\s+/g, '_');
 
   const handleSaveItem = () => {
+    const propsObj: Record<string, string> = {};
+    propertiesPairs.forEach(p => {
+      if (p.key.trim()) {
+        propsObj[p.key.trim()] = p.value.trim();
+      }
+    });
+
     const newItem: RawCatalogItem = {
       ID: `ITM-${String(items.length + 1).padStart(4, '0')}`,
       SKU: `${formData.typeCode}-${formData.categoryId}-${String(items.length + 1).padStart(4, '0')}`,
@@ -103,7 +120,7 @@ export const MasterCatalog: React.FC = () => {
       Brand: formData.brand,
       Model: formData.model,
       Variant: formData.variant,
-      Properties: formData.propertiesJson,
+      Properties: JSON.stringify(propsObj),
       Property_Fingerprint: computedFingerprint,
       Search_Tags: `${formData.name}, ${formData.brand}, ${formData.model}`.toLowerCase(),
       System: formData.system,
@@ -118,6 +135,7 @@ export const MasterCatalog: React.FC = () => {
     invalidateCache('catalog:items');
     setItems([newItem, ...items]);
     setShowModal(false);
+    setPropertiesPairs([]);
     setFormData({
       name: '',
       brand: '',
@@ -240,7 +258,7 @@ export const MasterCatalog: React.FC = () => {
   ];
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
+    <div className="container py-4 px-3 px-md-4">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2 border-bottom">
         <div>
@@ -402,6 +420,101 @@ export const MasterCatalog: React.FC = () => {
                       value={formData.uom}
                       onChange={(e) => setFormData({ ...formData, uom: e.target.value })}
                     />
+                  </div>
+
+                  {/* Authorized Properties Key-Value Specifications */}
+                  <div className="col-12">
+                    <div className="p-3 bg-light rounded-2 border">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <label className="form-label small fw-semibold text-dark mb-0">
+                          Properties (Key-Value Specifications)
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary btn-sm py-0 px-2"
+                          style={{ fontSize: '0.75rem', height: '24px' }}
+                          onClick={() => setPropertiesPairs([...propertiesPairs, { key: '', value: '' }])}
+                        >
+                          <i className="bi bi-plus me-1"></i>Add Property
+                        </button>
+                      </div>
+
+                      {propertiesPairs.length === 0 ? (
+                        <div className="text-muted small fst-italic py-1">
+                          No custom technical properties added. Click "Add Property" to attach specifications (e.g. dimensions, power, volume, weight).
+                        </div>
+                      ) : (
+                        <div className="d-flex flex-column gap-2 mt-2">
+                          {propertiesPairs.map((pair, idx) => {
+                            const matchedKeyDef = lookupPropertyKeys.find(
+                              k => (k.Key || '').toLowerCase() === (pair.key || '').toLowerCase()
+                            );
+                            return (
+                              <div key={idx} className="d-flex align-items-center gap-2">
+                                <div style={{ minWidth: '190px', maxWidth: '240px' }} className="flex-shrink-0">
+                                  <input
+                                    list={`catalog-prop-keys-${idx}`}
+                                    type="text"
+                                    className="form-control form-control-sm font-monospace"
+                                    placeholder="Property Key"
+                                    value={pair.key}
+                                    onChange={(e) => {
+                                      const next = [...propertiesPairs];
+                                      next[idx].key = e.target.value;
+                                      setPropertiesPairs(next);
+                                    }}
+                                  />
+                                  <datalist id={`catalog-prop-keys-${idx}`}>
+                                    {lookupPropertyKeys.length > 0 ? (
+                                      lookupPropertyKeys.map((k: any) => (
+                                        <option key={k.Key} value={k.Key}>
+                                          {k.Label || k.Key} {k.Allowed_Values_or_Unit ? `(${k.Allowed_Values_or_Unit})` : ''}
+                                        </option>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <option value="dimensions">Dimensions (e.g. 2 ft x 3 ft)</option>
+                                        <option value="power">Power Rating (e.g. 750W, 1 HP)</option>
+                                        <option value="volume">Volume / Liquid Capacity (e.g. 1 L, 500 ml)</option>
+                                        <option value="weight">Weight / Mass (e.g. 25 kg, 100 g)</option>
+                                        <option value="current_rating">Current Rating (e.g. 15A, 20A)</option>
+                                        <option value="pack_count">Pack Count (e.g. 5's, 10's)</option>
+                                        <option value="voltage">Voltage Rating (e.g. 220V, 240V)</option>
+                                        <option value="storage_capacity">Storage Capacity (e.g. 16 GB, 1 TB)</option>
+                                      </>
+                                    )}
+                                  </datalist>
+                                </div>
+                                <span className="text-muted">:</span>
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm flex-grow-1"
+                                  placeholder={
+                                    matchedKeyDef?.Allowed_Values_or_Unit
+                                      ? `Value (${matchedKeyDef.Allowed_Values_or_Unit})`
+                                      : 'Value (e.g. 1/2in, 750W, 25 kg)'
+                                  }
+                                  value={pair.value}
+                                  onChange={(e) => {
+                                    const next = [...propertiesPairs];
+                                    next[idx].value = e.target.value;
+                                    setPropertiesPairs(next);
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="btn-icon-action action-delete"
+                                  title="Remove property"
+                                  onClick={() => setPropertiesPairs(propertiesPairs.filter((_, i) => i !== idx))}
+                                >
+                                  <i className="bi bi-trash3"></i>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

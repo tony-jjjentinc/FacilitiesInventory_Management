@@ -11,6 +11,7 @@ type ConfigTableKey =
   | 'Supplier'
   | 'Item_Supplier_and_Pricing'
   | 'Inventory_Category'
+  | 'Inventory_Property_Keys'
   | 'UOM'
   | 'UOM_Category'
   | 'Warehouse_Location'
@@ -29,6 +30,7 @@ const CONFIG_TABS: ConfigTabDef[] = [
   { key: 'Supplier', label: 'Suppliers', idField: 'ID', description: 'Approved vendors, contact personnel, and corporate addresses' },
   { key: 'Item_Supplier_and_Pricing', label: 'Supplier Pricing', idField: 'Record_ID', description: 'Item-supplier links, contract prices, MOQ, and lead times' },
   { key: 'Inventory_Category', label: 'Inventory Categories', idField: 'ID', description: 'Technical trades (PLB, ELE, HVA, CIV, PWR, etc.)' },
+  { key: 'Inventory_Property_Keys', label: 'Property Keys', idField: 'Key', description: 'Authorized specification property keys for technical inventory items' },
   { key: 'UOM', label: 'Units of Measure', idField: 'ID', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
   { key: 'UOM_Category', label: 'UOM Categories', idField: 'ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
   { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
@@ -60,6 +62,7 @@ export const Configuration: React.FC = () => {
   const [lookupUoms, setLookupUoms] = useState<any[]>([]);
   const [lookupCategories, setLookupCategories] = useState<any[]>([]);
   const [lookupTypes, setLookupTypes] = useState<any[]>([]);
+  const [lookupPropertyKeys, setLookupPropertyKeys] = useState<any[]>([]);
 
   // Item preview modal collapsible state
   const [isPropertiesExpanded, setIsPropertiesExpanded] = useState(false);
@@ -102,18 +105,20 @@ export const Configuration: React.FC = () => {
     };
   }, [isAnyModalOpen]);
 
-  // Load lookup options for Item edit modal (UOMs, Categories, Types)
+  // Load lookup options for Item edit modal (UOMs, Categories, Types, Property Keys)
   useEffect(() => {
     const loadLookups = async () => {
       try {
-        const [uomRes, catRes, typeRes] = await Promise.all([
+        const [uomRes, catRes, typeRes, propKeysRes] = await Promise.all([
           apiRequest('config:getTable', { table: 'UOM' }).catch(() => ({ records: [] })),
           apiRequest('config:getTable', { table: 'Inventory_Category' }).catch(() => ({ records: [] })),
-          apiRequest('config:getTable', { table: 'Inventory_Type' }).catch(() => ({ records: [] }))
+          apiRequest('config:getTable', { table: 'Inventory_Type' }).catch(() => ({ records: [] })),
+          apiRequest('config:getTable', { table: 'Inventory_Property_Keys' }).catch(() => ({ records: [] }))
         ]);
         if (uomRes.records && uomRes.records.length > 0) setLookupUoms(uomRes.records);
         if (catRes.records && catRes.records.length > 0) setLookupCategories(catRes.records);
         if (typeRes.records && typeRes.records.length > 0) setLookupTypes(typeRes.records);
+        if (propKeysRes.records && propKeysRes.records.length > 0) setLookupPropertyKeys(propKeysRes.records);
       } catch (err) {
         console.warn('Failed to prefetch lookups:', err);
       }
@@ -227,6 +232,14 @@ export const Configuration: React.FC = () => {
       defaultData.UOM = 'pc';
       defaultData.Properties = '{}';
       setItemPropertiesPairs([]);
+    } else if (activeTab === 'Inventory_Property_Keys') {
+      defaultData.Key = '';
+      defaultData.Label = '';
+      defaultData.Data_Type = 'STRING';
+      defaultData.Category = 'Physical';
+      defaultData.Allowed_Values_or_Unit = '';
+      defaultData.Description = '';
+      defaultData.Status = 'ACTIVE';
     }
     setEditFormData(defaultData);
     setIsCreatingNew(true);
@@ -597,6 +610,72 @@ export const Configuration: React.FC = () => {
           }] : [])
         ];
 
+      case 'Inventory_Property_Keys':
+        return [
+          {
+            key: 'Key',
+            label: 'Property Key',
+            align: 'left',
+            minWidth: '150px',
+            sortable: true,
+            render: (r) => <span className="font-monospace fw-semibold text-dark">{r.Key}</span>
+          },
+          {
+            key: 'Label',
+            label: 'Display Label',
+            align: 'left',
+            minWidth: '160px',
+            sortable: true,
+            render: (r) => <span className="fw-medium text-dark">{r.Label || r.Key}</span>
+          },
+          {
+            key: 'Category',
+            label: 'Category',
+            align: 'left',
+            minWidth: '120px',
+            sortable: true,
+            render: (r) => <span className="badge bg-secondary-subtle text-secondary border">{r.Category || 'General'}</span>
+          },
+          {
+            key: 'Allowed_Values_or_Unit',
+            label: 'Allowed Units / Format',
+            align: 'left',
+            minWidth: '200px',
+            render: (r) => <span className="small text-muted font-monospace">{r.Allowed_Values_or_Unit || '—'}</span>
+          },
+          {
+            key: 'Description',
+            label: 'Description',
+            align: 'left',
+            minWidth: '240px',
+            render: (r) => <span className="small text-muted">{r.Description || '—'}</span>
+          },
+          {
+            key: 'Status',
+            label: 'Status',
+            align: 'center',
+            minWidth: '90px',
+            sortable: true,
+            render: (r) => (
+              <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>
+                {r.Status || 'ACTIVE'}
+              </span>
+            )
+          },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
+                </button>
+                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
+                </button>
+              </div>
+            )
+          }] : [])
+        ];
+
       case 'UOM':
         return [
           { key: 'Unit', label: 'Unit Symbol', align: 'left', minWidth: '100px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.Unit || r.ID || r.UOM_Code}</span> },
@@ -721,7 +800,7 @@ export const Configuration: React.FC = () => {
       </div>
 
       {/* Minimal Underline Tab Navigation */}
-      <nav className="d-flex border-bottom mb-4 overflow-auto" aria-label="Configuration categories" style={{ gap: '1.75rem' }}>
+      <nav className="d-flex border-bottom mb-4" aria-label="Configuration categories" style={{ gap: '1.75rem' }}>
         {CONFIG_TABS.map(tab => {
           const isActive = activeTab === tab.key;
           return (
@@ -1099,46 +1178,79 @@ export const Configuration: React.FC = () => {
 
                         {itemPropertiesPairs.length === 0 ? (
                           <div className="text-muted small fst-italic py-1">
-                            No custom technical properties added. Click "Add Property" to attach specifications (e.g. pressure_rating, voltage, size).
+                            No custom technical properties added. Click "Add Property" to attach specifications (e.g. dimensions, power, volume, weight).
                           </div>
                         ) : (
                           <div className="d-flex flex-column gap-2 mt-2">
-                            {itemPropertiesPairs.map((pair, idx) => (
-                              <div key={idx} className="d-flex align-items-center gap-2">
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm font-monospace"
-                                  placeholder="Property Key (e.g. diameter)"
-                                  style={{ maxWidth: '200px' }}
-                                  value={pair.key}
-                                  onChange={(e) => {
-                                    const next = [...itemPropertiesPairs];
-                                    next[idx].key = e.target.value;
-                                    setItemPropertiesPairs(next);
-                                  }}
-                                />
-                                <span className="text-muted">:</span>
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm flex-grow-1"
-                                  placeholder="Value (e.g. 1/2in)"
-                                  value={pair.value}
-                                  onChange={(e) => {
-                                    const next = [...itemPropertiesPairs];
-                                    next[idx].value = e.target.value;
-                                    setItemPropertiesPairs(next);
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className="btn-icon-action action-delete"
-                                  title="Remove property"
-                                  onClick={() => setItemPropertiesPairs(itemPropertiesPairs.filter((_, i) => i !== idx))}
-                                >
-                                  <i className="bi bi-trash3"></i>
-                                </button>
-                              </div>
-                            ))}
+                            {itemPropertiesPairs.map((pair, idx) => {
+                              const matchedKeyDef = lookupPropertyKeys.find(
+                                k => (k.Key || '').toLowerCase() === (pair.key || '').toLowerCase()
+                              );
+                              return (
+                                <div key={idx} className="d-flex align-items-center gap-2">
+                                  {/* Authorized Property Key Selector / Input */}
+                                  <div style={{ minWidth: '190px', maxWidth: '240px' }} className="flex-shrink-0">
+                                    <input
+                                      list={`prop-keys-datalist-${idx}`}
+                                      type="text"
+                                      className="form-control form-control-sm font-monospace"
+                                      placeholder="Property Key"
+                                      value={pair.key}
+                                      onChange={(e) => {
+                                        const next = [...itemPropertiesPairs];
+                                        next[idx].key = e.target.value;
+                                        setItemPropertiesPairs(next);
+                                      }}
+                                    />
+                                    <datalist id={`prop-keys-datalist-${idx}`}>
+                                      {lookupPropertyKeys.length > 0 ? (
+                                        lookupPropertyKeys.map((k: any) => (
+                                          <option key={k.Key} value={k.Key}>
+                                            {k.Label || k.Key} {k.Allowed_Values_or_Unit ? `(${k.Allowed_Values_or_Unit})` : ''}
+                                          </option>
+                                        ))
+                                      ) : (
+                                        <>
+                                          <option value="dimensions">Dimensions (e.g. 2 ft x 3 ft, 12 in x 9 in)</option>
+                                          <option value="power">Power Rating (e.g. 750W, 1 HP, 650VA)</option>
+                                          <option value="volume">Volume / Liquid Capacity (e.g. 1 L, 500 ml)</option>
+                                          <option value="weight">Weight / Mass (e.g. 25 kg, 100 g, 10 lb)</option>
+                                          <option value="current_rating">Current Rating (e.g. 15A, 20A, 100A)</option>
+                                          <option value="pack_count">Pack Count (e.g. 5's, 10's, 100's)</option>
+                                          <option value="voltage">Voltage Rating (e.g. 220V, 240V, 24 V)</option>
+                                          <option value="storage_capacity">Storage Capacity (e.g. 16 GB, 1 TB)</option>
+                                        </>
+                                      )}
+                                    </datalist>
+                                  </div>
+                                  <span className="text-muted">:</span>
+                                  {/* Property Value Input with hints */}
+                                  <input
+                                    type="text"
+                                    className="form-control form-control-sm flex-grow-1"
+                                    placeholder={
+                                      matchedKeyDef?.Allowed_Values_or_Unit
+                                        ? `Value (${matchedKeyDef.Allowed_Values_or_Unit})`
+                                        : 'Value (e.g. 1/2in, 750W, 25 kg)'
+                                    }
+                                    value={pair.value}
+                                    onChange={(e) => {
+                                      const next = [...itemPropertiesPairs];
+                                      next[idx].value = e.target.value;
+                                      setItemPropertiesPairs(next);
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn-icon-action action-delete"
+                                    title="Remove property"
+                                    onClick={() => setItemPropertiesPairs(itemPropertiesPairs.filter((_, i) => i !== idx))}
+                                  >
+                                    <i className="bi bi-trash3"></i>
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
