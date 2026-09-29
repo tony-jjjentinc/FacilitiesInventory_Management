@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
+import { getCurrentUser } from '../services/auth';
 import { DataTable, type Column } from '../components/DataTable';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { RolloverWizard } from './RolloverWizard';
@@ -24,14 +25,14 @@ interface ConfigTabDef {
 }
 
 const CONFIG_TABS: ConfigTabDef[] = [
-  { key: 'Item', label: 'Master Items', idField: 'ID', description: 'Catalog items, trade categories, and physical classifications' },
-  { key: 'Supplier', label: 'Suppliers', idField: 'Supplier_ID', description: 'Approved vendors, contact personnel, and corporate addresses' },
-  { key: 'Item_Supplier_and_Pricing', label: 'Supplier Pricing', idField: 'Mapping_ID', description: 'Item-supplier links, contract prices, MOQ, and lead times' },
-  { key: 'Inventory_Category', label: 'Trade Categories', idField: 'Category_ID', description: 'Technical trades (PLB, ELE, HVA, CIV, PWR, etc.)' },
-  { key: 'UOM', label: 'Units of Measure', idField: 'UOM_Code', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
-  { key: 'UOM_Category', label: 'UOM Categories', idField: 'UOM_Category_ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
-  { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'Location_ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
-  { key: 'Sheet_Records', label: 'Fiscal Ledgers', idField: 'Year', description: 'Active and archived annual operational spreadsheets' },
+  { key: 'Item', label: 'Item Masterlist', idField: 'ID', description: 'Catalog items, trade categories, and physical classifications' },
+  { key: 'Supplier', label: 'Suppliers', idField: 'ID', description: 'Approved vendors, contact personnel, and corporate addresses' },
+  { key: 'Item_Supplier_and_Pricing', label: 'Supplier Pricing', idField: 'Record_ID', description: 'Item-supplier links, contract prices, MOQ, and lead times' },
+  { key: 'Inventory_Category', label: 'Inventory Categories', idField: 'ID', description: 'Technical trades (PLB, ELE, HVA, CIV, PWR, etc.)' },
+  { key: 'UOM', label: 'Units of Measure', idField: 'ID', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
+  { key: 'UOM_Category', label: 'UOM Categories', idField: 'ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
+  { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
+  { key: 'Sheet_Records', label: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' },
   { key: 'Rollover', label: 'Fiscal Rollover', idField: 'Year', description: 'Annual operational ledger transition and opening balance carryover' }
 ];
 
@@ -45,6 +46,15 @@ export const Configuration: React.FC = () => {
   // Synchronous ref to prevent stale in-flight responses from overwriting current tab data
   const activeTabRef = useRef<ConfigTableKey>(activeTab);
   activeTabRef.current = activeTab;
+
+  // Head Admin role verification
+  const currentUser = getCurrentUser();
+  const isHeadAdmin = Boolean(
+    currentUser?.roles?.some(r => ['super admin', 'head'].includes(String(r).trim().toLowerCase()))
+  );
+
+  // Item View Modal State
+  const [viewingItem, setViewingItem] = useState<any | null>(null);
 
   // Edit / Create Record Modal State
   const [isEditing, setIsEditing] = useState(false);
@@ -91,7 +101,14 @@ export const Configuration: React.FC = () => {
         cacheKey,
         async () => {
           const res = await apiRequest('config:getTable', { table: tableKey });
-          return res.records || [];
+          const rawRows: any[] = res.records || [];
+          // Clean & filter rows: prune ghost empty rows from Google Sheets (rows with no ID / Record_ID / Year)
+          const validRows = rawRows.filter(r => {
+            if (!r || typeof r !== 'object') return false;
+            const primaryVal = r[currentTabDef.idField] ?? r.ID ?? r.Record_ID ?? r.Year ?? r.Unit;
+            return primaryVal !== undefined && primaryVal !== null && String(primaryVal).trim() !== '';
+          });
+          return validRows;
         },
         (data, isInitialCache) => {
           // Strict race-condition guard: discard if user already navigated to another tab
@@ -210,21 +227,99 @@ export const Configuration: React.FC = () => {
     switch (tab) {
       case 'Item':
         return [
-          { key: 'SKU', label: 'SKU', align: 'left', minWidth: '130px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.SKU}</span> },
-          { key: 'Name', label: 'Item Name', align: 'left', minWidth: '220px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name}</span> },
-          { key: 'Category_ID', label: 'Category', align: 'left', minWidth: '100px', sortable: true },
-          { key: 'Inventory_Type_Code', label: 'Type', align: 'left', minWidth: '80px', sortable: true },
-          { key: 'UOM', label: 'UOM', align: 'center', minWidth: '70px', sortable: true },
-          { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status}</span> },
           {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+            key: 'SKU',
+            label: 'Item SKU',
+            align: 'left',
+            minWidth: '130px',
+            sortable: true,
+            render: (r) => <span className="font-monospace fw-semibold text-dark">{r.SKU || r.ID}</span>
+          },
+          {
+            key: 'Name',
+            label: 'Product Information',
+            align: 'left',
+            minWidth: '240px',
+            sortable: true,
+            render: (r) => {
+              const subtitleParts = [r.Brand, r.Model ? `• ${r.Model}` : null, r.Variant ? `(${r.Variant})` : null].filter(Boolean);
+              return (
+                <div>
+                  <div className="fw-medium text-dark">{r.Name || '—'}</div>
+                  {subtitleParts.length > 0 && (
+                    <div className="small text-muted" style={{ fontSize: '0.75rem' }}>
+                      {subtitleParts.join(' ')}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+          },
+          {
+            key: 'UOM',
+            label: 'Unit of Measurement',
+            align: 'center',
+            minWidth: '130px',
+            sortable: true,
+            render: (r) => (
+              <span className="badge bg-light text-dark border font-monospace px-2 py-1">
+                {r.UOM || '—'}
+              </span>
+            )
+          },
+          {
+            key: 'Category_Name',
+            label: 'Product Category',
+            align: 'left',
+            minWidth: '190px',
+            sortable: true,
+            render: (r) => (
+              <div className="d-flex align-items-center gap-1 flex-wrap">
+                <span className="fw-medium text-dark">{r.Category_Name || r.Category_ID || '—'}</span>
+                {r.Inventory_Type_Code && (
+                  <span className="badge bg-secondary-subtle text-secondary border px-1" style={{ fontSize: '0.7rem' }}>
+                    {r.Inventory_Type_Code}
+                  </span>
+                )}
+              </div>
+            )
+          },
+          {
+            key: 'actions',
+            label: 'Actions',
+            align: 'right',
+            minWidth: isHeadAdmin ? '180px' : '90px',
+            render: (r) => (
               <div className="d-flex justify-content-end gap-1">
-                <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil me-1"></i>Edit
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm py-0 px-2"
+                  style={{ height: '26px', fontSize: '0.75rem' }}
+                  onClick={() => setViewingItem(r)}
+                  title="View item technical specs and properties"
+                >
+                  <i className="bi bi-eye me-1"></i>View
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive me-1"></i>Archive
-                </button>
+                {isHeadAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm py-0 px-2"
+                      style={{ height: '26px', fontSize: '0.75rem' }}
+                      onClick={() => handleEditRecord(r)}
+                    >
+                      <i className="bi bi-pencil me-1"></i>Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm py-0 px-2"
+                      style={{ height: '26px', fontSize: '0.75rem' }}
+                      onClick={() => promptDeleteConfirmation(r)}
+                    >
+                      <i className="bi bi-archive me-1"></i>Archive
+                    </button>
+                  </>
+                )}
               </div>
             )
           }
@@ -232,14 +327,14 @@ export const Configuration: React.FC = () => {
 
       case 'Supplier':
         return [
-          { key: 'Supplier_ID', label: 'Supplier ID', align: 'left', minWidth: '120px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.Supplier_ID}</span> },
-          { key: 'Supplier_Name', label: 'Company Name', align: 'left', minWidth: '220px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Supplier_Name}</span> },
-          { key: 'Contact_Person', label: 'Contact Person', align: 'left', minWidth: '160px', sortable: true },
-          { key: 'Contact_Number', label: 'Contact Phone', align: 'left', minWidth: '130px' },
-          { key: 'Email', label: 'Email Address', align: 'left', minWidth: '180px' },
-          { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status}</span> },
-          {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+          { key: 'ID', label: 'Supplier ID', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.ID || r.Supplier_ID}</span> },
+          { key: 'Name', label: 'Supplier Name', align: 'left', minWidth: '220px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.Supplier_Name}</span> },
+          { key: 'Contact_Person', label: 'Contact Person', align: 'left', minWidth: '160px', sortable: true, render: (r) => r.Contact_Person || '—' },
+          { key: 'Phone', label: 'Phone', align: 'left', minWidth: '130px', render: (r) => r.Phone || r.Contact_Number || '—' },
+          { key: 'Email', label: 'Email Address', align: 'left', minWidth: '180px', render: (r) => r.Email || '—' },
+          { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status || 'ACTIVE'}</span> },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -249,19 +344,66 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'Item_Supplier_and_Pricing':
         return [
-          { key: 'Mapping_ID', label: 'Mapping ID', align: 'left', minWidth: '120px', sortable: true, render: (r) => <span className="font-monospace text-muted">{r.Mapping_ID}</span> },
-          { key: 'SKU', label: 'Item SKU', align: 'left', minWidth: '130px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.SKU}</span> },
-          { key: 'Supplier_Name', label: 'Supplier', align: 'left', minWidth: '200px', sortable: true },
-          { key: 'Price', label: 'Contract Price', align: 'right', minWidth: '120px', sortable: true, render: (r) => <span className="font-monospace small">PHP {Number(r.Price || 0).toFixed(2)}</span> },
-          { key: 'Lead_Time_Days', label: 'Lead Time', align: 'right', minWidth: '100px', sortable: true, render: (r) => `${r.Lead_Time_Days || 0} days` },
-          { key: 'Is_Primary_Supplier', label: 'Primary', align: 'center', minWidth: '85px', render: (r) => <span className="small">{r.Is_Primary_Supplier ? 'Yes' : 'No'}</span> },
+          { key: 'Record_ID', label: 'Record ID', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="font-monospace text-muted">{r.Record_ID || r.Mapping_ID}</span> },
           {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+            key: 'Item_Name',
+            label: 'Item',
+            align: 'left',
+            minWidth: '220px',
+            sortable: true,
+            render: (r) => (
+              <div>
+                <span className="fw-medium text-dark">{r.Item_Name || '—'}</span>
+                {r.Item_ID && <span className="text-muted small font-monospace ms-1">({r.Item_ID})</span>}
+              </div>
+            )
+          },
+          {
+            key: 'Supplier_Name',
+            label: 'Supplier',
+            align: 'left',
+            minWidth: '200px',
+            sortable: true,
+            render: (r) => (
+              <div>
+                <span>{r.Supplier_Name || '—'}</span>
+                {r.Supplier_ID && <span className="text-muted small font-monospace ms-1">({r.Supplier_ID})</span>}
+              </div>
+            )
+          },
+          {
+            key: 'Price_per_Unit',
+            label: 'Price per Unit',
+            align: 'right',
+            minWidth: '120px',
+            sortable: true,
+            render: (r) => <span className="font-monospace small">PHP {Number(r.Price_per_Unit || r.Price || 0).toFixed(2)}</span>
+          },
+          { key: 'UOM', label: 'UOM', align: 'center', minWidth: '80px', sortable: true, render: (r) => r.UOM || '—' },
+          {
+            key: 'Discount_Percentage',
+            label: 'Discount',
+            align: 'right',
+            minWidth: '95px',
+            render: (r) => r.Discount_Percentage !== undefined && r.Discount_Percentage !== null ? `${r.Discount_Percentage}%` : '—'
+          },
+          {
+            key: 'Is_Preferred',
+            label: 'Preferred',
+            align: 'center',
+            minWidth: '90px',
+            render: (r) => {
+              const isPref = r.Is_Preferred === true || String(r.Is_Preferred).toUpperCase() === 'TRUE';
+              return isPref ? <span className="badge bg-primary-subtle text-primary border">Yes</span> : <span className="text-muted small">No</span>;
+            }
+          },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -271,17 +413,17 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'Inventory_Category':
         return [
-          { key: 'Category_ID', label: 'Trade Code', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.Category_ID}</span> },
-          { key: 'Category_Name', label: 'Category Name', align: 'left', minWidth: '200px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Category_Name}</span> },
-          { key: 'Description', label: 'Description', align: 'left', minWidth: '260px' },
-          { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status}</span> },
-          {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+          { key: 'ID', label: 'Trade Code', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.ID || r.Category_ID}</span> },
+          { key: 'SKU_Prefix', label: 'SKU Prefix', align: 'left', minWidth: '100px', sortable: true, render: (r) => <span className="font-monospace text-muted">{r.SKU_Prefix || r.ID}</span> },
+          { key: 'Name', label: 'Category Name', align: 'left', minWidth: '200px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.Category_Name}</span> },
+          { key: 'Description', label: 'Description', align: 'left', minWidth: '260px', render: (r) => r.Description || '—' },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -291,17 +433,17 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'UOM':
         return [
-          { key: 'UOM_Code', label: 'UOM Code', align: 'left', minWidth: '100px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.UOM_Code}</span> },
-          { key: 'UOM_Name', label: 'UOM Name', align: 'left', minWidth: '180px', sortable: true },
-          { key: 'UOM_Category_ID', label: 'Dimension Category', align: 'left', minWidth: '160px', sortable: true },
-          { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status}</span> },
-          {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+          { key: 'Unit', label: 'Unit Symbol', align: 'left', minWidth: '100px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.Unit || r.ID || r.UOM_Code}</span> },
+          { key: 'Name', label: 'Unit Name', align: 'left', minWidth: '180px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.UOM_Name}</span> },
+          { key: 'Category', label: 'Dimension Category', align: 'left', minWidth: '160px', sortable: true, render: (r) => r.Category || r.UOM_Category_ID || '—' },
+          { key: 'Description', label: 'Description', align: 'left', minWidth: '240px', render: (r) => r.Description || '—' },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -311,17 +453,16 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'UOM_Category':
         return [
-          { key: 'UOM_Category_ID', label: 'Category ID', align: 'left', minWidth: '140px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.UOM_Category_ID}</span> },
-          { key: 'UOM_Category_Name', label: 'Category Name', align: 'left', minWidth: '180px', sortable: true },
-          { key: 'Description', label: 'Description', align: 'left', minWidth: '260px' },
-          { key: 'Status', label: 'Status', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status}</span> },
-          {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+          { key: 'ID', label: 'Category ID', align: 'left', minWidth: '130px', sortable: true, render: (r) => <span className="font-monospace fw-semibold text-dark">{r.ID || r.UOM_Category_ID}</span> },
+          { key: 'Name', label: 'Category Name', align: 'left', minWidth: '180px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.UOM_Category_Name}</span> },
+          { key: 'Description', label: 'Description', align: 'left', minWidth: '260px', render: (r) => r.Description || '—' },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -331,19 +472,16 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'Warehouse_Location':
         return [
-          { key: 'Location_ID', label: 'Location ID', align: 'left', minWidth: '180px', sortable: true, render: (r) => <span className="font-monospace text-dark fw-semibold small">{r.Location_ID}</span> },
-          { key: 'Location_Name', label: 'Location Name', align: 'left', minWidth: '200px', sortable: true },
-          { key: 'Location_Type', label: 'Type', align: 'left', minWidth: '120px', sortable: true },
-          { key: 'Building', label: 'Building', align: 'left', minWidth: '140px' },
-          { key: 'Capacity', label: 'Capacity', align: 'right', minWidth: '90px' },
-          { key: 'Is_Active', label: 'Active', align: 'center', minWidth: '85px', sortable: true, render: (r) => <span className={`badge ${r.Is_Active ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Is_Active ? 'Yes' : 'No'}</span> },
-          {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+          { key: 'ID', label: 'Location ID', align: 'left', minWidth: '180px', sortable: true, render: (r) => <span className="font-monospace text-dark fw-semibold small">{r.ID || r.Location_ID}</span> },
+          { key: 'Name', label: 'Location Name', align: 'left', minWidth: '220px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || r.Location_Name}</span> },
+          { key: 'Description', label: 'Description', align: 'left', minWidth: '280px', render: (r) => r.Description || '—' },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -353,18 +491,32 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'Sheet_Records':
         return [
           { key: 'Year', label: 'Fiscal Year', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="fw-bold text-dark">{r.Year}</span> },
-          { key: 'Spreadsheet_Name', label: 'Ledger Title', align: 'left', minWidth: '240px', sortable: true },
-          { key: 'Spreadsheet_ID', label: 'Spreadsheet ID', align: 'left', minWidth: '220px', render: (r) => <span className="font-monospace text-muted small">{r.Spreadsheet_ID}</span> },
-          { key: 'Status', label: 'Status', align: 'center', minWidth: '95px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status}</span> },
-          { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{r.Created_At}</span> },
+          { key: 'Sheet_ID', label: 'Spreadsheet ID', align: 'left', minWidth: '240px', render: (r) => <span className="font-monospace text-muted small">{r.Sheet_ID || r.Spreadsheet_ID}</span> },
           {
-            key: 'actions', label: 'Actions', align: 'right', minWidth: '130px', render: (r) => (
+            key: 'Sheet_URL',
+            label: 'Spreadsheet Link',
+            align: 'left',
+            minWidth: '200px',
+            render: (r) => {
+              const url = r.Sheet_URL || (r.Sheet_ID ? `https://docs.google.com/spreadsheets/d/${r.Sheet_ID}` : null);
+              if (!url) return <span className="text-muted small">—</span>;
+              return (
+                <a href={url} target="_blank" rel="noopener noreferrer" className="small text-primary text-decoration-none">
+                  Open Google Sheet <i className="bi bi-box-arrow-up-right ms-1" style={{ fontSize: '0.75rem' }}></i>
+                </a>
+              );
+            }
+          },
+          { key: 'Status', label: 'Status', align: 'center', minWidth: '95px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status || 'ACTIVE'}</span> },
+          { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{r.Created_At || '—'}</span> },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '130px', render: (r: any) => (
               <div className="d-flex justify-content-end gap-1">
                 <button type="button" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{ height: '26px', fontSize: '0.75rem' }} onClick={() => handleEditRecord(r)}>
                   <i className="bi bi-pencil me-1"></i>Edit
@@ -374,7 +526,7 @@ export const Configuration: React.FC = () => {
                 </button>
               </div>
             )
-          }
+          }] : [])
         ];
 
       case 'Rollover':
@@ -400,7 +552,7 @@ export const Configuration: React.FC = () => {
           </p>
         </div>
 
-        {activeTab !== 'Rollover' && (
+        {activeTab !== 'Rollover' && isHeadAdmin && (
           <button className="btn btn-primary btn-sm" onClick={handleCreateNew}>
             <i className="bi bi-plus-lg me-1"></i> Add {currentTabDef.label.slice(0, -1) || 'Record'}
           </button>
@@ -438,9 +590,14 @@ export const Configuration: React.FC = () => {
         <div className="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div className="small text-muted">
             Managing <strong>{currentTabDef.key}</strong>: {currentTabDef.description}
+            {!isHeadAdmin && (
+              <span className="badge bg-light text-muted border ms-2">
+                <i className="bi bi-eye me-1"></i>Read-Only Access
+              </span>
+            )}
           </div>
           <div className="d-flex align-items-center gap-2">
-            {activeTab === 'Sheet_Records' && (
+            {activeTab === 'Sheet_Records' && isHeadAdmin && (
               <button
                 type="button"
                 className="btn btn-outline-primary btn-sm py-0 px-2"
@@ -480,6 +637,126 @@ export const Configuration: React.FC = () => {
           emptyMessage={`No ${currentTabDef.label} records found.`}
           isLoading={isLoading}
         />
+      )}
+
+      {/* View Item Specifications Modal */}
+      {viewingItem && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}>
+          <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div className="modal-content border shadow-sm">
+              <div className="modal-header py-3 px-4 bg-light border-bottom">
+                <div>
+                  <h6 className="modal-title fw-bold text-dark mb-0">Item Specification Details</h6>
+                  <span className="small text-muted font-monospace">{viewingItem.SKU || viewingItem.ID}</span>
+                </div>
+                <button type="button" className="btn-close" onClick={() => setViewingItem(null)}></button>
+              </div>
+
+              <div className="modal-body p-4">
+                <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small text-muted mb-0">Item Name</label>
+                    <div className="fw-semibold text-dark">{viewingItem.Name || '—'}</div>
+                  </div>
+                  <div className="col-12 col-md-3">
+                    <label className="form-label small text-muted mb-0">Brand</label>
+                    <div className="text-dark">{viewingItem.Brand || '—'}</div>
+                  </div>
+                  <div className="col-12 col-md-3">
+                    <label className="form-label small text-muted mb-0">Model</label>
+                    <div className="text-dark">{viewingItem.Model || '—'}</div>
+                  </div>
+
+                  <div className="col-12 col-md-4">
+                    <label className="form-label small text-muted mb-0">Variant</label>
+                    <div className="text-dark">{viewingItem.Variant || '—'}</div>
+                  </div>
+                  <div className="col-12 col-md-4">
+                    <label className="form-label small text-muted mb-0">Default UOM</label>
+                    <div><span className="badge bg-light text-dark border font-monospace">{viewingItem.UOM || '—'}</span></div>
+                  </div>
+                  <div className="col-12 col-md-4">
+                    <label className="form-label small text-muted mb-0">Status</label>
+                    <div>
+                      <span className={`badge ${viewingItem.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>
+                        {viewingItem.Status || 'ACTIVE'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small text-muted mb-0">Product Category</label>
+                    <div className="fw-medium text-dark">{viewingItem.Category_Name || viewingItem.Category_ID || '—'}</div>
+                  </div>
+                  <div className="col-12 col-md-6">
+                    <label className="form-label small text-muted mb-0">Classification Type</label>
+                    <div className="font-monospace text-dark">{viewingItem.Inventory_Type_Code || '—'}</div>
+                  </div>
+
+                  {viewingItem.System && (
+                    <div className="col-12 col-md-6">
+                      <label className="form-label small text-muted mb-0">System Classification</label>
+                      <div className="text-dark">{viewingItem.System}</div>
+                    </div>
+                  )}
+
+                  {viewingItem.Component && (
+                    <div className="col-12 col-md-6">
+                      <label className="form-label small text-muted mb-0">Component</label>
+                      <div className="text-dark">{viewingItem.Component}</div>
+                    </div>
+                  )}
+
+                  {viewingItem.Property_Fingerprint && (
+                    <div className="col-12">
+                      <label className="form-label small text-muted mb-0">Property Fingerprint (Surrogate Key)</label>
+                      <div className="font-monospace small bg-light p-2 rounded border text-muted">{viewingItem.Property_Fingerprint}</div>
+                    </div>
+                  )}
+
+                  {viewingItem.Search_Tags && (
+                    <div className="col-12">
+                      <label className="form-label small text-muted mb-0">Search Tags</label>
+                      <div className="small text-secondary">{viewingItem.Search_Tags}</div>
+                    </div>
+                  )}
+
+                  {viewingItem.Properties && (
+                    <div className="col-12">
+                      <label className="form-label small text-muted mb-1">Extended Technical Properties (JSON)</label>
+                      <pre className="bg-light p-2 rounded border font-monospace small mb-0" style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                        {typeof viewingItem.Properties === 'string'
+                          ? viewingItem.Properties
+                          : JSON.stringify(viewingItem.Properties, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="modal-footer py-2 px-4 bg-light border-top d-flex justify-content-between align-items-center">
+                {isHeadAdmin ? (
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => {
+                      const itemToEdit = viewingItem;
+                      setViewingItem(null);
+                      handleEditRecord(itemToEdit);
+                    }}
+                  >
+                    <i className="bi bi-pencil me-1"></i> Edit Specification
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setViewingItem(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit / Create Modal Form */}

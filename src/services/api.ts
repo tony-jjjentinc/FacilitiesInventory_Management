@@ -179,42 +179,42 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
           const table = payload.table;
           const mockTables: Record<string, any[]> = {
             Item: [
-              { ID: 'ITM-0001', SKU: 'CNS-PLB-0001', Name: 'PPR Pipe 1/2" x 4m', Category_ID: 'PLB', Inventory_Type_Code: 'CNS', UOM: 'pc', Status: 'ACTIVE' },
-              { ID: 'ITM-0045', SKU: 'TLS-PWR-0045', Name: 'Dewalt Cordless Impact Driver 18V', Category_ID: 'PWR', Inventory_Type_Code: 'TLS', UOM: 'set', Status: 'ACTIVE' }
+              { ID: 'ITM-0001', SKU: 'CNS-PLB-0001', Name: 'PPR Pipe 1/2" x 4m', Brand: 'ERA', Model: 'PN20', Variant: 'Green', Category_ID: 'PLB', Category_Name: 'Plumbing Supplies', Inventory_Type_Code: 'CNS', UOM: 'pc', Status: 'ACTIVE', Properties_JSON: '{"pressure_rating": "20 bar", "material": "Polypropylene Random"}', Fingerprint: 'FGP-001', Search_Tags: 'ppr, pipe, plumbing, water' },
+              { ID: 'ITM-0045', SKU: 'TLS-PWR-0045', Name: 'Cordless Impact Driver 18V', Brand: 'Dewalt', Model: 'DCF887N', Variant: 'Bare Tool', Category_ID: 'PWR', Category_Name: 'Power Tools', Inventory_Type_Code: 'TLS', UOM: 'set', Status: 'ACTIVE', Properties_JSON: '{"torque": "205 Nm", "voltage": "18V"}', Fingerprint: 'FGP-045', Search_Tags: 'dewalt, impact, driver, power tool' }
             ],
             Supplier: [
-              { Supplier_ID: 'SUP-001', Supplier_Name: 'Amco Industrial Hardware', Contact_Person: 'Eduardo Santos', Contact_Number: '0917-555-0192', Email: 'sales@amco-ph.com', Status: 'ACTIVE' },
-              { Supplier_ID: 'SUP-002', Supplier_Name: 'Pipelife Philippines Corp.', Contact_Person: 'Maria Reyes', Contact_Number: '0922-888-4411', Email: 'orders@pipelife.ph', Status: 'ACTIVE' }
+              { ID: 'SUP-001', Name: 'Amco Industrial Hardware', Contact_Person: 'Eduardo Santos', Phone: '0917-555-0192', Email: 'sales@amco-ph.com', Status: 'ACTIVE', Description: 'Industrial tools and construction hardware', Address_JSON: '{"city": "Makati", "country": "Philippines"}' },
+              { ID: 'SUP-002', Name: 'Pipelife Philippines Corp.', Contact_Person: 'Maria Reyes', Phone: '0922-888-4411', Email: 'orders@pipelife.ph', Status: 'ACTIVE', Description: 'Piping solutions and plumbing fixtures', Address_JSON: '{"city": "Pasig", "country": "Philippines"}' }
             ],
             Item_Supplier_and_Pricing: [
-              { Mapping_ID: 'MAP-0001', SKU: 'CNS-PLB-0001', Supplier_Name: 'Pipelife Philippines Corp.', Price: 245.00, Lead_Time_Days: 3, Is_Primary_Supplier: true, Status: 'ACTIVE' },
-              { Mapping_ID: 'MAP-0002', SKU: 'TLS-PWR-0045', Supplier_Name: 'Amco Industrial Hardware', Price: 8500.00, Lead_Time_Days: 7, Is_Primary_Supplier: true, Status: 'ACTIVE' }
+              { Record_ID: 'ISP-0001', Item_ID: 'ITM-0001', Item_Name: 'PPR Pipe 1/2" x 4m', Supplier_ID: 'SUP-002', Supplier_Name: 'Pipelife Philippines Corp.', Price_per_Unit: 245.00, UOM: 'pc', Discount_Percentage: 5, Discount_Type: 'PERCENT', Effective_Date: '2026-01-01', Is_Preferred: true, Remarks: 'Standard contracted rate' },
+              { Record_ID: 'ISP-0002', Item_ID: 'ITM-0045', Item_Name: 'Cordless Impact Driver 18V', Supplier_ID: 'SUP-001', Supplier_Name: 'Amco Industrial Hardware', Price_per_Unit: 8500.00, UOM: 'set', Discount_Percentage: 0, Discount_Type: 'NONE', Effective_Date: '2026-01-15', Is_Preferred: true, Remarks: '1-year warranty included' }
             ],
             Inventory_Category: [
-              { Category_ID: 'PLB', Category_Name: 'Plumbing Supplies', Description: 'Pipes, fittings, valves, drains', Status: 'ACTIVE' },
-              { Category_ID: 'ELE', Category_Name: 'Electrical Supplies', Description: 'Wires, breakers, conduit, fixtures', Status: 'ACTIVE' },
-              { Category_ID: 'HVA', Category_Name: 'HVAC & Refrigeration', Description: 'Compressors, refrigerant, filters', Status: 'ACTIVE' },
-              { Category_ID: 'CIV', Category_Name: 'Civil & Masonry', Description: 'Cement, sand, aggregates, tiles', Status: 'ACTIVE' },
-              { Category_ID: 'PWR', Category_Name: 'Power Tools', Description: 'Drills, saws, grinders, impacts', Status: 'ACTIVE' }
+              { ID: 'PLB', SKU_Prefix: 'PLB', Name: 'Plumbing Supplies', Description: 'Pipes, fittings, valves, drains' },
+              { ID: 'ELE', SKU_Prefix: 'ELE', Name: 'Electrical Supplies', Description: 'Wires, breakers, conduit, fixtures' },
+              { ID: 'HVA', SKU_Prefix: 'HVA', Name: 'HVAC & Refrigeration', Description: 'Compressors, refrigerant, filters' },
+              { ID: 'CIV', SKU_Prefix: 'CIV', Name: 'Civil & Masonry', Description: 'Cement, sand, aggregates, tiles' },
+              { ID: 'PWR', SKU_Prefix: 'PWR', Name: 'Power Tools', Description: 'Drills, saws, grinders, impacts' }
             ],
             UOM: [
-              { UOM_Code: 'pc', UOM_Name: 'Piece', UOM_Category_ID: 'COUNT', Status: 'ACTIVE' },
-              { UOM_Code: 'box', UOM_Name: 'Box', UOM_Category_ID: 'COUNT', Status: 'ACTIVE' },
-              { UOM_Code: 'mtr', UOM_Name: 'Meter', UOM_Category_ID: 'LENGTH', Status: 'ACTIVE' },
-              { UOM_Code: 'set', UOM_Name: 'Set / Kit', UOM_Category_ID: 'COUNT', Status: 'ACTIVE' },
-              { UOM_Code: 'cyl', UOM_Name: 'Cylinder', UOM_Category_ID: 'VOLUME', Status: 'ACTIVE' }
+              { ID: 'pc', Unit: 'pc', Name: 'Piece', Category: 'COUNT', Description: 'Discrete individual item count' },
+              { ID: 'box', Unit: 'box', Name: 'Box', Category: 'COUNT', Description: 'Packaged box unit' },
+              { ID: 'mtr', Unit: 'mtr', Name: 'Meter', Category: 'LENGTH', Description: 'Linear meter measurement' },
+              { ID: 'set', Unit: 'set', Name: 'Set / Kit', Category: 'COUNT', Description: 'Pre-assembled tool or fitting set' },
+              { ID: 'cyl', Unit: 'cyl', Name: 'Cylinder', Category: 'VOLUME', Description: 'Compressed gas or refrigerant tank' }
             ],
             UOM_Category: [
-              { UOM_Category_ID: 'COUNT', UOM_Category_Name: 'Discrete Item Count', Description: 'Unit count of discrete objects', Status: 'ACTIVE' },
-              { UOM_Category_ID: 'LENGTH', UOM_Category_Name: 'Linear Measurement', Description: 'Meters, feet, inches', Status: 'ACTIVE' },
-              { UOM_Category_ID: 'VOLUME', UOM_Category_Name: 'Volumetric Measure', Description: 'Liters, gallons, cylinders', Status: 'ACTIVE' }
+              { ID: 'COUNT', Name: 'Discrete Item Count', Description: 'Unit count of discrete objects' },
+              { ID: 'LENGTH', Name: 'Linear Measurement', Description: 'Meters, feet, inches' },
+              { ID: 'VOLUME', Name: 'Volumetric Measure', Description: 'Liters, gallons, cylinders' }
             ],
             Warehouse_Location: [
-              { Location_ID: 'FACILITIES_WAREHOUSE_MAIN', Location_Name: 'Central Facilities Depot', Location_Type: 'CENTRAL', Building: 'Building A', Capacity: 5000, Is_Active: true },
-              { Location_ID: 'FACILITIES_WAREHOUSE_SUB_NORTH', Location_Name: 'North Sub-Warehouse', Location_Type: 'SUB_WAREHOUSE', Building: 'Building C', Capacity: 1500, Is_Active: true }
+              { ID: 'LOC-MAIN', Name: 'Central Facilities Depot', Description: 'Building A primary storage warehouse' },
+              { ID: 'LOC-NORTH', Name: 'North Sub-Warehouse', Description: 'Building C maintenance staging unit' }
             ],
             Sheet_Records: [
-              { Year: 2026, Spreadsheet_ID: '1qZw8yXoPmLkRt9vBn4uCe7dAw1sEf2Gh3Jk5LmNoPqR', Spreadsheet_Name: 'JJJEI - Facilities Inventory Ledger 2026', Status: 'ACTIVE', Created_At: '2026-01-01' }
+              { Year: 2026, Sheet_ID: '1qZw8yXoPmLkRt9vBn4uCe7dAw1sEf2Gh3Jk5LmNoPqR', Sheet_URL: 'https://docs.google.com/spreadsheets/d/1qZw8yXoPmLkRt9vBn4uCe7dAw1sEf2Gh3Jk5LmNoPqR', Status: 'ACTIVE', Created_At: '2026-01-01', Closed_At: '' }
             ]
           };
 

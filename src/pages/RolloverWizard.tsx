@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiRequest } from '../services/api';
+import { getCurrentUser } from '../services/auth';
 
 export const RolloverWizard: React.FC = () => {
   const [step, setStep] = useState(1);
@@ -8,7 +9,16 @@ export const RolloverWizard: React.FC = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [rolloverResult, setRolloverResult] = useState<any>(null);
 
+  const currentUser = getCurrentUser();
+  const isHeadAdmin = Boolean(
+    currentUser?.roles?.some(r => ['super admin', 'head'].includes(String(r).trim().toLowerCase()))
+  );
+
   const handleRunChecks = async () => {
+    if (!isHeadAdmin) {
+      alert('Unauthorized: Only Head Admin / Super Admin can perform fiscal rollover audits.');
+      return;
+    }
     setIsChecking(true);
     try {
       const res = await apiRequest('rollover:check');
@@ -25,6 +35,10 @@ export const RolloverWizard: React.FC = () => {
   };
 
   const handleExecute = async () => {
+    if (!isHeadAdmin) {
+      alert('Unauthorized: Only Head Admin / Super Admin can execute annual fiscal rollover.');
+      return;
+    }
     setIsExecuting(true);
     try {
       const res = await apiRequest('rollover:execute', {
@@ -63,6 +77,15 @@ export const RolloverWizard: React.FC = () => {
               3. Completion
             </div>
           </div>
+
+          {!isHeadAdmin && (
+            <div className="alert alert-warning py-2 px-3 mb-3 small d-flex align-items-center" role="alert">
+              <i className="bi bi-shield-lock-fill me-2 fs-6"></i>
+              <div>
+                <strong>Read-Only Mode:</strong> Annual fiscal rollover audits and execution are restricted to Head Administrators.
+              </div>
+            </div>
+          )}
 
           {step === 1 && (
             <div>
