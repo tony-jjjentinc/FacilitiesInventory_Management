@@ -57,10 +57,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
               <Logo size={28} />
               <div>
                 <span className="fw-bold d-block lh-1 text-dark" style={{ fontSize: '0.95rem' }}>
-                  Facilities Inventory
+                  Facilities Inventory and Warehousing Management
                 </span>
                 <span className="text-muted d-block" style={{ fontSize: '0.75rem' }}>
-                  JJJEI Management Portal
+                  Management Portal
                 </span>
               </div>
             </div>
@@ -141,9 +141,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
         </div>
 
         <div className="p-3 flex-grow-1 overflow-auto">
-          <div className="text-uppercase text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-            Navigation
-          </div>
           <div className="d-flex flex-column gap-1">
             {navItems.map((item) => {
               const isActive = currentTab === item.id;
@@ -164,9 +161,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, user, o
 
           {user && (
             <div className="mt-4 pt-3 border-top">
-              <div className="text-uppercase text-muted fw-bold mb-2" style={{ fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                Signed In User
-              </div>
               <div className="p-2 bg-light rounded mb-2">
                 <div className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>{user.name}</div>
                 <div className="text-muted small">{user.email}</div>
