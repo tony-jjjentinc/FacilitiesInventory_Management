@@ -140,6 +140,47 @@ body {
   cursor: pointer;
 }
 
+/* Nav Links - Minimal Clean Design */
+.nav-tab-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  transition: all 0.15s ease-in-out;
+  background: transparent;
+  border: none;
+  white-space: nowrap;
+}
+
+.nav-tab-link:hover {
+  color: #1e293b;
+  background-color: #f1f5f9;
+}
+
+.nav-tab-link.active {
+  color: var(--bs-primary, #184421);
+  background-color: rgba(24, 68, 33, 0.08);
+  font-weight: 600;
+}
+
+/* User avatar pill */
+.user-avatar-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(24, 68, 33, 0.1);
+  color: var(--bs-primary, #184421);
+  font-weight: 600;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+
 .nowrap {
   white-space: nowrap;
 }
