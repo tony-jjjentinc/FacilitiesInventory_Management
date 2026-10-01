@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { login } from '../services/auth';
 import type { UserClaims } from '../types';
 import { Logo } from '../components/Logo';
+import { useSystemInfo } from '../context/SystemContext';
 
 interface LoginProps {
   onLoginSuccess: (user: UserClaims) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+  const { systemInfo } = useSystemInfo();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -31,13 +33,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light p-3">
-      <div className="card border shadow-sm p-4 p-md-5" style={{ maxWidth: '400px', width: '100%', borderRadius: '8px' }}>
+      <div className="card border shadow-sm p-3 p-md-4" style={{ maxWidth: '670px', width: '100%', borderRadius: '8px' }}>
         <div className="text-center mb-4">
           <Logo size={96} variant="default" className="mb-3" />
-          <h5 className="fw-bold mb-1 text-dark">Facilities Inventory Management</h5>
+          <h6 className="fw-bold mb-1 text-dark">{systemInfo.name}</h6>
           <div className="d-flex align-items-center justify-content-center gap-2 small text-muted">
-            <span>Management Dashboard</span>
-            <span>v1.0.0</span>
+            <span>{systemInfo.subtitle}</span>
+            <span>{systemInfo.version}</span>
           </div>
         </div>
 
@@ -49,11 +51,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label className="form-label small text-muted mb-1">Corporate Email</label>
+            <label className="form-label small text-muted mb-1">Email</label>
             <input
               type="email"
               className="form-control"
-              placeholder="name@jjj-ent.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -66,7 +67,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <input
               type="password"
               className="form-control"
-              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

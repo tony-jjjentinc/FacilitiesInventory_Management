@@ -55,13 +55,24 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       switch (action) {
+        case 'system:info':
+        case 'ping':
+          resolve({
+            status: 'UP',
+            name: 'Facilities Inventory and Warehousing Management',
+            shortName: 'Facilities Inventory',
+            subtitle: 'Management Dashboard',
+            version: 'v1.0.0',
+            time: new Date().toISOString()
+          });
+          break;
+
         case 'auth:login':
           if (payload.password === 'error') {
             reject(new Error('AUTH_ERROR: Invalid credentials.'));
             return;
           }
-          const mockJwt = 'mock.header.payload';
-          resolve({ token: mockJwt });
+          resolve({ token: 'mock.header.payload' });
           break;
 
         case 'notifications:get':

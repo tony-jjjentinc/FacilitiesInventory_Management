@@ -1,22 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
 import { getCurrentUser } from '../services/auth';
 import { DataTable, type Column } from '../components/DataTable';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { RolloverWizard } from './RolloverWizard';
-
-type ConfigTableKey =
-  | 'Item'
-  | 'Supplier'
-  | 'Item_Supplier_and_Pricing'
-  | 'Inventory_Category'
-  | 'Inventory_Property_Keys'
-  | 'UOM'
-  | 'UOM_Category'
-  | 'Warehouse_Location'
-  | 'Sheet_Records'
-  | 'Rollover';
+import type { ConfigTableKey } from '../types';
+import { slugToConfigKey, configKeyToSlug } from '../utils/configRoutes';
 
 interface ConfigTabDef {
   key: ConfigTableKey;
@@ -34,12 +25,15 @@ const CONFIG_TABS: ConfigTabDef[] = [
   { key: 'UOM', label: 'Units of Measure', idField: 'ID', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
   { key: 'UOM_Category', label: 'UOM Categories', idField: 'ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
   { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
-  { key: 'Sheet_Records', label: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' },
-  { key: 'Rollover', label: 'Fiscal Rollover', idField: 'Year', description: 'Annual operational ledger transition and opening balance carryover' }
+  { key: 'Sheet_Records', label: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' }
 ];
 
 export const Configuration: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ConfigTableKey>('Item');
+  const { subTab } = useParams<{ subTab?: string }>();
+  const navigate = useNavigate();
+
+  // Derive active tab from route parameter slug
+  const activeTab: ConfigTableKey = slugToConfigKey(subTab);
   const [records, setRecords] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -90,10 +84,13 @@ export const Configuration: React.FC = () => {
   });
   const [isActionPending, setIsActionPending] = useState(false);
 
-  const currentTabDef = CONFIG_TABS.find(t => t.key === activeTab)!;
+  // Rollover Wizard Modal State (Opened from Fiscal Source)
+  const [isRolloverModalOpen, setIsRolloverModalOpen] = useState(false);
+
+  const currentTabDef = CONFIG_TABS.find(t => t.key === activeTab) || CONFIG_TABS[0];
 
   // Lock body scroll whenever a modal is open
-  const isAnyModalOpen = Boolean(viewingItem || isEditing || confirmModal.isOpen);
+  const isAnyModalOpen = Boolean(viewingItem || isEditing || confirmModal.isOpen || isRolloverModalOpen);
   useEffect(() => {
     if (isAnyModalOpen) {
       document.body.classList.add('modal-open');
@@ -127,8 +124,6 @@ export const Configuration: React.FC = () => {
   }, []);
 
   const loadTableData = async (tableKey: ConfigTableKey, isManualRefresh = false) => {
-    if (tableKey === 'Rollover') return;
-
     const cacheKey = `config:${tableKey}`;
     const cached = getCachedData<any[]>(cacheKey);
 
@@ -185,13 +180,7 @@ export const Configuration: React.FC = () => {
 
   useEffect(() => {
     setSearch('');
-    if (activeTab !== 'Rollover') {
-      loadTableData(activeTab);
-    } else {
-      setRecords([]);
-      setIsLoading(false);
-      setIsRevalidating(false);
-    }
+    loadTableData(activeTab);
   }, [activeTab]);
 
   // Open Form for Editing
@@ -782,102 +771,124 @@ export const Configuration: React.FC = () => {
   });
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2 border-bottom">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">System Configuration & Master Registry</h4>
-          <p className="text-muted small mb-0">
-            Administrative governance: Manage catalog items, approved suppliers, trade codes, and yearly ledgers.
-          </p>
-        </div>
-
-        {activeTab !== 'Rollover' && isHeadAdmin && (
-          <button className="btn btn-primary btn-sm" onClick={handleCreateNew}>
-            <i className="bi bi-plus-lg me-1"></i> Add {currentTabDef.label.slice(0, -1) || 'Record'}
-          </button>
-        )}
+    <div className="container-fluid py-3 px-3 px-md-4">
+      {/* Mobile Navigation Dropdown (< 992px) */}
+      <div className="d-lg-none mb-3">
+        <select
+          id="config-mobile-select"
+          className="form-select form-select-sm bg-white shadow-sm"
+          value={configKeyToSlug(activeTab)}
+          onChange={(e) => navigate(`/configuration/${e.target.value}`)}
+        >
+          {CONFIG_TABS.map(tab => (
+            <option key={tab.key} value={configKeyToSlug(tab.key)}>
+              {tab.label}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Minimal Underline Tab Navigation */}
-      <nav className="d-flex border-bottom mb-4" aria-label="Configuration categories" style={{ gap: '1.75rem' }}>
-        {CONFIG_TABS.map(tab => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              className={`btn btn-link text-decoration-none p-0 pb-2 border-0 bg-transparent text-nowrap ${
-                isActive ? 'text-primary fw-semibold' : 'text-secondary'
-              }`}
-              style={{
-                fontSize: '0.875rem',
-                borderBottom: isActive ? '2px solid var(--bs-primary, #184421)' : '2px solid transparent',
-                borderRadius: 0,
-                marginBottom: '-1px',
-                cursor: 'pointer'
-              }}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Tab Context Subtitle & Toolbar */}
-      {activeTab !== 'Rollover' && (
-        <div className="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div className="small text-muted">
-            Managing <strong>{currentTabDef.key}</strong>: {currentTabDef.description}
-            {!isHeadAdmin && (
-              <span className="badge bg-light text-muted border ms-2">
-                <i className="bi bi-eye me-1"></i>Read-Only Access
-              </span>
-            )}
+      {/* Main Two-Column Layout: Left Sidebar + Right Content */}
+      <div className="row g-3 g-md-4">
+        {/* Left Sidebar (Desktop >= 992px) */}
+        <aside className="col-lg-3 col-xl-2 d-none d-lg-block">
+          <div className="card border shadow-sm bg-white p-2 sticky-top" style={{ top: '0px', zIndex: 10 }}>
+            <div className="nav flex-column gap-1" role="tablist" aria-orientation="vertical">
+              {CONFIG_TABS.map(tab => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    className={`btn text-start border-0 py-2 px-3 rounded d-flex align-items-center justify-content-between ${
+                      isActive
+                        ? 'btn-primary text-white fw-semibold shadow-sm'
+                        : 'btn-light text-dark bg-transparent hover-bg-light'
+                    }`}
+                    style={{
+                      fontSize: '0.84rem',
+                      lineHeight: 1.3
+                    }}
+                    onClick={() => navigate(`/configuration/${configKeyToSlug(tab.key)}`)}
+                  >
+                    <span className="text-truncate">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            {activeTab === 'Sheet_Records' && isHeadAdmin && (
-              <button
-                type="button"
-                className="btn btn-outline-primary btn-sm py-0 px-2"
-                style={{ height: '28px' }}
-                onClick={() => setActiveTab('Rollover')}
-              >
-                <i className="bi bi-arrow-repeat me-1"></i> Launch Rollover Wizard
-              </button>
-            )}
-            <button
-              className="btn btn-link btn-sm text-decoration-none text-muted py-0"
-              onClick={() => {
-                invalidateCache(`config:${activeTab}`);
-                loadTableData(activeTab, true);
-              }}
-              disabled={isLoading || isRevalidating}
-              title={isRevalidating ? 'Synchronizing fresh data in background' : 'Force re-fetch from database'}
-            >
-              <i className={`bi bi-arrow-clockwise me-1 ${isRevalidating ? 'spin-animation' : ''}`}></i>
-              {isRevalidating ? 'Syncing...' : isLoading ? 'Loading...' : 'Refresh'}
-            </button>
+        </aside>
+
+        {/* Right Main Content Area: Wrapped in Card */}
+        <div className="col-12 col-lg-9 col-xl-10">
+          <div className="card border shadow-sm bg-white overflow-hidden">
+            {/* Card Header: Context Title, Description, and Action Buttons */}
+            <div className="card-header bg-white py-3 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div>
+                <h5 className="fw-bold mb-0 text-dark">{currentTabDef.label}</h5>
+                <span className="small text-muted">{currentTabDef.description}</span>
+              </div>
+
+              <div className="d-flex align-items-center gap-2">
+                {activeTab === 'Sheet_Records' && isHeadAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
+                    style={{ height: '31px' }}
+                    onClick={() => setIsRolloverModalOpen(true)}
+                  >
+                    <i className="bi bi-arrow-repeat"></i>
+                    <span>Launch Rollover Wizard</span>
+                  </button>
+                )}
+
+                {isHeadAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
+                    style={{ height: '31px' }}
+                    onClick={handleCreateNew}
+                  >
+                    <i className="bi bi-plus-lg"></i>
+                    <span>Add {currentTabDef.label.slice(0, -1) || 'Record'}</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm py-1 px-2 d-flex align-items-center gap-1"
+                  style={{ height: '31px' }}
+                  onClick={() => {
+                    invalidateCache(`config:${activeTab}`);
+                    loadTableData(activeTab, true);
+                  }}
+                  disabled={isLoading || isRevalidating}
+                  title={isRevalidating ? 'Synchronizing fresh data in background' : 'Force re-fetch from database'}
+                >
+                  <i className={`bi bi-arrow-clockwise ${isRevalidating ? 'spin-animation' : ''}`}></i>
+                  <span>{isRevalidating ? 'Syncing...' : isLoading ? 'Loading...' : 'Refresh'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Card Body: DataTable */}
+            <div className="card-body p-3 p-md-4">
+              <DataTable
+                columns={getColumnsForTab(activeTab)}
+                data={filteredRecords}
+                keyField={currentTabDef.idField}
+                searchQuery={search}
+                onSearchChange={setSearch}
+                searchPlaceholder={`Filter ${currentTabDef.label}...`}
+                emptyMessage={`No ${currentTabDef.label} records found.`}
+                isLoading={isLoading}
+              />
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Content View: Rollover Wizard or Master Registry DataTable */}
-      {activeTab === 'Rollover' ? (
-        <RolloverWizard />
-      ) : (
-        <DataTable
-          columns={getColumnsForTab(activeTab)}
-          data={filteredRecords}
-          keyField={currentTabDef.idField}
-          searchQuery={search}
-          onSearchChange={setSearch}
-          searchPlaceholder={`Filter ${currentTabDef.label}...`}
-          emptyMessage={`No ${currentTabDef.label} records found.`}
-          isLoading={isLoading}
-        />
-      )}
+      </div>
 
       {/* View Item Specifications Modal */}
       {viewingItem && (
@@ -1449,6 +1460,14 @@ export const Configuration: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Fiscal Rollover Wizard Modal */}
+      {isRolloverModalOpen && (
+        <RolloverWizard
+          isModal={true}
+          onClose={() => setIsRolloverModalOpen(false)}
+        />
       )}
 
       {/* Mandatory Action Confirmation Popup */}

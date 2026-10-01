@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,7 +27,7 @@ ChartJS.register(
 );
 
 interface DashboardOverviewProps {
-  onNavigate: (tab: string) => void;
+  onNavigate?: (tab: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -245,9 +246,27 @@ const MOCK_PENDING_INCIDENTS: PendingIncidentApproval[] = [
 ];
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate }) => {
+  const navigate = useNavigate();
   const [activeTableTab, setActiveTableTab] = useState<'alerts' | 'activity' | 'approvals'>('alerts');
   const [isEvaluatingRop, setIsEvaluatingRop] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
+
+  const goTo = (pathOrTab: string) => {
+    const routeMap: Record<string, string> = {
+      overview: '/overview',
+      catalog: '/catalog',
+      warehouse: '/warehouse',
+      alerts: '/alerts',
+      approvals: '/approvals',
+      config: '/configuration/item',
+      configuration: '/configuration/item'
+    };
+    const target = routeMap[pathOrTab] || (pathOrTab.startsWith('/') ? pathOrTab : `/${pathOrTab}`);
+    navigate(target);
+    if (onNavigate) {
+      onNavigate(pathOrTab);
+    }
+  };
 
   // Quick interactive ROP simulation
   const handleTriggerRop = () => {
@@ -335,22 +354,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
 
   return (
     <div className="container py-4 px-3 px-md-4">
-      {/* ------------------------------------------------------------------- */}
-      {/* 1. Header Section */}
-      {/* ------------------------------------------------------------------- */}
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-3 border-bottom">
-        <div>
-          <div className="d-flex align-items-center gap-2 mb-1">
-            <h4 className="fw-bold mb-0 text-dark">Executive Command Center</h4>
-            <span className="badge bg-secondary-subtle text-secondary border font-monospace" style={{ fontSize: '0.72rem' }}>
-              FY 2026-Q3
-            </span>
-          </div>
-          <p className="text-muted small mb-0">
-            Real-time physical asset valuation, reorder thresholds, inventory velocity, and operational activity.
-          </p>
-        </div>
-      </div>
 
       {/* ROP Feedback Banner */}
       {evaluationFeedback && (
@@ -371,7 +374,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="col-12 col-sm-6 col-xl-2">
           <div
             className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => onNavigate('warehouse')}
+            onClick={() => goTo('warehouse')}
             role="button"
             tabIndex={0}
             title="View Warehouse Stock Valuation"
@@ -392,7 +395,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="col-12 col-sm-6 col-xl-2">
           <div
             className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => onNavigate('catalog')}
+            onClick={() => goTo('catalog')}
             role="button"
             tabIndex={0}
             title="View Master Catalog SKUs"
@@ -404,7 +407,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <i className="bi bi-tags text-muted" style={{ fontSize: '1.25rem' }}></i>
             </div>
             <h5 className="fw-bold mb-1 text-dark">
-              184 Inventory Items
+              184 Items
             </h5>
           </div>
         </div>
@@ -413,7 +416,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="col-12 col-sm-6 col-xl-2">
           <div
             className="card border shadow-sm p-3 h-100 bg-white border-danger-subtle cursor-pointer hover-shadow transition-all"
-            onClick={() => onNavigate('alerts')}
+            onClick={() => goTo('alerts')}
             role="button"
             tabIndex={0}
             title="View Critical Stockouts in ROP Alert Center"
@@ -434,7 +437,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="col-12 col-sm-6 col-xl-2">
           <div
             className="card border shadow-sm p-3 h-100 bg-white border-warning-subtle cursor-pointer hover-shadow transition-all"
-            onClick={() => onNavigate('alerts')}
+            onClick={() => goTo('alerts')}
             role="button"
             tabIndex={0}
             title="View Reorder Warnings in ROP Alert Center"
@@ -455,7 +458,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="col-12 col-sm-6 col-xl-2">
           <div
             className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => onNavigate('approvals')}
+            onClick={() => goTo('approvals')}
             role="button"
             tabIndex={0}
             title="View Pending Incident Approvals"
@@ -476,7 +479,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         <div className="col-12 col-sm-6 col-xl-2">
           <div
             className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => onNavigate('warehouse')}
+            onClick={() => goTo('warehouse')}
             role="button"
             tabIndex={0}
             title="View In-House Custody and Assigned Assets"
@@ -502,14 +505,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       {/* ------------------------------------------------------------------- */}
       <div className="card border shadow-sm mb-4 bg-white">
         <div className="card-body p-3">
-          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
-            <span className="text-uppercase text-muted fw-semibold small" style={{ fontSize: '0.72rem', letterSpacing: '0.05em' }}>
-              Quick Actions & Navigations
-            </span>
-            <span className="text-muted small" style={{ fontSize: '0.75rem' }}>
-              Frequently accessed facilities operations
-            </span>
-          </div>
 
           <div className="row g-2">
             {/* 1. Item Masterlist */}
@@ -517,7 +512,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <button
                 type="button"
                 className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => onNavigate('catalog')}
+                onClick={() => goTo('catalog')}
               >
                 <i className="bi bi-box-seam text-secondary fs-5"></i>
                 <div className="text-truncate">
@@ -532,7 +527,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <button
                 type="button"
                 className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => onNavigate('warehouse')}
+                onClick={() => goTo('warehouse')}
               >
                 <i className="bi bi-buildings text-secondary fs-5"></i>
                 <div className="text-truncate">
@@ -547,7 +542,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <button
                 type="button"
                 className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => onNavigate('alerts')}
+                onClick={() => goTo('alerts')}
               >
                 <i className="bi bi-exclamation-triangle text-danger fs-5"></i>
                 <div className="text-truncate">
@@ -562,7 +557,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <button
                 type="button"
                 className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => onNavigate('approvals')}
+                onClick={() => goTo('approvals')}
               >
                 <i className="bi bi-clipboard-check text-warning-emphasis fs-5"></i>
                 <div className="text-truncate">
@@ -577,7 +572,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               <button
                 type="button"
                 className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => onNavigate('config')}
+                onClick={() => goTo('config')}
               >
                 <i className="bi bi-sliders text-secondary fs-5"></i>
                 <div className="text-truncate">
@@ -823,7 +818,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 style={{ fontSize: '0.75rem' }}
                 onClick={(e) => {
                   e.preventDefault();
-                  onNavigate('alerts');
+                  goTo('alerts');
                 }}
               >
                 <span>Go to Alert Center</span>
@@ -837,7 +832,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 style={{ fontSize: '0.75rem' }}
                 onClick={(e) => {
                   e.preventDefault();
-                  onNavigate('warehouse');
+                  goTo('warehouse');
                 }}
               >
                 <span>View Full Stock Records</span>
@@ -851,7 +846,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                 style={{ fontSize: '0.75rem' }}
                 onClick={(e) => {
                   e.preventDefault();
-                  onNavigate('approvals');
+                  goTo('approvals');
                 }}
               >
                 <span>Open Approvals Queue</span>
@@ -913,7 +908,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                         type="button"
                         className="btn btn-outline-dark btn-sm py-0 px-2"
                         style={{ fontSize: '0.75rem', height: '24px' }}
-                        onClick={() => onNavigate('alerts')}
+                        onClick={() => goTo('alerts')}
                       >
                         Reorder
                       </button>
@@ -1035,7 +1030,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                         type="button"
                         className="btn btn-outline-primary btn-sm py-0 px-2"
                         style={{ fontSize: '0.75rem', height: '24px' }}
-                        onClick={() => onNavigate('approvals')}
+                        onClick={() => goTo('approvals')}
                       >
                         Review
                       </button>

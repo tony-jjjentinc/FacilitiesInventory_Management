@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { apiRequest } from '../services/api';
 import { getCurrentUser } from '../services/auth';
 
-export const RolloverWizard: React.FC = () => {
+interface RolloverWizardProps {
+  onClose?: () => void;
+  isModal?: boolean;
+}
+
+export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal = false }) => {
   const [step, setStep] = useState(1);
   const [targetYear, setTargetYear] = useState('2027');
   const [isChecking, setIsChecking] = useState(false);
@@ -54,17 +59,26 @@ export const RolloverWizard: React.FC = () => {
     }
   };
 
-  return (
-    <div className="container py-4" style={{ maxWidth: '780px' }}>
-      <div className="card border shadow-sm bg-white">
-        <div className="card-header bg-white py-3 px-4 border-bottom">
+  const content = (
+    <div className={`card border shadow-sm bg-white ${isModal ? 'border-0 shadow-none' : ''}`}>
+      <div className="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+        <div>
           <h5 className="fw-bold mb-1 text-dark">Annual Fiscal Rollover Wizard</h5>
           <div className="small text-muted">
             Automates golden template cloning, closing inventory carryover, and active ledger registry.
           </div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            className="btn-close"
+            onClick={onClose}
+            aria-label="Close"
+          ></button>
+        )}
+      </div>
 
-        <div className="card-body p-4">
+      <div className="card-body p-4">
           {/* Progress Tabs */}
           <div className="d-flex border-bottom mb-4 text-center">
             <div className={`flex-fill py-2 small fw-semibold border-bottom ${step === 1 ? 'border-primary text-primary' : 'text-muted border-transparent'}`}>
@@ -211,6 +225,27 @@ export const RolloverWizard: React.FC = () => {
           )}
         </div>
       </div>
+  );
+
+  if (isModal) {
+    return (
+      <div
+        className="modal show d-block"
+        tabIndex={-1}
+        style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}
+      >
+        <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+          <div className="modal-content border shadow-sm">
+            {content}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-4" style={{ maxWidth: '780px' }}>
+      {content}
     </div>
   );
 };

@@ -152,9 +152,9 @@ export const WarehouseStock: React.FC = () => {
   ];
 
   return (
-    <div className="container-fluid py-4 px-3 px-md-4">
+    <div className="container py-4 px-3 px-md-4">
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2 border-bottom">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2">
         <div>
           <h4 className="fw-bold mb-1 text-dark">Warehouse Stock</h4>
           <p className="text-muted small mb-0">

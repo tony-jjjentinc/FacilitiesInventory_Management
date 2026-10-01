@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { getCurrentUser, logout } from './services/auth';
 import type { UserClaims } from './types';
 import { Navbar } from './components/Navbar';
@@ -9,10 +10,11 @@ import { WarehouseStock } from './pages/WarehouseStock';
 import { RopAlertCenter } from './pages/RopAlertCenter';
 import { ApprovalsQueue } from './pages/ApprovalsQueue';
 import { Configuration } from './pages/Configuration';
+import { useSystemInfo } from './context/SystemContext';
 
 export const App: React.FC = () => {
+  const { systemInfo } = useSystemInfo();
   const [currentUser, setCurrentUser] = useState<UserClaims | null>(null);
-  const [currentTab, setCurrentTab] = useState<string>('overview');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -25,9 +27,6 @@ export const App: React.FC = () => {
       if (e.key === 'jjjei_jwt_token') {
         const updatedUser = getCurrentUser();
         setCurrentUser(updatedUser);
-        if (!updatedUser) {
-          setCurrentTab('overview');
-        }
       }
     };
 
@@ -40,7 +39,6 @@ export const App: React.FC = () => {
   const handleLogout = () => {
     logout();
     setCurrentUser(null);
-    setCurrentTab('overview');
   };
 
   const isHeadOrAdmin = currentUser?.roles?.some(r =>
@@ -62,29 +60,54 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-vh-100 bg-light d-flex flex-column">
-      <Navbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        user={currentUser}
-        onLogout={handleLogout}
-      />
+    <HashRouter>
+      <div className="min-vh-100 bg-primary-gradient-subtle d-flex flex-column">
+        <Navbar
+          user={currentUser}
+          onLogout={handleLogout}
+        />
 
-      <main className="flex-grow-1">
-        {currentTab === 'overview' && <DashboardOverview onNavigate={setCurrentTab} />}
-        {currentTab === 'catalog' && <MasterCatalog />}
-        {currentTab === 'warehouse' && <WarehouseStock />}
-        {currentTab === 'alerts' && <RopAlertCenter />}
-        {currentTab === 'approvals' && isHeadOrAdmin && <ApprovalsQueue />}
-        {currentTab === 'config' && isHeadOrAdmin && <Configuration />}
-      </main>
+        <main className="flex-grow-1">
+          <Routes>
+            <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route path="/overview" element={<DashboardOverview />} />
+            <Route path="/catalog" element={<MasterCatalog />} />
+            <Route path="/warehouse" element={<WarehouseStock />} />
+            <Route path="/alerts" element={<RopAlertCenter />} />
 
-      <footer className="bg-white border-top py-3 text-center small text-muted mt-auto">
-        <div className="container">
-          Juan Jamora Jr. Enterprises, Inc. (JJJEI) • Facilities Department &copy; 2026. All rights reserved.
-        </div>
-      </footer>
-    </div>
+            {/* Role Guarded Routes for Head/Admin */}
+            <Route
+              path="/approvals"
+              element={isHeadOrAdmin ? <ApprovalsQueue /> : <Navigate to="/overview" replace />}
+            />
+            <Route
+              path="/configuration"
+              element={
+                isHeadOrAdmin ? (
+                  <Navigate to="/configuration/item" replace />
+                ) : (
+                  <Navigate to="/overview" replace />
+                )
+              }
+            />
+            <Route
+              path="/configuration/:subTab"
+              element={isHeadOrAdmin ? <Configuration /> : <Navigate to="/overview" replace />}
+            />
+
+            {/* Catch-all Fallback */}
+            <Route path="*" element={<Navigate to="/overview" replace />} />
+          </Routes>
+        </main>
+
+        <footer className="py-3 text-center small text-muted mt-auto">
+          <div className="w-100 d-flex flex-column flex-md-row justify-content-center justify-content-md-between align-items-center px-3">
+            <span className="fw-bold">{systemInfo.name} {systemInfo.version}</span>
+            <span>Juan Jamora, Jr. Enterprises, Inc.</span>
+          </div>
+        </footer>
+      </div>
+    </HashRouter>
   );
 };
 

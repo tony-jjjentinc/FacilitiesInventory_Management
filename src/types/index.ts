@@ -17,6 +17,18 @@ export interface UserClaims {
 
 export type InventoryTypeCode = 'CNS' | 'TLS' | 'SPR' | 'MSC';
 
+export type ConfigTableKey =
+  | 'Item'
+  | 'Supplier'
+  | 'Item_Supplier_and_Pricing'
+  | 'Inventory_Category'
+  | 'Inventory_Property_Keys'
+  | 'UOM'
+  | 'UOM_Category'
+  | 'Warehouse_Location'
+  | 'Sheet_Records'
+  | 'Rollover';
+
 export interface CatalogItem {
   id: string;
   sku: string;
@@ -111,4 +123,15 @@ export interface ApiResponse<T = any> {
   errorCode: string | null;
   durationMs?: number;
   timestamp: string;
+}
+
+export interface SystemInfo {
+  name: string;
+  service?: string;
+  shortName: string;
+  subtitle: string;
+  version: string;
+  status?: string;
+  time?: string;
+  timestamp?: string;
 }
