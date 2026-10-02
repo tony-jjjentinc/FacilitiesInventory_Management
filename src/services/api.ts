@@ -226,6 +226,25 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
             ],
             Sheet_Records: [
               { Year: 2026, Sheet_ID: '1qZw8yXoPmLkRt9vBn4uCe7dAw1sEf2Gh3Jk5LmNoPqR', Sheet_URL: 'https://docs.google.com/spreadsheets/d/1qZw8yXoPmLkRt9vBn4uCe7dAw1sEf2Gh3Jk5LmNoPqR', Status: 'ACTIVE', Created_At: '2026-01-01', Closed_At: '' }
+            ],
+            CONFIG: [
+              { System: 'HVAC Chilled Water System', Component: 'Chilled Water Loop' },
+              { System: 'HVAC Stand Alone System', Component: 'Air Handling Unit (AHU)' },
+              { System: 'Lifting System', Component: 'Elevator & Escalator' },
+              { System: 'Fire Detection and Alarm System', Component: 'Fire Alarm & Detection' },
+              { System: 'Fire Protection System', Component: 'Sprinkler Network' },
+              { System: 'Electrical System', Component: 'Power Distribution' },
+              { System: 'Emergency Power Supply', Component: 'Generator Set' },
+              { System: 'Fire Fighting Emergency Equipment', Component: 'Fire Extinguishers' },
+              { System: 'Plumbing and Sanitary System', Component: 'Piping Network' },
+              { System: 'Rainwater Harvesting System', Component: 'Filtration Unit' },
+              { System: 'Solar Energy Generation System', Component: 'Solar Inverter' },
+              { System: 'Stormwater Drainage System', Component: 'Drainage & Waste' },
+              { System: 'Architectural, Civil and Structural System', Component: 'Masonry & Tiles' },
+              { System: 'Engineering Tools and Equipment', Component: 'Power Tools' },
+              { System: 'Professional/Consultancy Fee', Component: 'Advisory Services' },
+              { System: 'Communication System', Component: 'Intercom & Paging' },
+              { System: 'Auxiliary Sytem', Component: 'Structured Cabling' }
             ]
           };
 

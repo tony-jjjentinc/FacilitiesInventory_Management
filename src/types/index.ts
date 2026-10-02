@@ -135,3 +135,35 @@ export interface SystemInfo {
   time?: string;
   timestamp?: string;
 }
+
+export interface TransactionLineItem {
+  entryId: string;
+  itemId: string;
+  sku: string;
+  name: string;
+  serialNumber?: string;
+  supplierId?: string;
+  quantity: number;
+  uom: string;
+  unitCost: number;
+  totalCost: number;
+  remarks?: string;
+}
+
+export interface TransactionEntry {
+  transactionId: string;
+  timestamp: string;
+  transactionType: string;
+  sourceType: string;
+  sourceRefId: string;
+  destinationType: string;
+  destinationRefId: string;
+  loggedById: string;
+  accountablePartyId: string;
+  status: 'PENDING' | 'POSTED' | 'VOIDED';
+  remarks?: string;
+  items: TransactionLineItem[];
+  totalItems: number;
+  totalCost: number;
+}
+

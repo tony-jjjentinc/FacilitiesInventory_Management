@@ -53,10 +53,45 @@ export const Configuration: React.FC = () => {
   const [viewingItem, setViewingItem] = useState<any | null>(null);
 
   // State for config dropdown lookups in Item Masterlist editor
+  const DEFAULT_SYSTEMS = [
+    'HVAC Chilled Water System',
+    'HVAC Stand Alone System',
+    'Lifting System',
+    'Fire Detection and Alarm System',
+    'Fire Protection System',
+    'Electrical System',
+    'Emergency Power Supply',
+    'Fire Fighting Emergency Equipment',
+    'Plumbing and Sanitary System',
+    'Rainwater Harvesting System',
+    'Solar Energy Generation System',
+    'Stormwater Drainage System',
+    'Architectural, Civil and Structural System',
+    'Engineering Tools and Equipment',
+    'Professional/Consultancy Fee',
+    'Communication System',
+    'Auxiliary Sytem'
+  ];
+  const DEFAULT_COMPONENTS = [
+    'Piping Network',
+    'Drainage & Waste',
+    'Power Distribution',
+    'Lighting Fixtures',
+    'Air Handling Unit (AHU)',
+    'Chilled Water Loop',
+    'Sprinkler Network',
+    'Fire Alarm & Detection',
+    'Masonry & Tiles',
+    'Power Tools',
+    'Hand Tools',
+    'Safety & PPE'
+  ];
   const [lookupUoms, setLookupUoms] = useState<any[]>([]);
   const [lookupCategories, setLookupCategories] = useState<any[]>([]);
   const [lookupTypes, setLookupTypes] = useState<any[]>([]);
   const [lookupPropertyKeys, setLookupPropertyKeys] = useState<any[]>([]);
+  const [lookupComponents, setLookupComponents] = useState<string[]>(DEFAULT_COMPONENTS);
+  const [lookupSystems, setLookupSystems] = useState<string[]>(DEFAULT_SYSTEMS);
 
   // Item preview modal collapsible state
   const [isPropertiesExpanded, setIsPropertiesExpanded] = useState(false);
@@ -102,20 +137,38 @@ export const Configuration: React.FC = () => {
     };
   }, [isAnyModalOpen]);
 
-  // Load lookup options for Item edit modal (UOMs, Categories, Types, Property Keys)
+  // Load lookup options for Item edit modal (UOMs, Categories, Types, Property Keys, Components)
   useEffect(() => {
     const loadLookups = async () => {
       try {
-        const [uomRes, catRes, typeRes, propKeysRes] = await Promise.all([
+        const [uomRes, catRes, typeRes, propKeysRes, configRes] = await Promise.all([
           apiRequest('config:getTable', { table: 'UOM' }).catch(() => ({ records: [] })),
           apiRequest('config:getTable', { table: 'Inventory_Category' }).catch(() => ({ records: [] })),
           apiRequest('config:getTable', { table: 'Inventory_Type' }).catch(() => ({ records: [] })),
-          apiRequest('config:getTable', { table: 'Inventory_Property_Keys' }).catch(() => ({ records: [] }))
+          apiRequest('config:getTable', { table: 'Inventory_Property_Keys' }).catch(() => ({ records: [] })),
+          apiRequest('config:getTable', { table: 'CONFIG' }).catch(() => ({ records: [] }))
         ]);
         if (uomRes.records && uomRes.records.length > 0) setLookupUoms(uomRes.records);
         if (catRes.records && catRes.records.length > 0) setLookupCategories(catRes.records);
         if (typeRes.records && typeRes.records.length > 0) setLookupTypes(typeRes.records);
         if (propKeysRes.records && propKeysRes.records.length > 0) setLookupPropertyKeys(propKeysRes.records);
+        if (configRes.records && configRes.records.length > 0) {
+          const comps = configRes.records
+            .map((r: any) => String(r.Component || r.component || '').trim())
+            .filter((c: string) => c.length > 0);
+          if (comps.length > 0) {
+            const uniqueComps = Array.from(new Set([...comps, ...DEFAULT_COMPONENTS]));
+            setLookupComponents(uniqueComps);
+          }
+
+          const systems = configRes.records
+            .map((r: any) => String(r.System || r.system || '').trim())
+            .filter((s: string) => s.length > 0);
+          if (systems.length > 0) {
+            const uniqueSystems = Array.from(new Set([...systems, ...DEFAULT_SYSTEMS]));
+            setLookupSystems(uniqueSystems);
+          }
+        }
       } catch (err) {
         console.warn('Failed to prefetch lookups:', err);
       }
@@ -216,7 +269,7 @@ export const Configuration: React.FC = () => {
     if (activeTab === 'Item') {
       defaultData.Inventory_Type_Code = 'CNS';
       defaultData.Category_ID = 'PLB';
-      defaultData.System = 'Plumbing & Sanitary';
+      defaultData.System = 'Plumbing and Sanitary System';
       defaultData.Component = 'Piping Network';
       defaultData.UOM = 'pc';
       defaultData.Properties = '{}';
@@ -1106,7 +1159,6 @@ export const Configuration: React.FC = () => {
                           <input
                             type="text"
                             className="form-control form-control-sm"
-                            placeholder="e.g. PPR Pipe 1/2in x 4m"
                             value={editFormData.Name || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Name: e.target.value })}
                           />
@@ -1117,7 +1169,6 @@ export const Configuration: React.FC = () => {
                           <input
                             type="text"
                             className="form-control form-control-sm"
-                            placeholder="e.g. Pipelife"
                             value={editFormData.Brand || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Brand: e.target.value })}
                           />
@@ -1128,7 +1179,6 @@ export const Configuration: React.FC = () => {
                           <input
                             type="text"
                             className="form-control form-control-sm"
-                            placeholder="e.g. PN20"
                             value={editFormData.Model || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Model: e.target.value })}
                           />
@@ -1139,7 +1189,6 @@ export const Configuration: React.FC = () => {
                           <input
                             type="text"
                             className="form-control form-control-sm"
-                            placeholder="e.g. Green / Hot & Cold"
                             value={editFormData.Variant || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Variant: e.target.value })}
                           />
@@ -1155,16 +1204,16 @@ export const Configuration: React.FC = () => {
                             {lookupUoms.length > 0 ? (
                               lookupUoms.map((u: any) => (
                                 <option key={u.Unit || u.ID} value={u.Unit || u.ID}>
-                                  {u.Unit || u.ID} — {u.Name}
+                                  {u.Name || u.Unit || u.ID}
                                 </option>
                               ))
                             ) : (
                               <>
-                                <option value="pc">pc — Piece</option>
-                                <option value="box">box — Box</option>
-                                <option value="mtr">mtr — Meter</option>
-                                <option value="set">set — Set / Kit</option>
-                                <option value="cyl">cyl — Cylinder</option>
+                                <option value="pc">Piece</option>
+                                <option value="box">Box</option>
+                                <option value="mtr">Meter</option>
+                                <option value="set">Set / Kit</option>
+                                <option value="cyl">Cylinder</option>
                               </>
                             )}
                           </select>
@@ -1175,7 +1224,7 @@ export const Configuration: React.FC = () => {
                       <div className="mt-3 p-3 bg-light rounded-2 border">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <label className="form-label small fw-semibold text-dark mb-0">
-                            Properties (Key-Value Specifications)
+                            Inventory Properties
                           </label>
                           <button
                             type="button"
@@ -1189,68 +1238,60 @@ export const Configuration: React.FC = () => {
 
                         {itemPropertiesPairs.length === 0 ? (
                           <div className="text-muted small fst-italic py-1">
-                            No custom technical properties added. Click "Add Property" to attach specifications (e.g. dimensions, power, volume, weight).
+                            No custom technical properties added. Click "Add Property" to attach specifications.
                           </div>
                         ) : (
                           <div className="d-flex flex-column gap-2 mt-2">
-                            {itemPropertiesPairs.map((pair, idx) => {
-                              const matchedKeyDef = lookupPropertyKeys.find(
-                                k => (k.Key || '').toLowerCase() === (pair.key || '').toLowerCase()
-                              );
-                              return (
-                                <div key={idx} className="d-flex align-items-center gap-2">
-                                  {/* Authorized Property Key Selector / Input */}
-                                  <div style={{ minWidth: '190px', maxWidth: '240px' }} className="flex-shrink-0">
-                                    <input
-                                      list={`prop-keys-datalist-${idx}`}
-                                      type="text"
-                                      className="form-control form-control-sm font-monospace"
-                                      placeholder="Property Key"
-                                      value={pair.key}
-                                      onChange={(e) => {
-                                        const next = [...itemPropertiesPairs];
-                                        next[idx].key = e.target.value;
-                                        setItemPropertiesPairs(next);
-                                      }}
-                                    />
-                                    <datalist id={`prop-keys-datalist-${idx}`}>
-                                      {lookupPropertyKeys.length > 0 ? (
-                                        lookupPropertyKeys.map((k: any) => (
-                                          <option key={k.Key} value={k.Key}>
-                                            {k.Label || k.Key} {k.Allowed_Values_or_Unit ? `(${k.Allowed_Values_or_Unit})` : ''}
-                                          </option>
-                                        ))
-                                      ) : (
-                                        <>
-                                          <option value="dimensions">Dimensions (e.g. 2 ft x 3 ft, 12 in x 9 in)</option>
-                                          <option value="power">Power Rating (e.g. 750W, 1 HP, 650VA)</option>
-                                          <option value="volume">Volume / Liquid Capacity (e.g. 1 L, 500 ml)</option>
-                                          <option value="weight">Weight / Mass (e.g. 25 kg, 100 g, 10 lb)</option>
-                                          <option value="current_rating">Current Rating (e.g. 15A, 20A, 100A)</option>
-                                          <option value="pack_count">Pack Count (e.g. 5's, 10's, 100's)</option>
-                                          <option value="voltage">Voltage Rating (e.g. 220V, 240V, 24 V)</option>
-                                          <option value="storage_capacity">Storage Capacity (e.g. 16 GB, 1 TB)</option>
-                                        </>
-                                      )}
-                                    </datalist>
-                                  </div>
-                                  <span className="text-muted">:</span>
-                                  {/* Property Value Input with hints */}
+                            {itemPropertiesPairs.map((pair, idx) => (
+                              <div key={idx} className="d-flex align-items-center gap-2">
+                                {/* Authorized Property Key Selector / Input */}
+                                <div style={{ minWidth: '190px', maxWidth: '240px' }} className="flex-shrink-0">
                                   <input
+                                    list={`prop-keys-datalist-${idx}`}
                                     type="text"
-                                    className="form-control form-control-sm flex-grow-1"
-                                    placeholder={
-                                      matchedKeyDef?.Allowed_Values_or_Unit
-                                        ? `Value (${matchedKeyDef.Allowed_Values_or_Unit})`
-                                        : 'Value (e.g. 1/2in, 750W, 25 kg)'
-                                    }
-                                    value={pair.value}
+                                    className="form-control form-control-sm font-monospace"
+                                    placeholder="Property Key"
+                                    value={pair.key}
                                     onChange={(e) => {
                                       const next = [...itemPropertiesPairs];
-                                      next[idx].value = e.target.value;
+                                      next[idx].key = e.target.value;
                                       setItemPropertiesPairs(next);
                                     }}
                                   />
+                                  <datalist id={`prop-keys-datalist-${idx}`}>
+                                    {lookupPropertyKeys.length > 0 ? (
+                                      lookupPropertyKeys.map((k: any) => (
+                                        <option key={k.Key} value={k.Key}>
+                                          {k.Label || k.Key}
+                                        </option>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <option value="dimensions">Dimensions</option>
+                                        <option value="power">Power Rating</option>
+                                        <option value="volume">Volume</option>
+                                        <option value="weight">Weight</option>
+                                        <option value="current_rating">Current Rating</option>
+                                        <option value="pack_count">Pack Count</option>
+                                        <option value="voltage">Voltage Rating</option>
+                                        <option value="storage_capacity">Storage Capacity</option>
+                                      </>
+                                    )}
+                                  </datalist>
+                                </div>
+                                <span className="text-muted">:</span>
+                                {/* Property Value Input with hints */}
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm flex-grow-1"
+                                  placeholder="Value"
+                                  value={pair.value}
+                                  onChange={(e) => {
+                                    const next = [...itemPropertiesPairs];
+                                    next[idx].value = e.target.value;
+                                    setItemPropertiesPairs(next);
+                                  }}
+                                />
                                   <button
                                     type="button"
                                     className="btn-icon-action action-delete"
@@ -1260,8 +1301,7 @@ export const Configuration: React.FC = () => {
                                     <i className="bi bi-trash3"></i>
                                   </button>
                                 </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1277,35 +1317,45 @@ export const Configuration: React.FC = () => {
 
                       <div className="row g-3">
                         <div className="col-12 col-md-6">
-                          <label className="form-label small text-muted mb-1">System (Engineering Domain) *</label>
+                          <label className="form-label small text-muted mb-1">System</label>
                           <select
                             className="form-select form-select-sm"
-                            value={editFormData.System || 'Plumbing & Sanitary'}
+                            value={editFormData.System || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, System: e.target.value })}
                           >
-                            <option value="Plumbing & Sanitary">Plumbing & Sanitary</option>
-                            <option value="Electrical & Power">Electrical & Power</option>
-                            <option value="HVAC & Refrigeration">HVAC & Refrigeration</option>
-                            <option value="Fire Protection">Fire Protection</option>
-                            <option value="Lifting System">Lifting System</option>
-                            <option value="Civil & Architectural">Civil & Architectural</option>
-                            <option value="Auxiliary & IT">Auxiliary & IT</option>
+                            <option value="" selected>N/A</option>
+                            {editFormData.System && !lookupSystems.includes(editFormData.System) && (
+                              <option value={editFormData.System}>{editFormData.System}</option>
+                            )}
+                            {lookupSystems.map((sys) => (
+                              <option key={sys} value={sys}>
+                                {sys}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
                         <div className="col-12 col-md-6">
-                          <label className="form-label small text-muted mb-1">Component / Subsystem *</label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="e.g. Piping Network, Air Handling Unit"
+                          <label className="form-label small text-muted mb-1">Component</label>
+                          <select
+                            className="form-select form-select-sm"
                             value={editFormData.Component || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Component: e.target.value })}
-                          />
+                          >
+                            <option value="" selected>N/A</option>
+                            {editFormData.Component && !lookupComponents.includes(editFormData.Component) && (
+                              <option value={editFormData.Component}>{editFormData.Component}</option>
+                            )}
+                            {lookupComponents.map((comp) => (
+                              <option key={comp} value={comp}>
+                                {comp}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         <div className="col-12 col-md-6">
-                          <label className="form-label small text-muted mb-1">Inventory Category (Trade) *</label>
+                          <label className="form-label small text-muted mb-1">Inventory Category</label>
                           <select
                             className="form-select form-select-sm"
                             value={editFormData.Category_ID || 'PLB'}
@@ -1322,16 +1372,16 @@ export const Configuration: React.FC = () => {
                             {lookupCategories.length > 0 ? (
                               lookupCategories.map((c: any) => (
                                 <option key={c.ID || c.Category_ID} value={c.ID || c.Category_ID}>
-                                  {c.ID || c.Category_ID} — {c.Name || c.Category_Name}
+                                  {c.Name || c.Category_Name}
                                 </option>
                               ))
                             ) : (
                               <>
-                                <option value="PLB">PLB — Plumbing Supplies</option>
-                                <option value="ELE">ELE — Electrical Supplies</option>
-                                <option value="HVA">HVA — HVAC & Refrigeration</option>
-                                <option value="CIV">CIV — Civil & Masonry</option>
-                                <option value="PWR">PWR — Power Tools</option>
+                                <option value="PLB">Plumbing Supplies</option>
+                                <option value="ELE">Electrical Supplies</option>
+                                <option value="HVA">HVAC & Refrigeration</option>
+                                <option value="CIV">Civil & Masonry</option>
+                                <option value="PWR">Power Tools</option>
                               </>
                             )}
                           </select>
@@ -1347,15 +1397,15 @@ export const Configuration: React.FC = () => {
                             {lookupTypes.length > 0 ? (
                               lookupTypes.map((t: any) => (
                                 <option key={t.ID || t.code} value={t.ID || t.code}>
-                                  {t.ID || t.code} — {t.Name || t.name}
+                                  {t.Name || t.name}
                                 </option>
                               ))
                             ) : (
                               <>
-                                <option value="CNS">CNS — Consumables</option>
-                                <option value="TLS">TLS — Tools & Equipment</option>
-                                <option value="SPR">SPR — Spare Parts</option>
-                                <option value="MSC">MSC — Miscellaneous</option>
+                                <option value="CNS">Consumables</option>
+                                <option value="TLS">Tools & Equipment</option>
+                                <option value="SPR">Spare Parts</option>
+                                <option value="MSC">Miscellaneous</option>
                               </>
                             )}
                           </select>
@@ -1381,13 +1431,12 @@ export const Configuration: React.FC = () => {
                       {isAdvancedSectionExpanded && (
                         <div className="row g-3">
                           <div className="col-12 col-md-6">
-                            <label className="form-label small text-muted mb-1">Item ID (PK)</label>
+                            <label className="form-label small text-muted mb-1">Inventory Item ID</label>
                             <input
                               type="text"
                               className="form-control form-control-sm font-monospace"
                               disabled={!isCreatingNew}
                               value={editFormData.ID || ''}
-                              placeholder="Auto-generated (e.g. ITM-0001)"
                               onChange={(e) => setEditFormData({ ...editFormData, ID: e.target.value })}
                             />
                           </div>
@@ -1407,7 +1456,7 @@ export const Configuration: React.FC = () => {
                           </div>
 
                           <div className="col-12">
-                            <label className="form-label small text-muted mb-1">Property Fingerprint (Surrogate Key)</label>
+                            <label className="form-label small text-muted mb-1">Inventory Fingerprint</label>
                             <input
                               type="text"
                               className="form-control form-control-sm font-monospace"
@@ -1417,11 +1466,10 @@ export const Configuration: React.FC = () => {
                           </div>
 
                           <div className="col-12">
-                            <label className="form-label small text-muted mb-1">Search Tags (Comma-separated)</label>
+                            <label className="form-label small text-muted mb-1">Search Tags (Values Separated by Comma)</label>
                             <input
                               type="text"
                               className="form-control form-control-sm"
-                              placeholder="ppr, pipe, water, plumbing"
                               value={editFormData.Search_Tags || ''}
                               onChange={(e) => setEditFormData({ ...editFormData, Search_Tags: e.target.value })}
                             />

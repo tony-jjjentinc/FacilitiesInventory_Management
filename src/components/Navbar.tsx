@@ -45,6 +45,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     { id: 'overview', path: '/overview', label: 'Dashboard', icon: 'bi-grid-1x2' },
     { id: 'catalog', path: '/catalog', label: 'Master Catalog', icon: 'bi-box-seam' },
     { id: 'warehouse', path: '/warehouse', label: 'Warehouse Stock', icon: 'bi-buildings' },
+    { id: 'transactions', path: '/transactions', label: 'Transactions', icon: 'bi-journal-text' },
+    { id: 'receiving', path: '/receiving', label: 'Receiving', icon: 'bi-box-arrow-in-down' },
     { id: 'alerts', path: '/alerts', label: 'ROP Alerts', icon: 'bi-exclamation-triangle' },
     ...(isHeadOrAdmin
       ? [

@@ -779,7 +779,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         {/* Table Navigation Header */}
         <div className="card-header bg-white py-2 px-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div className="d-flex align-items-center gap-2">
-            <ul className="nav nav-pills card-header-pills small">
+            <ul className="nav nav-pills card-header-pills small justify-content-center gap-2">
               <li className="nav-item">
                 <button
                   type="button"

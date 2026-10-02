@@ -56,7 +56,7 @@ export const MasterCatalog: React.FC = () => {
     variant: '',
     categoryId: 'PLB',
     typeCode: 'CNS' as InventoryTypeCode,
-    system: 'Plumbing & Sanitary',
+    system: 'Plumbing and Sanitary System',
     component: 'Piping Network',
     uom: 'pc',
     propertiesJson: '{}'
@@ -143,7 +143,7 @@ export const MasterCatalog: React.FC = () => {
       variant: '',
       categoryId: 'PLB',
       typeCode: 'CNS',
-      system: 'Plumbing & Sanitary',
+      system: 'Plumbing and Sanitary System',
       component: 'Piping Network',
       uom: 'pc',
       propertiesJson: '{}'

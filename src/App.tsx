@@ -10,7 +10,10 @@ import { WarehouseStock } from './pages/WarehouseStock';
 import { RopAlertCenter } from './pages/RopAlertCenter';
 import { ApprovalsQueue } from './pages/ApprovalsQueue';
 import { Configuration } from './pages/Configuration';
+import { Transactions } from './pages/Transactions';
+import { WarehouseReceiving } from './pages/WarehouseReceiving';
 import { useSystemInfo } from './context/SystemContext';
+import { Logo } from './components/Logo';
 
 export const App: React.FC = () => {
   const { systemInfo } = useSystemInfo();
@@ -61,7 +64,7 @@ export const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="min-vh-100 bg-primary-gradient-subtle d-flex flex-column">
+      <div className="min-vh-100 bg-primary bg-opacity-10 d-flex flex-column">
         <Navbar
           user={currentUser}
           onLogout={handleLogout}
@@ -73,6 +76,8 @@ export const App: React.FC = () => {
             <Route path="/overview" element={<DashboardOverview />} />
             <Route path="/catalog" element={<MasterCatalog />} />
             <Route path="/warehouse" element={<WarehouseStock />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/receiving" element={<WarehouseReceiving />} />
             <Route path="/alerts" element={<RopAlertCenter />} />
 
             {/* Role Guarded Routes for Head/Admin */}
@@ -101,9 +106,11 @@ export const App: React.FC = () => {
         </main>
 
         <footer className="py-3 text-center small text-muted mt-auto">
-          <div className="w-100 d-flex flex-column flex-md-row justify-content-center justify-content-md-between align-items-center px-3">
-            <span className="fw-bold">{systemInfo.name} {systemInfo.version}</span>
-            <span>Juan Jamora, Jr. Enterprises, Inc.</span>
+          <div className="container-fluid d-flex flex-column flex-md-row justify-content-center justify-content-md-between align-items-center px-3">
+            <div className="">
+              <Logo size={32} variant="default" />
+            </div>
+            <span className="fw-light">{systemInfo.name} {systemInfo.version}</span>
           </div>
         </footer>
       </div>

@@ -32,7 +32,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light p-3">
+    <div className="d-flex align-items-center justify-content-center min-vh-100 bg-primary-subtle p-3">
       <div className="card border shadow-sm p-3 p-md-4" style={{ maxWidth: '670px', width: '100%', borderRadius: '8px' }}>
         <div className="text-center mb-4">
           <Logo size={96} variant="default" className="mb-3" />
