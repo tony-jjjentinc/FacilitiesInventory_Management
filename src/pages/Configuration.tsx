@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
-import { getCurrentUser } from '../services/auth';
+import { getCurrentUser, isUserHeadOrAdmin } from '../services/auth';
 import { DataTable, type Column } from '../components/DataTable';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { RolloverWizard } from './RolloverWizard';
@@ -28,6 +28,41 @@ const CONFIG_TABS: ConfigTabDef[] = [
   { key: 'Sheet_Records', label: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' }
 ];
 
+const DEFAULT_SYSTEMS = [
+  'HVAC Chilled Water System',
+  'HVAC Stand Alone System',
+  'Lifting System',
+  'Fire Detection and Alarm System',
+  'Fire Protection System',
+  'Electrical System',
+  'Emergency Power Supply',
+  'Fire Fighting Emergency Equipment',
+  'Plumbing and Sanitary System',
+  'Rainwater Harvesting System',
+  'Solar Energy Generation System',
+  'Stormwater Drainage System',
+  'Architectural, Civil and Structural System',
+  'Engineering Tools and Equipment',
+  'Professional/Consultancy Fee',
+  'Communication System',
+  'Auxiliary Sytem'
+];
+
+const DEFAULT_COMPONENTS = [
+  'Piping Network',
+  'Drainage & Waste',
+  'Power Distribution',
+  'Lighting Fixtures',
+  'Air Handling Unit (AHU)',
+  'Chilled Water Loop',
+  'Sprinkler Network',
+  'Fire Alarm & Detection',
+  'Masonry & Tiles',
+  'Power Tools',
+  'Hand Tools',
+  'Safety & PPE'
+];
+
 export const Configuration: React.FC = () => {
   const { subTab } = useParams<{ subTab?: string }>();
   const navigate = useNavigate();
@@ -41,51 +76,18 @@ export const Configuration: React.FC = () => {
 
   // Synchronous ref to prevent stale in-flight responses from overwriting current tab data
   const activeTabRef = useRef<ConfigTableKey>(activeTab);
-  activeTabRef.current = activeTab;
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   // Head Admin role verification
   const currentUser = getCurrentUser();
-  const isHeadAdmin = Boolean(
-    currentUser?.roles?.some(r => ['super admin', 'head'].includes(String(r).trim().toLowerCase()))
-  );
+  const isHeadAdmin = isUserHeadOrAdmin(currentUser);
 
   // Item View Modal State
   const [viewingItem, setViewingItem] = useState<any | null>(null);
 
   // State for config dropdown lookups in Item Masterlist editor
-  const DEFAULT_SYSTEMS = [
-    'HVAC Chilled Water System',
-    'HVAC Stand Alone System',
-    'Lifting System',
-    'Fire Detection and Alarm System',
-    'Fire Protection System',
-    'Electrical System',
-    'Emergency Power Supply',
-    'Fire Fighting Emergency Equipment',
-    'Plumbing and Sanitary System',
-    'Rainwater Harvesting System',
-    'Solar Energy Generation System',
-    'Stormwater Drainage System',
-    'Architectural, Civil and Structural System',
-    'Engineering Tools and Equipment',
-    'Professional/Consultancy Fee',
-    'Communication System',
-    'Auxiliary Sytem'
-  ];
-  const DEFAULT_COMPONENTS = [
-    'Piping Network',
-    'Drainage & Waste',
-    'Power Distribution',
-    'Lighting Fixtures',
-    'Air Handling Unit (AHU)',
-    'Chilled Water Loop',
-    'Sprinkler Network',
-    'Fire Alarm & Detection',
-    'Masonry & Tiles',
-    'Power Tools',
-    'Hand Tools',
-    'Safety & PPE'
-  ];
   const [lookupUoms, setLookupUoms] = useState<any[]>([]);
   const [lookupCategories, setLookupCategories] = useState<any[]>([]);
   const [lookupTypes, setLookupTypes] = useState<any[]>([]);
@@ -197,10 +199,11 @@ export const Configuration: React.FC = () => {
         async () => {
           const res = await apiRequest('config:getTable', { table: tableKey });
           const rawRows: any[] = res.records || [];
-          // Clean & filter rows: prune ghost empty rows from Google Sheets (rows with no ID / Record_ID / Year)
+          const targetTabDef = CONFIG_TABS.find(t => t.key === tableKey) || currentTabDef;
+          // Clean & filter rows: prune ghost empty rows from Google Sheets (rows with no ID / Record_ID / Key / Year)
           const validRows = rawRows.filter(r => {
             if (!r || typeof r !== 'object') return false;
-            const primaryVal = r[currentTabDef.idField] ?? r.ID ?? r.Record_ID ?? r.Year ?? r.Unit;
+            const primaryVal = r[targetTabDef.idField] ?? r.ID ?? r.Record_ID ?? r.Key ?? r.Year ?? r.Unit;
             return primaryVal !== undefined && primaryVal !== null && String(primaryVal).trim() !== '';
           });
           return validRows;
@@ -796,19 +799,7 @@ export const Configuration: React.FC = () => {
             }
           },
           { key: 'Status', label: 'Status', align: 'center', minWidth: '95px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status || 'ACTIVE'}</span> },
-          { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{r.Created_At || '—'}</span> },
-          ...(isHeadAdmin ? [{
-            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
-              <div className="d-flex justify-content-end align-items-center gap-1">
-                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
-                  <i className="bi bi-pencil"></i>
-                </button>
-                <button type="button" className="btn-icon-action action-delete" title="Archive record" aria-label="Archive record" onClick={() => promptDeleteConfirmation(r)}>
-                  <i className="bi bi-archive"></i>
-                </button>
-              </div>
-            )
-          }] : [])
+          { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{r.Created_At || '—'}</span> }
         ];
 
       case 'Rollover':
@@ -897,7 +888,7 @@ export const Configuration: React.FC = () => {
                   </button>
                 )}
 
-                {isHeadAdmin && (
+                {isHeadAdmin && activeTab !== 'Sheet_Records' && (
                   <button
                     type="button"
                     className="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
@@ -1323,7 +1314,7 @@ export const Configuration: React.FC = () => {
                             value={editFormData.System || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, System: e.target.value })}
                           >
-                            <option value="" selected>N/A</option>
+                            <option value="">N/A</option>
                             {editFormData.System && !lookupSystems.includes(editFormData.System) && (
                               <option value={editFormData.System}>{editFormData.System}</option>
                             )}
@@ -1342,7 +1333,7 @@ export const Configuration: React.FC = () => {
                             value={editFormData.Component || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Component: e.target.value })}
                           >
-                            <option value="" selected>N/A</option>
+                            <option value="">N/A</option>
                             {editFormData.Component && !lookupComponents.includes(editFormData.Component) && (
                               <option value={editFormData.Component}>{editFormData.Component}</option>
                             )}

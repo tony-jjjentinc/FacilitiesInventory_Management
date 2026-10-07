@@ -12,6 +12,7 @@ export const WarehouseStock: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchStock = async () => {
+    setIsLoading(true);
     const cacheKey = `inventory:stock:${locationFilter || 'all'}`;
     try {
       await fetchWithSwr<WarehouseStockItem[]>(

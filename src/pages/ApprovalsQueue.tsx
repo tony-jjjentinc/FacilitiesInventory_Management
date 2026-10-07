@@ -4,6 +4,13 @@ import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { LossIncident } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 import { ReportIncidentModal } from '../components/ReportIncidentModal';
+import { getCurrentUser } from '../services/auth';
+
+const isOwnIncident = (liablePartyId?: string) => {
+  const me = getCurrentUser();
+  const liable = String(liablePartyId || '').trim().toLowerCase();
+  return !!liable && [me?.email, me?.name, me?.id].some(v => String(v || '').trim().toLowerCase() === liable);
+};
 
 export const ApprovalsQueue: React.FC = () => {
   const [incidents, setIncidents] = useState<LossIncident[]>([]);
@@ -38,14 +45,19 @@ export const ApprovalsQueue: React.FC = () => {
   }, [statusFilter]);
 
   const handleApprove = async (lossId: string) => {
+    const remarks = window.prompt('Enter approval remarks (optional):', 'Approved by Department Head');
+    if (remarks === null) return; // User cancelled prompt
+
     setProcessingId(lossId);
     try {
       await apiRequest('incident:approve', {
         lossId,
-        remarks: 'Approved by Department Head'
+        remarks: remarks.trim() || 'Approved by Department Head'
       });
       invalidateCache('incident:queue');
       invalidateCache('inventory:stock');
+      invalidateCache('transaction:history');
+      invalidateCache('custody:list');
       setIncidents(prev => prev.filter(i => i.lossId !== lossId));
     } catch (err: any) {
       alert(`Approval failed: ${err.message}`);
@@ -54,8 +66,27 @@ export const ApprovalsQueue: React.FC = () => {
     }
   };
 
-  const handleReject = (lossId: string) => {
-    setIncidents(prev => prev.filter(i => i.lossId !== lossId));
+  const handleReject = async (lossId: string) => {
+    const reason = window.prompt('Enter reason for rejecting this loss incident:');
+    if (reason === null) return; // User cancelled prompt
+    if (!reason.trim()) {
+      alert('A rejection reason is required.');
+      return;
+    }
+
+    setProcessingId(lossId);
+    try {
+      await apiRequest('incident:reject', {
+        lossId,
+        remarks: reason.trim()
+      });
+      invalidateCache('incident:queue');
+      setIncidents(prev => prev.filter(i => i.lossId !== lossId));
+    } catch (err: any) {
+      alert(`Rejection failed: ${err.message}`);
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const filteredIncidents = incidents.filter(i => {
@@ -184,8 +215,8 @@ export const ApprovalsQueue: React.FC = () => {
               type="button"
               className="btn btn-success btn-sm d-flex align-items-center gap-1"
               onClick={() => handleApprove(row.lossId)}
-              disabled={isBusy}
-              title="Approve Write-off (OUT:DISPOSAL)"
+              disabled={isBusy || isOwnIncident(row.liablePartyId)}
+              title={isOwnIncident(row.liablePartyId) ? 'You are the liable party and cannot approve this write-off' : 'Approve Write-off (OUT:DISPOSAL)'}
             >
               {isBusy ? (
                 <span className="spinner-border spinner-border-sm" role="status"></span>

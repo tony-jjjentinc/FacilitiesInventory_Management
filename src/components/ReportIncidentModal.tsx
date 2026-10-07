@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 
 interface ReportIncidentModalProps {
@@ -22,12 +22,34 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   // Single or multiple items
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [unitCost, setUnitCost] = useState('0');
   const [serialNumber, setSerialNumber] = useState('');
   const [disposalMethod, setDisposalMethod] = useState('SCRAP_DISPOSAL');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+      setLossType('DAMAGE');
+      setOriginType('INVENTORY');
+      setOriginRefId('FACILITIES_WAREHOUSE_MAIN');
+      setLiablePartyId('');
+      setDescription('');
+      setAttachmentUrl('');
+      setItemId('');
+      setQuantity('1');
+      setSerialNumber('');
+      setDisposalMethod('SCRAP_DISPOSAL');
+      setErrorMsg('');
+      setIsSubmitting(false);
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -61,7 +83,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
           {
             itemId: itemId.trim(),
             quantity: Number(quantity),
-            unitCost: Number(unitCost) || 0,
             serialNumber: serialNumber.trim() || 'N/A',
             disposalMethod
           }
@@ -186,17 +207,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     required
-                  />
-                </div>
-
-                <div className="col-md-4">
-                  <label className="form-label small fw-semibold">Unit Cost (PHP)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-control form-control-sm"
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(e.target.value)}
                   />
                 </div>
 

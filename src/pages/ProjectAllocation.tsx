@@ -1,0 +1,907 @@
+import React, { useEffect, useState } from 'react';
+import { apiRequest } from '../services/api';
+import { fetchWithSwr, invalidateCache } from '../services/cache';
+import type { ActivityRecord, ActivityInventoryItem, ConsumedInventoryItem } from '../types';
+import { DataTable, type Column } from '../components/DataTable';
+
+export const ProjectAllocation: React.FC = () => {
+  const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityRecord | null>(null);
+  const [activityItems, setActivityItems] = useState<ActivityInventoryItem[]>([]);
+  const [consumedItems, setConsumedItems] = useState<ConsumedInventoryItem[]>([]);
+  const [activeLedgerTab, setActiveLedgerTab] = useState<'allocated' | 'consumed'>('allocated');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isItemsLoading, setIsItemsLoading] = useState<boolean>(false);
+  const [isConsumedLoading, setIsConsumedLoading] = useState<boolean>(false);
+  const [search, setSearch] = useState<string>('');
+
+  // Modals state
+  const [isDispatchOpen, setIsDispatchOpen] = useState(false);
+  const [isConsumeOpen, setIsConsumeOpen] = useState(false);
+  const [isSurplusOpen, setIsSurplusOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalFeedback, setModalFeedback] = useState<string | null>(null);
+
+  // Form states
+  const [dispatchForm, setDispatchForm] = useState({
+    itemId: '',
+    quantity: '1',
+    warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN',
+    remarks: ''
+  });
+
+  const [consumeForm, setConsumeForm] = useState({
+    itemId: '',
+    quantity: '1',
+    purpose: '',
+    workDescription: ''
+  });
+
+  const [surplusForm, setSurplusForm] = useState({
+    itemId: '',
+    quantity: '1',
+    warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN',
+    remarks: ''
+  });
+
+  const fetchActivities = async () => {
+    setIsLoading(true);
+    try {
+      await fetchWithSwr<ActivityRecord[]>(
+        'activity:getAll',
+        () => apiRequest<ActivityRecord[]>('activity:getAll'),
+        (data) => {
+          if (Array.isArray(data)) {
+            setActivities(data);
+            if (!selectedActivity && data.length > 0) {
+              setSelectedActivity(data[0]);
+            }
+          }
+          setIsLoading(false);
+        }
+      );
+    } catch (err) {
+      console.error('Failed to load activities:', err);
+      setIsLoading(false);
+    }
+  };
+
+  const fetchActivityItems = async (activityId: string) => {
+    setIsItemsLoading(true);
+    try {
+      await fetchWithSwr<ActivityInventoryItem[]>(
+        `activity:items:${activityId}`,
+        () => apiRequest<ActivityInventoryItem[]>('activity:getItems', { activityId }),
+        (data) => {
+          if (Array.isArray(data)) {
+            setActivityItems(data);
+          }
+          setIsItemsLoading(false);
+        }
+      );
+    } catch (err) {
+      console.error('Failed to load activity items:', err);
+      setIsItemsLoading(false);
+    }
+  };
+
+  const fetchConsumedItems = async (activityId: string) => {
+    setIsConsumedLoading(true);
+    try {
+      await fetchWithSwr<ConsumedInventoryItem[]>(
+        `consumption:list:${activityId}`,
+        () => apiRequest<ConsumedInventoryItem[]>('inventory:getConsumedItems', { referenceId: activityId, scope: 'ACTIVITY' }),
+        (data) => {
+          if (Array.isArray(data)) {
+            setConsumedItems(data);
+          }
+          setIsConsumedLoading(false);
+        }
+      );
+    } catch (err) {
+      console.error('Failed to load consumed items:', err);
+      setIsConsumedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActivities();
+  }, []);
+
+  useEffect(() => {
+    if (selectedActivity) {
+      fetchActivityItems(selectedActivity.Activity_ID);
+      fetchConsumedItems(selectedActivity.Activity_ID);
+    } else {
+      setActivityItems([]);
+      setConsumedItems([]);
+    }
+  }, [selectedActivity]);
+
+  useEffect(() => {
+    const isAnyModalOpen = isDispatchOpen || isConsumeOpen || isSurplusOpen;
+    if (isAnyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isDispatchOpen, isConsumeOpen, isSurplusOpen]);
+
+  // Total KPIs
+  const totalProjects = activities.length;
+  const activeProjects = activities.filter(a => a.Status === 'ACTIVE').length;
+  const totalAllocatedBudget = activities.reduce((sum, a) => sum + (Number(a.Allocated_Budget) || 0), 0);
+  const totalCurrentCost = activities.reduce((sum, a) => sum + (Number(a.Current_Net_Cost) || 0), 0);
+
+  // Filter activities
+  const filteredActivities = activities.filter(act => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      act.Activity_ID?.toLowerCase().includes(q) ||
+      act.Activity_Name?.toLowerCase().includes(q) ||
+      act.Site_Location?.toLowerCase().includes(q) ||
+      act.Site_Supervisor_ID?.toLowerCase().includes(q)
+    );
+  });
+
+  const handleDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedActivity) return;
+    setIsSubmitting(true);
+    setModalFeedback(null);
+    try {
+      await apiRequest('inventory:dispatch', {
+        activityId: selectedActivity.Activity_ID,
+        warehouseLocation: dispatchForm.warehouseLocation,
+        accountablePartyId: selectedActivity.Site_Supervisor_ID,
+        remarks: dispatchForm.remarks,
+        items: [
+          {
+            itemId: dispatchForm.itemId.trim(),
+            quantity: Number(dispatchForm.quantity) || 1,
+          }
+        ]
+      });
+      invalidateCache('activity');
+      invalidateCache(`activity:items:${selectedActivity.Activity_ID}`);
+      invalidateCache('inventory:stock');
+      invalidateCache('transaction:history');
+      await fetchActivities();
+      await fetchActivityItems(selectedActivity.Activity_ID);
+      setIsDispatchOpen(false);
+      setDispatchForm({ itemId: '', quantity: '1', warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN', remarks: '' });
+    } catch (err: any) {
+      setModalFeedback(err.message || 'Dispatch failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConsume = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedActivity) return;
+    setIsSubmitting(true);
+    setModalFeedback(null);
+    try {
+      await apiRequest('inventory:logConsumption', {
+        activityId: selectedActivity.Activity_ID,
+        itemId: consumeForm.itemId.trim(),
+        quantityExpended: Number(consumeForm.quantity) || 1,
+        purpose: consumeForm.purpose.trim() || 'Project Field Installation',
+        workDescription: consumeForm.workDescription.trim() || `Installed on ${selectedActivity.Activity_ID}`,
+        accountablePartyId: selectedActivity.Site_Supervisor_ID
+      });
+      invalidateCache('activity');
+      invalidateCache(`activity:items:${selectedActivity.Activity_ID}`);
+      invalidateCache(`consumption:list:${selectedActivity.Activity_ID}`);
+      invalidateCache('consumption:list');
+      invalidateCache('transaction:history');
+      await fetchActivities();
+      await fetchActivityItems(selectedActivity.Activity_ID);
+      await fetchConsumedItems(selectedActivity.Activity_ID);
+      setIsConsumeOpen(false);
+      setConsumeForm({ itemId: '', quantity: '1', purpose: '', workDescription: '' });
+    } catch (err: any) {
+      setModalFeedback(err.message || 'Consumption logging failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSurplusReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedActivity) return;
+    setIsSubmitting(true);
+    setModalFeedback(null);
+    try {
+      await apiRequest('inventory:returnSurplus', {
+        activityId: selectedActivity.Activity_ID,
+        warehouseLocation: surplusForm.warehouseLocation,
+        remarks: surplusForm.remarks,
+        items: [
+          {
+            itemId: surplusForm.itemId.trim(),
+            quantity: Number(surplusForm.quantity) || 1
+          }
+        ]
+      });
+      invalidateCache('activity');
+      invalidateCache(`activity:items:${selectedActivity.Activity_ID}`);
+      invalidateCache('inventory:stock');
+      invalidateCache('transaction:history');
+      await fetchActivities();
+      await fetchActivityItems(selectedActivity.Activity_ID);
+      setIsSurplusOpen(false);
+      setSurplusForm({ itemId: '', quantity: '1', warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN', remarks: '' });
+    } catch (err: any) {
+      setModalFeedback(err.message || 'Surplus return failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const activityColumns: Column<ActivityRecord>[] = [
+    {
+      key: 'Activity_ID',
+      label: 'Activity ID',
+      sortable: true,
+      minWidth: '130px',
+      render: (row) => (
+        <span className="font-monospace fw-semibold text-primary">{row.Activity_ID}</span>
+      )
+    },
+    {
+      key: 'Activity_Name',
+      label: 'Activity / Work Order',
+      sortable: true,
+      minWidth: '220px',
+      render: (row) => (
+        <div>
+          <div className="fw-medium text-dark">{row.Activity_Name}</div>
+          <small className="text-secondary">{row.Site_Location}</small>
+        </div>
+      )
+    },
+    {
+      key: 'Activity_Type',
+      label: 'Type',
+      sortable: true,
+      minWidth: '90px',
+      render: (row) => (
+        <span className="badge bg-secondary">{row.Activity_Type}</span>
+      )
+    },
+    {
+      key: 'Allocated_Budget',
+      label: 'Budget (PHP)',
+      sortable: true,
+      align: 'right',
+      minWidth: '120px',
+      render: (row) => Number(row.Allocated_Budget || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
+    },
+    {
+      key: 'Current_Net_Cost',
+      label: 'Net Cost (PHP)',
+      sortable: true,
+      align: 'right',
+      minWidth: '130px',
+      render: (row) => {
+        const budget = Number(row.Allocated_Budget) || 1;
+        const cost = Number(row.Current_Net_Cost) || 0;
+        const pct = Math.round((cost / budget) * 100);
+        const isNearCap = pct >= 90;
+        return (
+          <div>
+            <div className={`fw-bold ${isNearCap ? 'text-danger' : 'text-dark'}`}>
+              {cost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+            <div className="progress mt-1" style={{ height: '4px' }}>
+              <div
+                className={`progress-bar ${isNearCap ? 'bg-danger' : 'bg-primary'}`}
+                style={{ width: `${Math.min(pct, 100)}%` }}
+              ></div>
+            </div>
+            <small className={`d-block mt-1 ${isNearCap ? 'text-danger fw-bold' : 'text-secondary'}`}>
+              {pct}% consumed
+            </small>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'Status',
+      label: 'Status',
+      sortable: true,
+      align: 'center',
+      minWidth: '100px',
+      render: (row) => {
+        const status = row.Status?.toUpperCase();
+        let badgeClass = 'bg-secondary';
+        if (status === 'ACTIVE') badgeClass = 'bg-success';
+        if (status === 'ON_HOLD') badgeClass = 'bg-warning text-dark';
+        if (status === 'COMPLETED') badgeClass = 'bg-primary';
+        if (status === 'CANCELLED') badgeClass = 'bg-danger';
+        return <span className={`badge ${badgeClass}`}>{row.Status}</span>;
+      }
+    },
+    {
+      key: 'Activity_ID',
+      label: 'Actions',
+      align: 'right',
+      minWidth: '100px',
+      render: (row) => (
+        <button
+          className={`btn btn-sm ${selectedActivity?.Activity_ID === row.Activity_ID ? 'btn-primary' : 'btn-outline-primary'}`}
+          onClick={() => setSelectedActivity(row)}
+        >
+          {selectedActivity?.Activity_ID === row.Activity_ID ? 'Selected' : 'Select'}
+        </button>
+      )
+    }
+  ];
+
+  const itemColumns: Column<ActivityInventoryItem>[] = [
+    {
+      key: 'Item_ID',
+      label: 'Item ID / SKU',
+      minWidth: '140px',
+      render: (row) => (
+        <div>
+          <span className="font-monospace fw-semibold text-primary">{row.Item_ID}</span>
+          <div className="small text-secondary">{row.Item_SKU}</div>
+        </div>
+      )
+    },
+    {
+      key: 'Item_Name',
+      label: 'Material Name',
+      minWidth: '200px',
+      render: (row) => (
+        <div>
+          <div className="fw-medium text-dark">{row.Item_Name}</div>
+          {row.Serial_Number_Class && row.Serial_Number_Class !== 'N/A' && (
+            <small className="text-secondary font-monospace">SN: {row.Serial_Number_Class}</small>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'Qty_Issued',
+      label: 'Issued',
+      align: 'right',
+      minWidth: '80px',
+      render: (row) => `${row.Qty_Issued} ${row.UOM}`
+    },
+    {
+      key: 'Qty_Returned',
+      label: 'Returned',
+      align: 'right',
+      minWidth: '80px',
+      render: (row) => `${row.Qty_Returned} ${row.UOM}`
+    },
+    {
+      key: 'Net_Used',
+      label: 'Net Used',
+      align: 'right',
+      minWidth: '90px',
+      render: (row) => <span className="fw-bold">{row.Net_Used} {row.UOM}</span>
+    },
+    {
+      key: 'Qty_Expended',
+      label: 'Expended',
+      align: 'right',
+      minWidth: '90px',
+      render: (row) => <span className="text-success fw-bold">{row.Qty_Expended} {row.UOM}</span>
+    },
+    {
+      key: 'Activity_Line_ID',
+      label: 'Remaining On-Site',
+      align: 'right',
+      minWidth: '120px',
+      render: (row) => {
+        const remaining = (Number(row.Net_Used) || 0) - (Number(row.Qty_Expended) || 0);
+        return <span className={`badge ${remaining > 0 ? 'bg-warning text-dark' : 'bg-secondary'}`}>{remaining} {row.UOM}</span>;
+      }
+    },
+    {
+      key: 'Unit_Cost_Billed_Cost',
+      label: 'Billed Cost',
+      align: 'right',
+      minWidth: '110px',
+      render: (row) => Number(row.Unit_Cost_Billed_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
+    },
+    {
+      key: 'Item_Tracking_State',
+      label: 'Tracking State',
+      align: 'center',
+      minWidth: '120px',
+      render: (row) => {
+        const state = row.Item_Tracking_State?.toUpperCase();
+        let badge = 'bg-secondary';
+        if (state === 'CONSUMED') badge = 'bg-success';
+        if (state === 'DEPLOYED') badge = 'bg-primary';
+        if (state === 'PARTIAL_USED') badge = 'bg-info text-dark';
+        if (state === 'PARTIALLY_RETURNED') badge = 'bg-warning text-dark';
+        return <span className={`badge ${badge}`}>{row.Item_Tracking_State}</span>;
+      }
+    }
+  ];
+
+  const consumedColumns: Column<ConsumedInventoryItem>[] = [
+    {
+      key: 'Consumption_ID',
+      label: 'Consumption ID',
+      minWidth: '140px',
+      render: (row) => (
+        <div>
+          <span className="font-monospace fw-semibold text-success">{row.Consumption_ID}</span>
+          <div className="small text-muted">{row.Timestamp}</div>
+        </div>
+      )
+    },
+    {
+      key: 'Item_ID',
+      label: 'Material / Tool',
+      minWidth: '220px',
+      render: (row) => (
+        <div>
+          <div className="fw-medium text-dark">{row.Item_Name}</div>
+          <div className="small text-secondary font-monospace">{row.Item_ID} &bull; {row.Item_SKU}</div>
+        </div>
+      )
+    },
+    {
+      key: 'Quantity',
+      label: 'Qty Consumed',
+      align: 'right',
+      minWidth: '110px',
+      render: (row) => <span className="fw-bold text-dark">{row.Quantity} {row.UOM}</span>
+    },
+    {
+      key: 'Unit_Cost',
+      label: 'Unit Cost',
+      align: 'right',
+      minWidth: '100px',
+      render: (row) => `₱${Number(row.Unit_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+    },
+    {
+      key: 'Total_Cost',
+      label: 'Total Billed',
+      align: 'right',
+      minWidth: '110px',
+      render: (row) => <span className="fw-semibold text-primary">₱${Number(row.Total_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+    },
+    {
+      key: 'Purpose',
+      label: 'Purpose & Installation Work',
+      minWidth: '230px',
+      render: (row) => (
+        <div>
+          <div className="fw-semibold text-dark small">{row.Purpose || 'N/A'}</div>
+          {row.Work_Description && <div className="text-secondary small">{row.Work_Description}</div>}
+        </div>
+      )
+    },
+    {
+      key: 'Logged_By_ID',
+      label: 'Logged By',
+      minWidth: '160px',
+      render: (row) => (
+        <div>
+          <div className="small text-dark">{row.Logged_By_ID}</div>
+          {row.Transaction_ID && <span className="badge bg-light text-dark font-monospace border">{row.Transaction_ID}</span>}
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="container py-4 px-3 px-md-4">
+      {/* Header */}
+      <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
+        <div>
+          <h4 className="fw-bold text-dark mb-1">Project Allocation & Material Consumption</h4>
+          <p className="text-secondary small mb-0">
+            Dispatch inventory to active activities, log on-site field usage, and return surplus stock to warehouse.
+          </p>
+        </div>
+        <div className="d-flex gap-2">
+          <button
+            className="btn btn-primary btn-sm d-flex align-items-center gap-1"
+            disabled={!selectedActivity}
+            onClick={() => setIsDispatchOpen(true)}
+          >
+            <i className="bi bi-box-arrow-up-right"></i>
+            <span>Dispatch Stock</span>
+          </button>
+          <button
+            className="btn btn-outline-success btn-sm d-flex align-items-center gap-1"
+            disabled={!selectedActivity}
+            onClick={() => setIsConsumeOpen(true)}
+          >
+            <i className="bi bi-check2-circle"></i>
+            <span>Log Consumption</span>
+          </button>
+          <button
+            className="btn btn-outline-warning btn-sm d-flex align-items-center gap-1"
+            disabled={!selectedActivity}
+            onClick={() => setIsSurplusOpen(true)}
+          >
+            <i className="bi bi-arrow-return-left"></i>
+            <span>Return Surplus</span>
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="row g-3 mb-4">
+        <div className="col-12 col-sm-6 col-lg-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body">
+              <span className="text-secondary small fw-medium">Total Work Orders</span>
+              <h3 className="fw-bold text-dark mt-1 mb-0">{totalProjects}</h3>
+              <small className="text-muted">{activeProjects} Active Projects</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-12 col-sm-6 col-lg-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body">
+              <span className="text-secondary small fw-medium">Allocated Budget</span>
+              <h3 className="fw-bold text-dark mt-1 mb-0">
+                ₱{totalAllocatedBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+              <small className="text-muted">Total Activity Ceiling</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-12 col-sm-6 col-lg-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body">
+              <span className="text-secondary small fw-medium">Cumulative Net Cost</span>
+              <h3 className="fw-bold text-primary mt-1 mb-0">
+                ₱{totalCurrentCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+              <small className="text-muted">Net Dispatched Materials</small>
+            </div>
+          </div>
+        </div>
+        <div className="col-12 col-sm-6 col-lg-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body">
+              <span className="text-secondary small fw-medium">Budget Consumption</span>
+              <h3 className="fw-bold text-dark mt-1 mb-0">
+                {totalAllocatedBudget > 0 ? Math.round((totalCurrentCost / totalAllocatedBudget) * 100) : 0}%
+              </h3>
+              <small className="text-muted">Overall Portfolio Usage</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Activities Table */}
+      <div className="card shadow-sm border-0 mb-4">
+        <div className="card-header bg-white py-3 border-0 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+          <div>
+            <h6 className="fw-bold text-dark mb-0">Facilities Work Orders & Maintenance Projects</h6>
+            <small className="text-secondary">Click 'Select' to inspect materials allocated to a specific activity</small>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="Search activities..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ maxWidth: '240px' }}
+            />
+          </div>
+        </div>
+        <div className="card-body p-0">
+          <DataTable
+            data={filteredActivities}
+            columns={activityColumns}
+            keyField="Activity_ID"
+            isLoading={isLoading}
+            emptyMessage="No facilities activities found."
+          />
+        </div>
+      </div>
+
+      {/* Selected Activity Material Ledger */}
+      {selectedActivity && (
+        <div className="card shadow-sm border-0">
+          <div className="card-header bg-white py-3 border-0 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+            <div>
+              <div className="d-flex align-items-center gap-2">
+                <span className="badge bg-primary">{selectedActivity.Activity_ID}</span>
+                <h6 className="fw-bold text-dark mb-0">{selectedActivity.Activity_Name}</h6>
+              </div>
+              <small className="text-secondary">
+                Location: {selectedActivity.Site_Location} | Supervisor: {selectedActivity.Site_Supervisor_ID} | Billed Cost: ₱{Number(selectedActivity.Current_Net_Cost || 0).toLocaleString()}
+              </small>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <div className="btn-group btn-group-sm" role="group">
+                <button
+                  type="button"
+                  className={`btn ${activeLedgerTab === 'allocated' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setActiveLedgerTab('allocated')}
+                >
+                  <i className="bi bi-boxes me-1"></i> Allocated Materials ({activityItems.length})
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${activeLedgerTab === 'consumed' ? 'btn-success' : 'btn-outline-secondary'}`}
+                  onClick={() => setActiveLedgerTab('consumed')}
+                >
+                  <i className="bi bi-clock-history me-1"></i> Consumed History ({consumedItems.length})
+                </button>
+              </div>
+              <button
+                className="btn btn-sm btn-outline-primary"
+                onClick={() => {
+                  fetchActivityItems(selectedActivity.Activity_ID);
+                  fetchConsumedItems(selectedActivity.Activity_ID);
+                }}
+                title="Refresh"
+              >
+                <i className="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+          </div>
+          <div className="card-body p-0">
+            {activeLedgerTab === 'allocated' ? (
+              <DataTable
+                data={activityItems}
+                columns={itemColumns}
+                keyField="Activity_Line_ID"
+                isLoading={isItemsLoading}
+                emptyMessage="No materials dispatched to this activity yet."
+              />
+            ) : (
+              <DataTable
+                data={consumedItems}
+                columns={consumedColumns}
+                keyField="Consumption_ID"
+                isLoading={isConsumedLoading}
+                emptyMessage="No consumption records logged for this activity yet. Click 'Log Consumption' above to record installed materials."
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Dispatch Modal */}
+      {isDispatchOpen && selectedActivity && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <form onSubmit={handleDispatch}>
+                <div className="modal-header">
+                  <h6 className="modal-title fw-bold">Dispatch Stock (OUT:RELEASE)</h6>
+                  <button type="button" className="btn-close" disabled={isSubmitting} onClick={() => setIsDispatchOpen(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <p className="small text-secondary mb-3">
+                    Issuing materials from warehouse to <strong>{selectedActivity.Activity_ID}</strong> ({selectedActivity.Activity_Name}).
+                  </p>
+                  {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Item ID *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm font-monospace"
+                      placeholder="e.g. ITM-0001"
+                      required
+                      value={dispatchForm.itemId}
+                      onChange={(e) => setDispatchForm({ ...dispatchForm, itemId: e.target.value })}
+                    />
+                  </div>
+                  <div className="row g-2 mb-3">
+                    <div className="col-6">
+                      <label className="form-label small fw-semibold">Quantity *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="form-control form-control-sm"
+                        required
+                        value={dispatchForm.quantity}
+                        onChange={(e) => setDispatchForm({ ...dispatchForm, quantity: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Warehouse Location</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={dispatchForm.warehouseLocation}
+                      onChange={(e) => setDispatchForm({ ...dispatchForm, warehouseLocation: e.target.value })}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Remarks</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Optional notes or dispatch batch reference"
+                      value={dispatchForm.remarks}
+                      onChange={(e) => setDispatchForm({ ...dispatchForm, remarks: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-sm btn-outline-secondary" disabled={isSubmitting} onClick={() => setIsDispatchOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmitting}>
+                    {isSubmitting ? 'Dispatching...' : 'Confirm Dispatch'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Log Consumption Modal */}
+      {isConsumeOpen && selectedActivity && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <form onSubmit={handleConsume}>
+                <div className="modal-header">
+                  <h6 className="modal-title fw-bold">Log Field Material Usage</h6>
+                  <button type="button" className="btn-close" disabled={isSubmitting} onClick={() => setIsConsumeOpen(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <p className="small text-secondary mb-3">
+                    Record materials physically installed or consumed on-site for <strong>{selectedActivity.Activity_ID}</strong>.
+                  </p>
+                  {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Material Item *</label>
+                    <select
+                      className="form-select form-select-sm"
+                      required
+                      value={consumeForm.itemId}
+                      onChange={(e) => setConsumeForm({ ...consumeForm, itemId: e.target.value })}
+                    >
+                      <option value="">-- Select Allocated Item --</option>
+                      {activityItems.map(itm => (
+                        <option key={itm.Item_ID} value={itm.Item_ID}>
+                          {itm.Item_ID} - {itm.Item_Name} (Available: {(Number(itm.Net_Used) || 0) - (Number(itm.Qty_Expended) || 0)} {itm.UOM})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Quantity Expended *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-control form-control-sm"
+                      required
+                      value={consumeForm.quantity}
+                      onChange={(e) => setConsumeForm({ ...consumeForm, quantity: e.target.value })}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Purpose / Task Milestone *</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="e.g. Chilled Water Feed Loop Installation"
+                      required
+                      value={consumeForm.purpose}
+                      onChange={(e) => setConsumeForm({ ...consumeForm, purpose: e.target.value })}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Installation / Work Description</label>
+                    <textarea
+                      className="form-control form-control-sm"
+                      rows={2}
+                      placeholder="e.g. Installed 4 units of PPR piping across 4th floor plant room feed line"
+                      value={consumeForm.workDescription}
+                      onChange={(e) => setConsumeForm({ ...consumeForm, workDescription: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-sm btn-outline-secondary" disabled={isSubmitting} onClick={() => setIsConsumeOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-sm btn-success" disabled={isSubmitting}>
+                    {isSubmitting ? 'Logging...' : 'Record Consumption'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Surplus Modal */}
+      {isSurplusOpen && selectedActivity && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <form onSubmit={handleSurplusReturn}>
+                <div className="modal-header">
+                  <h6 className="modal-title fw-bold">Return Surplus to Warehouse (IN:EXCESS)</h6>
+                  <button type="button" className="btn-close" disabled={isSubmitting} onClick={() => setIsSurplusOpen(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <p className="small text-secondary mb-3">
+                    Return unused stock from site <strong>{selectedActivity.Activity_ID}</strong> back to warehouse balance.
+                  </p>
+                  {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Material Item *</label>
+                    <select
+                      className="form-select form-select-sm"
+                      required
+                      value={surplusForm.itemId}
+                      onChange={(e) => setSurplusForm({ ...surplusForm, itemId: e.target.value })}
+                    >
+                      <option value="">-- Select Allocated Item --</option>
+                      {activityItems.map(itm => (
+                        <option key={itm.Item_ID} value={itm.Item_ID}>
+                          {itm.Item_ID} - {itm.Item_Name} (Net Active: {itm.Net_Used} {itm.UOM})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Quantity Returned *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-control form-control-sm"
+                      required
+                      value={surplusForm.quantity}
+                      onChange={(e) => setSurplusForm({ ...surplusForm, quantity: e.target.value })}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Destination Warehouse</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={surplusForm.warehouseLocation}
+                      onChange={(e) => setSurplusForm({ ...surplusForm, warehouseLocation: e.target.value })}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label small fw-semibold">Remarks</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Surplus return notes"
+                      value={surplusForm.remarks}
+                      onChange={(e) => setSurplusForm({ ...surplusForm, remarks: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-sm btn-outline-secondary" disabled={isSubmitting} onClick={() => setIsSurplusOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-sm btn-warning" disabled={isSubmitting}>
+                    {isSubmitting ? 'Returning...' : 'Confirm Surplus Return'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

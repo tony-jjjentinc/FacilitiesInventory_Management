@@ -105,7 +105,14 @@ export const MasterCatalog: React.FC = () => {
 
   const computedFingerprint = `${formData.categoryId}|${(formData.brand || 'GEN').toUpperCase().trim()}|${(formData.model || 'GEN').toUpperCase().trim()}|${(formData.variant || 'STD').toUpperCase().trim()}`.replace(/\s+/g, '_');
 
-  const handleSaveItem = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveItem = async () => {
+    if (!formData.name.trim()) {
+      alert('Item Name is required.');
+      return;
+    }
+
     const propsObj: Record<string, string> = {};
     propertiesPairs.forEach(p => {
       if (p.key.trim()) {
@@ -116,10 +123,10 @@ export const MasterCatalog: React.FC = () => {
     const newItem: RawCatalogItem = {
       ID: `ITM-${String(items.length + 1).padStart(4, '0')}`,
       SKU: `${formData.typeCode}-${formData.categoryId}-${String(items.length + 1).padStart(4, '0')}`,
-      Name: formData.name,
-      Brand: formData.brand,
-      Model: formData.model,
-      Variant: formData.variant,
+      Name: formData.name.trim(),
+      Brand: formData.brand.trim(),
+      Model: formData.model.trim(),
+      Variant: formData.variant.trim(),
       Properties: JSON.stringify(propsObj),
       Property_Fingerprint: computedFingerprint,
       Search_Tags: `${formData.name}, ${formData.brand}, ${formData.model}`.toLowerCase(),
@@ -132,22 +139,35 @@ export const MasterCatalog: React.FC = () => {
       Status: 'ACTIVE'
     };
 
-    invalidateCache('catalog:items');
-    setItems([newItem, ...items]);
-    setShowModal(false);
-    setPropertiesPairs([]);
-    setFormData({
-      name: '',
-      brand: '',
-      model: '',
-      variant: '',
-      categoryId: 'PLB',
-      typeCode: 'CNS',
-      system: 'Plumbing and Sanitary System',
-      component: 'Piping Network',
-      uom: 'pc',
-      propertiesJson: '{}'
-    });
+    setIsSaving(true);
+    try {
+      await apiRequest('config:saveRecord', {
+        table: 'Item',
+        idField: 'ID',
+        record: newItem
+      });
+      invalidateCache('catalog:items');
+      invalidateCache('config:Item');
+      setItems([newItem, ...items]);
+      setShowModal(false);
+      setPropertiesPairs([]);
+      setFormData({
+        name: '',
+        brand: '',
+        model: '',
+        variant: '',
+        categoryId: 'PLB',
+        typeCode: 'CNS',
+        system: 'Plumbing and Sanitary System',
+        component: 'Piping Network',
+        uom: 'pc',
+        propertiesJson: '{}'
+      });
+    } catch (err: any) {
+      alert(`Failed to save item to catalog: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const filteredItems = items.filter(item => {
@@ -529,11 +549,12 @@ export const MasterCatalog: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-dark btn-sm"
-                  disabled={!formData.name}
+                  className="btn btn-dark btn-sm d-flex align-items-center gap-2"
+                  disabled={!formData.name || isSaving}
                   onClick={handleSaveItem}
                 >
-                  Save Item
+                  {isSaving && <span className="spinner-border spinner-border-sm" role="status"></span>}
+                  <span>{isSaving ? 'Saving...' : 'Save Item'}</span>
                 </button>
               </div>
             </div>

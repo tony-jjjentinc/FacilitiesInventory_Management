@@ -167,3 +167,59 @@ export interface TransactionEntry {
   totalCost: number;
 }
 
+export interface ActivityRecord {
+  Activity_ID: string;
+  Activity_Name: string;
+  Activity_Type: string;
+  Site_Location: string;
+  Start_Date: string;
+  Target_End_Date: string;
+  Completed_At?: string;
+  Site_Supervisor_ID: string;
+  Allocated_Budget: number;
+  Current_Net_Cost: number;
+  Status: 'PLANNED' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+}
+
+export interface ActivityInventoryItem {
+  Activity_Line_ID: string;
+  Activity_ID: string;
+  Item_ID: string;
+  Item_SKU: string;
+  Item_Name: string;
+  Serial_Number_Class?: string;
+  Qty_Issued: number;
+  Qty_Returned: number;
+  Net_Used: number;
+  Qty_Expended: number;
+  UOM: string;
+  Unit_Cost_Billed_Cost: number;
+  Item_Tracking_State: 'DEPLOYED' | 'CONSUMED' | 'PARTIALLY_RETURNED' | 'WRITTEN_OFF' | 'PARTIAL_USED';
+}
+
+export type ConsumptionScope = 'ACTIVITY' | 'IN_HOUSE' | 'WAREHOUSE';
+
+export interface ConsumedInventoryItem {
+  Consumption_ID: string;
+  Timestamp: string;
+  Consumption_Scope: ConsumptionScope;
+  Reference_ID: string;
+  Reference_Name?: string;
+  Item_ID: string;
+  Item_SKU: string;
+  Item_Name: string;
+  Serial_Number?: string;
+  Classification: string;
+  Quantity: number;
+  UOM: string;
+  Unit_Cost: number;
+  Total_Cost: number;
+  Purpose: string;
+  Work_Description?: string;
+  Logged_By_ID: string;
+  Accountable_Party_ID: string;
+  Transaction_ID: string;
+  Status: 'POSTED' | 'VOIDED';
+  Remarks?: string;
+}
+

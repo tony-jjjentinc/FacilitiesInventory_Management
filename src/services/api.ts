@@ -5,9 +5,21 @@
  */
 
 import type { ApiResponse } from '../types';
-import { getStoredToken } from './auth';
+import { getStoredToken, clearStoredToken } from './auth';
 
 const API_URL = import.meta.env.VITE_GAS_API_URL || '';
+
+/** Error carrying the API's errorCode (e.g. SESSION_EXPIRED, INSUFFICIENT_STOCK). */
+export class ApiError extends Error {
+  code: string | null;
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+  }
+}
+
+export const SESSION_EXPIRED_EVENT = 'jjjei:session-expired';
 
 /**
  * Dispatches a POST request to the Google Apps Script Web App.
@@ -42,7 +54,12 @@ export async function apiRequest<T = any>(action: string, payload: any = {}): Pr
   const result: ApiResponse<T> = await response.json();
 
   if (!result.success) {
-    throw new Error(result.error || result.errorCode || 'Unknown API error occurred.');
+    if (result.errorCode === 'SESSION_EXPIRED' && token) {
+      // Server says the session is over: drop the token and let the app return to the login screen
+      clearStoredToken();
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
+    throw new ApiError(result.error || result.errorCode || 'Unknown API error occurred.', result.errorCode);
   }
 
   return result.data as T;
@@ -190,8 +207,17 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
           const table = payload.table;
           const mockTables: Record<string, any[]> = {
             Item: [
-              { ID: 'ITM-0001', SKU: 'CNS-PLB-0001', Name: 'PPR Pipe 1/2" x 4m', Brand: 'ERA', Model: 'PN20', Variant: 'Green', Category_ID: 'PLB', Category_Name: 'Plumbing Supplies', Inventory_Type_Code: 'CNS', UOM: 'pc', Status: 'ACTIVE', Properties_JSON: '{"pressure_rating": "20 bar", "material": "Polypropylene Random"}', Fingerprint: 'FGP-001', Search_Tags: 'ppr, pipe, plumbing, water' },
-              { ID: 'ITM-0045', SKU: 'TLS-PWR-0045', Name: 'Cordless Impact Driver 18V', Brand: 'Dewalt', Model: 'DCF887N', Variant: 'Bare Tool', Category_ID: 'PWR', Category_Name: 'Power Tools', Inventory_Type_Code: 'TLS', UOM: 'set', Status: 'ACTIVE', Properties_JSON: '{"torque": "205 Nm", "voltage": "18V"}', Fingerprint: 'FGP-045', Search_Tags: 'dewalt, impact, driver, power tool' }
+              { ID: 'ITM-0001', SKU: 'CNS-PLB-0001', Name: 'PPR Pipe 1/2" x 4m', Brand: 'ERA', Model: 'PN20', Variant: 'Green', Category_ID: 'PLB', Category_Name: 'Plumbing Supplies', Inventory_Type_Code: 'CNS', UOM: 'pc', Status: 'ACTIVE', Properties: '{"pressure_rating": "20 bar", "material": "Polypropylene Random"}', Property_Fingerprint: 'FGP-001', Search_Tags: 'ppr, pipe, plumbing, water' },
+              { ID: 'ITM-0045', SKU: 'TLS-PWR-0045', Name: 'Cordless Impact Driver 18V', Brand: 'Dewalt', Model: 'DCF887N', Variant: 'Bare Tool', Category_ID: 'PWR', Category_Name: 'Power Tools', Inventory_Type_Code: 'TLS', UOM: 'set', Status: 'ACTIVE', Properties: '{"torque": "205 Nm", "voltage": "18V"}', Property_Fingerprint: 'FGP-045', Search_Tags: 'dewalt, impact, driver, power tool' }
+            ],
+            Inventory_Property_Keys: [
+              { Key: 'voltage', Label: 'Operating Voltage', Description: 'Input electrical voltage requirement', Data_Type: 'STRING' },
+              { Key: 'pressure_rating', Label: 'Pressure Rating', Description: 'Nominal maximum pressure rating (PN/bar)', Data_Type: 'STRING' },
+              { Key: 'diameter', Label: 'Diameter', Description: 'External or nominal conduit diameter', Data_Type: 'STRING' }
+            ],
+            Inventory_Type: [
+              { Code: 'CNS', Name: 'Consumable Material', Description: 'Expendable project materials' },
+              { Code: 'TLS', Name: 'Tool / Asset', Description: 'Reusable serialized tools and equipment' }
             ],
             Supplier: [
               { ID: 'SUP-001', Name: 'Amco Industrial Hardware', Contact_Person: 'Eduardo Santos', Phone: '0917-555-0192', Email: 'sales@amco-ph.com', Status: 'ACTIVE', Description: 'Industrial tools and construction hardware', Address_JSON: '{"city": "Makati", "country": "Philippines"}' },
@@ -258,6 +284,342 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
 
         case 'config:deleteRecord':
           resolve({ success: true, table: payload.table, id: payload.id });
+          break;
+
+        case 'transaction:getHistory':
+          resolve([
+            {
+              transactionId: 'TXN-2026-0001',
+              timestamp: '2026-09-28 10:15:00',
+              transactionType: 'IN:MRL',
+              sourceType: 'MRL',
+              sourceRefId: 'MRL-6506',
+              destinationType: 'INVENTORY',
+              destinationRefId: 'FACILITIES_WAREHOUSE_MAIN',
+              loggedById: 'custodian@jjjei.com',
+              accountablePartyId: 'custodian@jjjei.com',
+              status: 'POSTED',
+              remarks: 'Physical delivery intake verified',
+              items: [
+                {
+                  entryId: 'TXNI-0001',
+                  itemId: 'ITM-0001',
+                  itemSku: 'CNS-PLB-0001',
+                  itemName: 'PPR Pipe 1/2" x 4m',
+                  quantity: 45,
+                  uom: 'pc',
+                  unitCost: 345.5,
+                  totalCost: 15547.5
+                }
+              ]
+            }
+          ]);
+          break;
+
+        case 'incident:getQueue':
+          resolve([
+            {
+              lossId: 'LOSS-2026-0001',
+              incidentDate: '2026-09-27 14:20:00',
+              lossType: 'DAMAGE',
+              originType: 'INVENTORY',
+              originRefId: 'FACILITIES_WAREHOUSE_MAIN',
+              liablePartyId: 'technician.m@jjjei.com',
+              approvalStatus: 'PENDING_APPROVAL',
+              incidentDescription: 'PPR pipe bundles cracked during forklift transit maneuver.',
+              attachmentUrl: '',
+              items: [
+                {
+                  lineId: 'LOSSL-0001',
+                  lossId: 'LOSS-2026-0001',
+                  itemId: 'ITM-0001',
+                  sku: 'CNS-PLB-0001',
+                  name: 'PPR Pipe 1/2" x 4m',
+                  quantity: 5,
+                  uom: 'pc',
+                  unitCost: 345.5,
+                  deductionCost: 1727.5
+                }
+              ]
+            }
+          ]);
+          break;
+
+        case 'incident:approve':
+          resolve({ lossId: payload.lossId, approvalStatus: 'APPROVED', transactionId: 'TXN-2026-0089' });
+          break;
+
+        case 'incident:reject':
+          resolve({ lossId: payload.lossId, approvalStatus: 'REJECTED' });
+          break;
+
+        case 'custody:getList':
+          resolve([
+            {
+              Custody_ID: 'CUST-2026-0001',
+              Custodian_ID: 'mark.santos@jjjei.com',
+              Custodian_Name: 'Mark Santos',
+              Item_ID: 'ITM-0004',
+              Item_SKU: 'TLS-PWR-0001',
+              Item_Name: 'Cordless Rotary Hammer Drill 18V',
+              Serial_Number: 'SN-DEW-2024-0089',
+              Quantity: 1,
+              UOM: 'unit',
+              Date_Assigned: '2026-02-01',
+              Status: 'ACTIVE',
+              Last_Transaction_ID: 'TXN-2026-0012',
+              Remarks: 'Issued with hard carry case and 2x 4.0Ah battery packs'
+            },
+            {
+              Custody_ID: 'CUST-2026-0002',
+              Custodian_ID: 'ramon.reyes@jjjei.com',
+              Custodian_Name: 'Ramon Reyes',
+              Item_ID: 'ITM-0005',
+              Item_SKU: 'TLS-TST-0002',
+              Item_Name: 'Digital Multimeter True RMS CAT III',
+              Serial_Number: 'SN-FLU-2025-0142',
+              Quantity: 1,
+              UOM: 'unit',
+              Date_Assigned: '2026-02-15',
+              Status: 'ACTIVE',
+              Last_Transaction_ID: 'TXN-2026-0018',
+              Remarks: 'Calibrated through Nov 2026'
+            }
+          ]);
+          break;
+
+        case 'custody:transfer':
+          resolve({
+            transactionId: 'TXN-2026-0095',
+            status: 'POSTED',
+            message: 'Custody transferred successfully.'
+          });
+          break;
+
+        case 'custody:retrieve':
+          resolve({
+            custodyId: payload.custodyId,
+            transactionId: 'TXN-2026-0096',
+            status: 'RETURNED'
+          });
+          break;
+
+        case 'activity:getAll':
+          resolve([
+            {
+              Activity_ID: 'ACT-2026-0001',
+              Activity_Name: 'Tower A Chiller Compressor Overhaul',
+              Activity_Type: 'PM',
+              Site_Location: 'Tower A - 4th Floor Plant Room',
+              Start_Date: '2026-03-01',
+              Target_End_Date: '2026-04-15',
+              Site_Supervisor_ID: 'engineer.lead@jjjei.com',
+              Allocated_Budget: 150000,
+              Current_Net_Cost: 45230,
+              Status: 'ACTIVE'
+            },
+            {
+              Activity_ID: 'ACT-2026-0002',
+              Activity_Name: 'Phase 2 Emergency Generator Servicing',
+              Activity_Type: 'CM',
+              Site_Location: 'Powerhouse Substation Yard',
+              Start_Date: '2026-03-10',
+              Target_End_Date: '2026-03-25',
+              Site_Supervisor_ID: 'elect.lead@jjjei.com',
+              Allocated_Budget: 80000,
+              Current_Net_Cost: 73500,
+              Status: 'ACTIVE'
+            }
+          ]);
+          break;
+
+        case 'activity:getItems':
+          resolve([
+            {
+              Activity_Line_ID: 'ACTL-2026-0001',
+              Activity_ID: payload.activityId || 'ACT-2026-0001',
+              Item_ID: 'ITM-0001',
+              Item_SKU: 'CNS-PLB-0001',
+              Item_Name: 'PPR Pipe 1/2" x 4m',
+              Serial_Number_Class: 'N/A',
+              Qty_Issued: 20,
+              Qty_Returned: 2,
+              Net_Used: 18,
+              Qty_Expended: 12,
+              UOM: 'pc',
+              Unit_Cost_Billed_Cost: 345.5,
+              Item_Tracking_State: 'PARTIAL_USED'
+            },
+            {
+              Activity_Line_ID: 'ACTL-2026-0002',
+              Activity_ID: payload.activityId || 'ACT-2026-0001',
+              Item_ID: 'ITM-0002',
+              Item_SKU: 'CNS-PLB-0002',
+              Item_Name: 'PPR Equal Tee 1/2"',
+              Serial_Number_Class: 'N/A',
+              Qty_Issued: 30,
+              Qty_Returned: 0,
+              Net_Used: 30,
+              Qty_Expended: 30,
+              UOM: 'pc',
+              Unit_Cost_Billed_Cost: 48.0,
+              Item_Tracking_State: 'CONSUMED'
+            }
+          ]);
+          break;
+
+        case 'inventory:intakeMrl':
+          resolve({
+            mrlNumber: payload.mrlNumber || 'MRL-2026-6506',
+            transactionId: 'TXN-2026-0033',
+            mrtNumber: 'MRT-2026-0033',
+            verifiedCount: Array.isArray(payload.items) ? payload.items.length : 1,
+            rejectedCount: 0
+          });
+          break;
+
+        case 'inventory:dispatch':
+          resolve({
+            transactionId: 'TXN-2026-0044',
+            activityId: payload.activityId,
+            itemsDispatched: Array.isArray(payload.items) ? payload.items.length : 1
+          });
+          break;
+
+        case 'inventory:logConsumption':
+          resolve({
+            consumptionId: 'CNSM-2026-0001',
+            transactionId: 'TXN-2026-0045',
+            activityId: payload.activityId,
+            itemId: payload.itemId,
+            quantityExpended: payload.quantityExpended,
+            currentNetCost: 52000
+          });
+          break;
+
+        case 'inventory:logDirectConsumption':
+          resolve({
+            consumptionId: 'CNSM-2026-0002',
+            transactionId: 'TXN-2026-0099',
+            scope: payload.scope || 'WAREHOUSE',
+            itemId: payload.itemId,
+            quantity: payload.quantity,
+            totalCost: Number(payload.quantity || 1) * 345.50
+          });
+          break;
+
+        case 'inventory:getConsumedItems':
+          resolve([
+            {
+              Consumption_ID: 'CNSM-2026-0001',
+              Timestamp: '2026-03-20 14:15:00',
+              Consumption_Scope: 'ACTIVITY',
+              Reference_ID: payload.referenceId || 'ACT-2026-0001',
+              Reference_Name: 'Tower A Chiller Compressor Overhaul',
+              Item_ID: 'ITM-0001',
+              Item_SKU: 'CNS-PLB-0001',
+              Item_Name: 'PPR Pipe 1/2" x 4m',
+              Serial_Number: 'N/A',
+              Classification: 'CNS',
+              Quantity: 6,
+              UOM: 'pc',
+              Unit_Cost: 345.5,
+              Total_Cost: 2073,
+              Purpose: 'Cooling Loop Line Replacement',
+              Work_Description: 'Installed on 4th floor chiller chilled water feed network',
+              Logged_By_ID: 'custodian@jjjei.com',
+              Accountable_Party_ID: 'engineer.lead@jjjei.com',
+              Transaction_ID: 'TXN-2026-0045',
+              Status: 'POSTED',
+              Remarks: 'Verified by site inspector'
+            },
+            {
+              Consumption_ID: 'CNSM-2026-0002',
+              Timestamp: '2026-03-18 10:30:00',
+              Consumption_Scope: 'WAREHOUSE',
+              Reference_ID: 'FACILITIES_WAREHOUSE_MAIN',
+              Reference_Name: 'Central Facilities Depot',
+              Item_ID: 'ITM-0001',
+              Item_SKU: 'CNS-PLB-0001',
+              Item_Name: 'PPR Pipe 1/2" x 4m',
+              Serial_Number: 'N/A',
+              Classification: 'CNS',
+              Quantity: 2,
+              UOM: 'pc',
+              Unit_Cost: 345.5,
+              Total_Cost: 691,
+              Purpose: 'Depot Water Supply Repair',
+              Work_Description: 'Replaced cracked intake manifold at warehouse washing bay',
+              Logged_By_ID: 'custodian@jjjei.com',
+              Accountable_Party_ID: 'custodian@jjjei.com',
+              Transaction_ID: 'TXN-2026-0099',
+              Status: 'POSTED',
+              Remarks: 'Depot internal maintenance'
+            }
+          ]);
+          break;
+
+        case 'inventory:returnSurplus':
+          resolve({
+            transactionId: 'TXN-2026-0046',
+            activityId: payload.activityId,
+            itemsReturned: Array.isArray(payload.items) ? payload.items.length : 1
+          });
+          break;
+
+        case 'inventory:deployTool':
+          resolve({
+            transactionId: 'TXN-2026-0047',
+            custodianId: payload.custodianId,
+            toolsDeployed: Array.isArray(payload.items) ? payload.items.length : 1
+          });
+          break;
+
+        case 'rollover:execute':
+          resolve({
+            previousYear: payload.previousYear || 2025,
+            newYear: payload.newYear || 2026,
+            newSheetId: 'mock-sheet-id-2026',
+            newSheetUrl: 'https://docs.google.com/spreadsheets/d/mock-sheet-id-2026/edit',
+            carriedWarehouseCount: 42
+          });
+          break;
+
+        case 'transaction:prepare':
+          resolve({
+            transactionId: 'TXN-2026-0048',
+            status: 'PENDING'
+          });
+          break;
+
+        case 'transaction:commit':
+          resolve({
+            transactionId: payload.transactionId || 'TXN-2026-0048',
+            status: 'POSTED'
+          });
+          break;
+
+        case 'transaction:cancel':
+          resolve({
+            transactionId: payload.transactionId || 'TXN-2026-0048',
+            status: 'VOIDED'
+          });
+          break;
+
+        case 'incident:report':
+          resolve({
+            lossId: 'LOSS-2026-0010',
+            approvalStatus: 'PENDING_APPROVAL'
+          });
+          break;
+
+        case 'incident:recover':
+          resolve({
+            lossId: payload.lossId,
+            transactionId: 'TXN-2026-0097',
+            status: 'RECOVERED',
+            recoveredItemsCount: 1
+          });
           break;
 
         default:

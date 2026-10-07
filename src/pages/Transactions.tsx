@@ -25,7 +25,6 @@ export const Transactions: React.FC = () => {
   const [newRemarks, setNewRemarks] = useState('');
   const [newItemId, setNewItemId] = useState('');
   const [newQty, setNewQty] = useState('1');
-  const [newUnitCost, setNewUnitCost] = useState('0');
   const [newSerial, setNewSerial] = useState('');
   const [createError, setCreateError] = useState('');
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
@@ -54,6 +53,17 @@ export const Transactions: React.FC = () => {
     fetchTransactions();
   }, [statusFilter]);
 
+  useEffect(() => {
+    if (isCreateOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isCreateOpen]);
+
   const handleCommit = async (txId: string) => {
     if (!window.confirm(`Are you sure you want to commit and execute transaction ${txId}? This will mutate warehouse stock.`)) {
       return;
@@ -63,6 +73,8 @@ export const Transactions: React.FC = () => {
       await apiRequest('transaction:commit', { transactionId: txId });
       invalidateCache('transaction:history');
       invalidateCache('inventory:stock');
+      invalidateCache('custody:list');
+      invalidateCache('activity');
       fetchTransactions();
       alert(`Transaction ${txId} successfully committed to POSTED.`);
     } catch (err: any) {
@@ -119,7 +131,6 @@ export const Transactions: React.FC = () => {
           {
             itemId: newItemId.trim(),
             quantity: Number(newQty),
-            unitCost: Number(newUnitCost) || 0,
             serialNumber: newSerial.trim() || 'N/A'
           }
         ]
@@ -490,7 +501,7 @@ export const Transactions: React.FC = () => {
                   <i className="bi bi-clock-history"></i>
                   Stage New Pending Transaction
                 </h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setIsCreateOpen(false)}></button>
+                <button type="button" className="btn-close btn-close-white" disabled={isSubmittingNew} onClick={() => setIsCreateOpen(false)}></button>
               </div>
 
               <form onSubmit={handleCreateStaged}>
@@ -511,15 +522,21 @@ export const Transactions: React.FC = () => {
                         onChange={(e) => {
                           const val = e.target.value;
                           setNewTxType(val);
-                          if (val === 'OUT:RELEASE') {
-                            setNewSourceType('INVENTORY');
-                            setNewDestType('ACTIVITY');
-                          } else if (val === 'OUT:DEPLOY') {
-                            setNewSourceType('INVENTORY');
-                            setNewDestType('IN_HOUSE');
-                          } else if (val === 'IN:EXCESS') {
-                            setNewSourceType('ACTIVITY');
-                            setNewDestType('INVENTORY');
+                          // The API validates source/destination per type, so set them (and sensible refs) with the type.
+                          const WH = 'FACILITIES_WAREHOUSE_MAIN';
+                          const presets: Record<string, [string, string, string, string]> = {
+                            'OUT:RELEASE': ['INVENTORY', WH, 'ACTIVITY', ''],
+                            'OUT:DEPLOY': ['INVENTORY', WH, 'IN_HOUSE', ''],
+                            'IN:EXCESS': ['ACTIVITY', '', 'INVENTORY', WH],
+                            'IN:RETRIEVE': ['IN_HOUSE', '', 'INVENTORY', WH],
+                            'TRANSFER:INVENTORY': ['INVENTORY', WH, 'INVENTORY', '']
+                          };
+                          const preset = presets[val];
+                          if (preset) {
+                            setNewSourceType(preset[0]);
+                            setNewSourceRefId(preset[1]);
+                            setNewDestType(preset[2]);
+                            setNewDestRefId(preset[3]);
                           }
                         }}
                       >
@@ -594,17 +611,6 @@ export const Transactions: React.FC = () => {
                       />
                     </div>
 
-                    <div className="col-md-4">
-                      <label className="form-label small fw-semibold">Unit Cost (PHP)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="form-control form-control-sm"
-                        value={newUnitCost}
-                        onChange={(e) => setNewUnitCost(e.target.value)}
-                      />
-                    </div>
-
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Serial Number</label>
                       <input
@@ -630,7 +636,7 @@ export const Transactions: React.FC = () => {
                 </div>
 
                 <div className="modal-footer bg-light border-top">
-                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => setIsCreateOpen(false)}>
+                  <button type="button" className="btn btn-sm btn-secondary" disabled={isSubmittingNew} onClick={() => setIsCreateOpen(false)}>
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmittingNew}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { getCurrentUser, logout } from './services/auth';
+import { getCurrentUser, logout, isUserHeadOrAdmin } from './services/auth';
 import type { UserClaims } from './types';
 import { Navbar } from './components/Navbar';
 import { Login } from './pages/Login';
@@ -12,7 +12,11 @@ import { ApprovalsQueue } from './pages/ApprovalsQueue';
 import { Configuration } from './pages/Configuration';
 import { Transactions } from './pages/Transactions';
 import { WarehouseReceiving } from './pages/WarehouseReceiving';
+import { ProjectAllocation } from './pages/ProjectAllocation';
+import { CustodyRegister } from './pages/CustodyRegister';
+import { Error404 } from './pages/404';
 import { useSystemInfo } from './context/SystemContext';
+import { SESSION_EXPIRED_EVENT } from './services/api';
 import { Logo } from './components/Logo';
 
 export const App: React.FC = () => {
@@ -33,9 +37,13 @@ export const App: React.FC = () => {
       }
     };
 
+    const handleSessionExpired = () => setCurrentUser(null);
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     };
   }, []);
 
@@ -44,9 +52,7 @@ export const App: React.FC = () => {
     setCurrentUser(null);
   };
 
-  const isHeadOrAdmin = currentUser?.roles?.some(r =>
-    ['Super Admin', 'Head'].includes(r.trim())
-  );
+  const isHeadOrAdmin = isUserHeadOrAdmin(currentUser);
 
   if (isLoading) {
     return (
@@ -76,6 +82,8 @@ export const App: React.FC = () => {
             <Route path="/overview" element={<DashboardOverview />} />
             <Route path="/catalog" element={<MasterCatalog />} />
             <Route path="/warehouse" element={<WarehouseStock />} />
+            <Route path="/allocation" element={<ProjectAllocation />} />
+            <Route path="/custody" element={<CustodyRegister />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/receiving" element={<WarehouseReceiving />} />
             <Route path="/alerts" element={<RopAlertCenter />} />
@@ -101,7 +109,7 @@ export const App: React.FC = () => {
             />
 
             {/* Catch-all Fallback */}
-            <Route path="*" element={<Navigate to="/overview" replace />} />
+            <Route path="*" element={<Error404 />} />
           </Routes>
         </main>
 

@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserClaims } from '../types';
+import { isUserHeadOrAdmin } from '../services/auth';
 import { NotificationBell } from './NotificationBell';
 import { Logo } from './Logo';
 import { useSystemInfo } from '../context/SystemContext';
 
 interface NavbarProps {
-  currentTab?: string;
-  onSelectTab?: (tab: string) => void;
   user: UserClaims | null;
   onLogout: () => void;
 }
@@ -37,14 +36,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     };
   }, [accountMenuOpen]);
 
-  const isHeadOrAdmin = user?.roles?.some(r =>
-    ['Super Admin', 'Head'].includes(r.trim())
-  );
+  const isHeadOrAdmin = isUserHeadOrAdmin(user);
 
   const navItems = [
     { id: 'overview', path: '/overview', label: 'Dashboard', icon: 'bi-grid-1x2' },
     { id: 'catalog', path: '/catalog', label: 'Master Catalog', icon: 'bi-box-seam' },
     { id: 'warehouse', path: '/warehouse', label: 'Warehouse Stock', icon: 'bi-buildings' },
+    { id: 'allocation', path: '/allocation', label: 'Project Allocation', icon: 'bi-diagram-3' },
+    { id: 'custody', path: '/custody', label: 'Tool Custody', icon: 'bi-person-badge' },
     { id: 'transactions', path: '/transactions', label: 'Transactions', icon: 'bi-journal-text' },
     { id: 'receiving', path: '/receiving', label: 'Receiving', icon: 'bi-box-arrow-in-down' },
     { id: 'alerts', path: '/alerts', label: 'ROP Alerts', icon: 'bi-exclamation-triangle' },
@@ -110,7 +109,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   </span>
                 </div>
                 <span
-                  className="text-muted d-none d-sm-block"
+                  className="text-muted d-block"
                   style={{ fontSize: "0.7rem", marginTop: "2px" }}
                 >
                   {systemInfo.subtitle}

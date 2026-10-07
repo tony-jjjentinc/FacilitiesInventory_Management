@@ -22,19 +22,7 @@ export const WarehouseReceiving: React.FC = () => {
   const [remarks, setRemarks] = useState('');
 
   // Item Lines
-  const [items, setItems] = useState<StagedReceiptItem[]>([
-    {
-      id: '1',
-      itemId: 'ITM-0001',
-      itemName: 'PPR Pipe 1/2in x 4m PN20',
-      quantity: 10,
-      uom: 'pc',
-      unitCost: 345.5,
-      serialNumber: 'N/A',
-      status: 'VERIFIED',
-      mismatchDetails: ''
-    }
-  ]);
+  const [items, setItems] = useState<StagedReceiptItem[]>([]);
 
   // New item form
   const [newItemId, setNewItemId] = useState('');

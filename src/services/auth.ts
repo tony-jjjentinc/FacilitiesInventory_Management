@@ -35,7 +35,8 @@ export function parseTokenClaims(token: string): UserClaims | null {
     if (!token || typeof token !== 'string') return null;
     const parts = token.split('.');
     if (parts.length !== 3) {
-      // In dev sandbox mode with mock tokens
+      // Mock tokens are honoured in dev builds only
+      if (!import.meta.env.DEV) return null;
       return {
         id: 'DEV-USER-001',
         name: 'Facilities Administrator',
@@ -150,6 +151,16 @@ export function hasAnyRole(requiredRoles: string[]): boolean {
   if (user.roles.includes('Super Admin')) return true;
 
   return requiredRoles.some(req =>
-    user.roles.some(r => r.trim().toLowerCase() === req.trim().toLowerCase())
+    user.roles.some(r => typeof r === 'string' && r.trim().toLowerCase() === req.trim().toLowerCase())
+  );
+}
+
+/**
+ * Checks if the user has Super Admin or Head administrative privileges.
+ */
+export function isUserHeadOrAdmin(user: UserClaims | null): boolean {
+  if (!user || !Array.isArray(user.roles)) return false;
+  return user.roles.some(
+    r => typeof r === 'string' && ['super admin', 'head'].includes(r.trim().toLowerCase())
   );
 }

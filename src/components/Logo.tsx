@@ -12,8 +12,8 @@ export const Logo: React.FC<LogoProps> = ({ size = 32, className = '', variant =
       width={'auto'}
       height={size}
       src={`https://cdn.jsdelivr.net/gh/tony-jjjentinc/assets@latest/images/logo/jjjei_stacked${variant == `default` ? "" : `-${variant}`}.png`}
+      alt="JJJEI Logo"
       className={className ? className : " d-none d-md-block"}
-    >
-    </img>
+    />
   );
 };

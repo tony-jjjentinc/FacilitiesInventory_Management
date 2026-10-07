@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiRequest } from '../services/api';
+import { invalidateCache } from '../services/cache';
 import { getCurrentUser } from '../services/auth';
 
 interface RolloverWizardProps {
@@ -44,12 +45,15 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
       alert('Unauthorized: Only Head Admin / Super Admin can execute annual fiscal rollover.');
       return;
     }
+    const year = parseInt(targetYear, 10);
+    if (!Number.isInteger(year)) {
+      alert('Enter a valid target year, e.g. 2027.');
+      return;
+    }
     setIsExecuting(true);
     try {
-      const res = await apiRequest('rollover:execute', {
-        currentYear: 2026,
-        targetYear: parseInt(targetYear, 10)
-      });
+      const res = await apiRequest('rollover:execute', { targetYear: year });
+      invalidateCache(); // Purge all cached data for the new operational spreadsheet
       setRolloverResult(res);
       setStep(3);
     } catch (err: any) {
@@ -72,6 +76,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
           <button
             type="button"
             className="btn-close"
+            disabled={isChecking || isExecuting}
             onClick={onClose}
             aria-label="Close"
           ></button>
@@ -209,9 +214,9 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
               </div>
 
               <div className="border rounded p-3 mb-4 bg-light small">
-                <div className="mb-2"><strong>Target Year:</strong> {rolloverResult?.targetYear || targetYear}</div>
+                <div className="mb-2"><strong>Target Year:</strong> {rolloverResult?.newYear || rolloverResult?.targetYear || targetYear}</div>
                 <div className="mb-2"><strong>New Spreadsheet ID:</strong> <code className="text-dark">{rolloverResult?.newSheetId || '—'}</code></div>
-                <div><strong>Closing Balances Carried:</strong> {rolloverResult?.transferredRows || 0} inventory rows</div>
+                <div><strong>Closing Balances Carried:</strong> {rolloverResult?.carriedWarehouseCount ?? rolloverResult?.transferredRows ?? 0} inventory rows</div>
               </div>
 
               <button
