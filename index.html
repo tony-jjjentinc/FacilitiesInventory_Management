@@ -5,11 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/gh/tony-jjjentinc/assets@latest/images/logo/base-light.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Management • JJJEI Facilities Inventory</title>
-    <!-- JJJEI Facilities Design & Color Override -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/tony-jjjentinc/assets@latest/colors/latest/jjjei_facilities:0.css">
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Override must come AFTER the bundled bootstrap CSS (Vite appends it to <head>); same specificity, last wins -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/tony-jjjentinc/assets@latest/colors/latest/jjjei_facilities:0.css">
   </body>
 </html>
