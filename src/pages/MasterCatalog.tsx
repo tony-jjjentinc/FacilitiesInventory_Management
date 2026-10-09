@@ -253,17 +253,6 @@ export const MasterCatalog: React.FC = () => {
       )
     },
     {
-      key: 'Property_Fingerprint',
-      label: 'Fingerprint',
-      align: 'left',
-      minWidth: '180px',
-      render: (row) => (
-        <span className="font-monospace small text-muted text-truncate d-inline-block" style={{ maxWidth: '170px' }}>
-          {row.Property_Fingerprint || '—'}
-        </span>
-      )
-    },
-    {
       key: 'Status',
       label: 'Status',
       align: 'center',
