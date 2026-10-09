@@ -14,7 +14,6 @@ import { Configuration } from './pages/Configuration';
 import { Error404 } from './pages/404';
 import { useSystemInfo } from './context/SystemContext';
 import { SESSION_EXPIRED_EVENT } from './services/api';
-import { Logo } from './components/Logo';
 
 /** Old page addresses (bookmarks, bell links) forward to the matching tab of the new page. */
 const LegacyRedirect: React.FC<{ to: (query: URLSearchParams, params: Record<string, string | undefined>) => string }> = ({ to }) => {
