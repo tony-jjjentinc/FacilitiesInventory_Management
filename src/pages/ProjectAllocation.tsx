@@ -5,6 +5,7 @@ import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { ActivityRecord, ActivityInventoryItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 import { RefreshButton } from '../components/RefreshButton';
+import { ActivityCards } from '../components/ActivityCards';
 
 export const ProjectAllocation: React.FC = () => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
@@ -12,7 +13,6 @@ export const ProjectAllocation: React.FC = () => {
   const [activityItems, setActivityItems] = useState<ActivityInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isItemsLoading, setIsItemsLoading] = useState<boolean>(false);
-  const [search, setSearch] = useState<string>('');
 
   // Modals state
   const [isDispatchOpen, setIsDispatchOpen] = useState(false);
@@ -113,18 +113,6 @@ export const ProjectAllocation: React.FC = () => {
   const totalProjects = activities.length;
   const activeProjects = activities.filter(a => a.Status === 'ACTIVE').length;
   const totalCurrentCost = activities.reduce((sum, a) => sum + (Number(a.Current_Net_Cost) || 0), 0);
-
-  // Filter activities
-  const filteredActivities = activities.filter(act => {
-    const q = search.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      act.Activity_ID?.toLowerCase().includes(q) ||
-      act.Activity_Name?.toLowerCase().includes(q) ||
-      act.Site_Location?.toLowerCase().includes(q) ||
-      act.Site_Supervisor_ID?.toLowerCase().includes(q)
-    );
-  });
 
   const handleDispatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,81 +222,6 @@ export const ProjectAllocation: React.FC = () => {
     }
   };
 
-  const activityColumns: Column<ActivityRecord>[] = [
-    {
-      key: 'Activity_ID',
-      label: 'Activity ID',
-      sortable: true,
-      minWidth: '130px',
-      render: (row) => (
-        <span className="font-monospace fw-semibold text-primary">{row.Activity_ID}</span>
-      )
-    },
-    {
-      key: 'Activity_Name',
-      label: 'Activity / Work Order',
-      sortable: true,
-      minWidth: '220px',
-      render: (row) => (
-        <div>
-          <div className="fw-medium text-dark">{row.Activity_Name}</div>
-          <small className="text-secondary">{row.Site_Location}</small>
-        </div>
-      )
-    },
-    {
-      key: 'Activity_Type',
-      label: 'Type',
-      sortable: true,
-      minWidth: '90px',
-      render: (row) => (
-        <span className="badge bg-secondary">{row.Activity_Type}</span>
-      )
-    },
-    {
-      key: 'Current_Net_Cost',
-      label: 'Net Cost (PHP)',
-      sortable: true,
-      align: 'right',
-      minWidth: '130px',
-      render: (row) => (
-        <div className="fw-bold text-dark">
-          {(Number(row.Current_Net_Cost) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-        </div>
-      )
-    },
-    {
-      key: 'Status',
-      label: 'Status',
-      sortable: true,
-      align: 'center',
-      minWidth: '100px',
-      render: (row) => {
-        const status = row.Status?.toUpperCase();
-        let badgeClass = 'bg-secondary';
-        if (status === 'ACTIVE') badgeClass = 'bg-success';
-        if (status === 'ON_HOLD') badgeClass = 'bg-warning text-dark';
-        if (status === 'COMPLETED') badgeClass = 'bg-primary';
-        if (status === 'CANCELLED') badgeClass = 'bg-danger';
-        return <span className={`badge ${badgeClass}`}>{row.Status}</span>;
-      }
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'right',
-      minWidth: '100px',
-      render: (row) => (
-        <button
-          className={`btn btn-sm ${selectedActivity?.Activity_ID === row.Activity_ID ? 'btn-primary' : 'btn-outline-primary'}`}
-          onClick={() => setSelectedActivity(row)}
-        >
-          {selectedActivity?.Activity_ID === row.Activity_ID ? 'Selected' : 'Select'}
-        </button>
-      )
-    }
-  ];
-
   const itemColumns: Column<ActivityInventoryItem>[] = [
     {
       key: 'Item_ID',
@@ -328,8 +241,8 @@ export const ProjectAllocation: React.FC = () => {
       render: (row) => (
         <div>
           <div className="fw-medium text-dark">{row.Item_Name}</div>
-          {row.Serial_Number_Class && row.Serial_Number_Class !== 'N/A' && (
-            <small className="text-secondary font-monospace">SN: {row.Serial_Number_Class}</small>
+          {row.Serial_Number && row.Serial_Number !== 'N/A' && (
+            <small className="text-secondary font-monospace">SN: {row.Serial_Number}</small>
           )}
         </div>
       )
@@ -373,11 +286,11 @@ export const ProjectAllocation: React.FC = () => {
       }
     },
     {
-      key: 'Unit_Cost_Billed_Cost',
+      key: 'Unit_Cost',
       label: 'Billed Cost',
       align: 'right',
       minWidth: '110px',
-      render: (row) => Number(row.Unit_Cost_Billed_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
+      render: (row) => Number(row.Unit_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
     },
     {
       key: 'Item_Tracking_State',
@@ -413,7 +326,6 @@ export const ProjectAllocation: React.FC = () => {
             disabled={!selectedActivity}
             onClick={() => setIsDispatchOpen(true)}
           >
-            <i className="bi bi-box-arrow-up-right"></i>
             <span>Dispatch Stock</span>
           </button>
           <button
@@ -421,7 +333,6 @@ export const ProjectAllocation: React.FC = () => {
             disabled={!selectedActivity}
             onClick={() => setIsConsumeOpen(true)}
           >
-            <i className="bi bi-check2-circle"></i>
             <span>Log Consumption</span>
           </button>
           <button
@@ -429,7 +340,6 @@ export const ProjectAllocation: React.FC = () => {
             disabled={!selectedActivity}
             onClick={() => setIsSurplusOpen(true)}
           >
-            <i className="bi bi-arrow-return-left"></i>
             <span>Return Surplus</span>
           </button>
         </div>
@@ -459,34 +369,8 @@ export const ProjectAllocation: React.FC = () => {
         </div>
       </div>
 
-      {/* Activities Table */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-header bg-white py-3 border-0 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
-          <div>
-            <h6 className="fw-bold text-dark mb-0">Facilities Work Orders & Maintenance Projects</h6>
-            <small className="text-secondary">Click 'Select' to inspect materials allocated to a specific activity</small>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <input
-              type="text"
-              className="form-control form-control-sm"
-              placeholder="Search activities..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ maxWidth: '240px' }}
-            />
-          </div>
-        </div>
-        <div className="card-body p-0">
-          <DataTable
-            data={filteredActivities}
-            columns={activityColumns}
-            keyField="Activity_ID"
-            isLoading={isLoading}
-            emptyMessage="No facilities activities found."
-          />
-        </div>
-      </div>
+      {/* Activities */}
+      <ActivityCards activities={activities} selectedId={selectedActivity?.Activity_ID} onSelect={setSelectedActivity} loading={isLoading} />
 
       {/* Selected Activity Material Ledger */}
       {selectedActivity && (

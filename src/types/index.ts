@@ -192,13 +192,13 @@ export interface ActivityInventoryItem {
   Item_ID: string;
   Item_SKU: string;
   Item_Name: string;
-  Serial_Number_Class?: string;
+  Serial_Number?: string;
   Qty_Issued: number;
   Qty_Returned: number;
   Net_Used: number;
   Qty_Expended: number;
   UOM: string;
-  Unit_Cost_Billed_Cost: number;
+  Unit_Cost: number;
   Item_Tracking_State: 'DEPLOYED' | 'CONSUMED' | 'PARTIALLY_RETURNED' | 'WRITTEN_OFF' | 'PARTIAL_USED';
 }
 
@@ -503,7 +503,7 @@ export interface ProjectCostsResponse {
 // Analytics overview
 // ---------------------------------------------------------------------------
 
-export type AnalyticsGroup = 'SUBDEPARTMENT' | 'ACTIVITY' | 'SYSTEM' | 'COMPONENT';
+export type AnalyticsGroup = 'SUBDEPARTMENT' | 'ACTIVITY' | 'ACTIVITY_TYPE' | 'SYSTEM' | 'COMPONENT';
 
 export interface AnalyticsRow {
   key: string;
@@ -525,6 +525,27 @@ export interface AnalyticsOverviewResponse {
   rows: AnalyticsRow[];
   totals: Omit<AnalyticsRow, 'key' | 'label'>;
   meta: { workbooks: number; stockAsOf: string; layersEnabled: boolean; notes: string[] };
+}
+
+export type AnalyticsPeriod = 'MONTH' | 'QUARTER' | 'YEAR';
+
+export interface PerformanceCell {
+  receivedQty: number; receivedCost: number;
+  issuedQty: number; issuedCost: number;
+  consumedQty: number; consumedCost: number;
+}
+
+/** analytics:getPerformance: quantity and cost per period for each group. */
+export interface AnalyticsPerformanceResponse {
+  groupBy: AnalyticsGroup;
+  period: AnalyticsPeriod;
+  from: string;
+  to: string;
+  buckets: { key: string; label: string }[];
+  rows: { label: string; cells: Record<string, PerformanceCell>; totals: PerformanceCell }[];
+  bucketTotals: Record<string, PerformanceCell>;
+  totals: PerformanceCell;
+  meta: { workbooks: number; notes: string[] };
 }
 
 /** Where an item is now, who holds it and since when (inventory:getItemTrace). */

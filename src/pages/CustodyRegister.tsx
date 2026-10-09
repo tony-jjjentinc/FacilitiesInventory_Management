@@ -326,8 +326,7 @@ export const CustodyRegister: React.FC = () => {
           className="btn btn-primary btn-sm d-flex align-items-center gap-1"
           onClick={() => setIsDeployOpen(true)}
         >
-          <i className="bi bi-person-badge"></i>
-          <span>Deploy Tool (OUT:DEPLOY)</span>
+          <span>Assign Tool</span>
         </button>
       </div>
 
@@ -401,14 +400,14 @@ export const CustodyRegister: React.FC = () => {
         </div>
       </div>
 
-      {/* Deploy Tool Modal */}
+      {/* Assign Tool Modal */}
       {isDeployOpen && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <form onSubmit={handleDeploy}>
                 <div className="modal-header">
-                  <h6 className="modal-title fw-bold">Deploy Tool / Asset (OUT:DEPLOY)</h6>
+                  <h6 className="modal-title fw-bold">Assign Tool / Asset</h6>
                   <button type="button" className="btn-close" disabled={isSubmitting} onClick={() => setIsDeployOpen(false)}></button>
                 </div>
                 <div className="modal-body">

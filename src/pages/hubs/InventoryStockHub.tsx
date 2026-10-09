@@ -12,7 +12,7 @@ export const InventoryStockHub: React.FC = () => {
   return (
     <>
       <TabBar
-        label="Inventory Stock" active={tab} onChange={setTab}
+        label="Inventory" active={tab} onChange={setTab}
         tabs={[
           { key: 'warehouse', label: 'Warehouse Stock' },
           { key: 'catalog', label: 'Inventory Catalog' },

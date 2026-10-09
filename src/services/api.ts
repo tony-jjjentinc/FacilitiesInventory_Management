@@ -439,13 +439,13 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               Item_ID: 'ITM-0001',
               Item_SKU: 'CNS-PLB-0001',
               Item_Name: 'PPR Pipe 1/2" x 4m',
-              Serial_Number_Class: 'N/A',
+              Serial_Number: 'N/A',
               Qty_Issued: 20,
               Qty_Returned: 2,
               Net_Used: 18,
               Qty_Expended: 12,
               UOM: 'pc',
-              Unit_Cost_Billed_Cost: 345.5,
+              Unit_Cost: 345.5,
               Item_Tracking_State: 'PARTIAL_USED'
             },
             {
@@ -454,13 +454,13 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               Item_ID: 'ITM-0002',
               Item_SKU: 'CNS-PLB-0002',
               Item_Name: 'PPR Equal Tee 1/2"',
-              Serial_Number_Class: 'N/A',
+              Serial_Number: 'N/A',
               Qty_Issued: 30,
               Qty_Returned: 0,
               Net_Used: 30,
               Qty_Expended: 30,
               UOM: 'pc',
-              Unit_Cost_Billed_Cost: 48.0,
+              Unit_Cost: 48.0,
               Item_Tracking_State: 'CONSUMED'
             }
           ]);

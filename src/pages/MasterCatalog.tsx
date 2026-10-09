@@ -13,6 +13,7 @@ interface RawCatalogItem {
   Variant: string;
   Properties: string;
   Property_Fingerprint?: string;
+  Inventory_Type_Name?: string;
   Search_Tags?: string;
   System: string;
   Component: string;
@@ -64,7 +65,10 @@ export const MasterCatalog: React.FC = () => {
   const [lookupPropertyKeys, setLookupPropertyKeys] = useState<any[]>([]);
   const [propertiesPairs, setPropertiesPairs] = useState<{ key: string; value: string }[]>([]);
 
+  const [loading, setLoading] = useState(true);
+
   const loadItems = async () => {
+    setLoading(true);
     try {
       await fetchWithSwr<RawCatalogItem[]>(
         'catalog:items',
@@ -77,6 +81,8 @@ export const MasterCatalog: React.FC = () => {
       );
     } catch (err) {
       console.error('Failed to load catalog items:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -185,16 +191,8 @@ export const MasterCatalog: React.FC = () => {
 
   const columns: Column<RawCatalogItem>[] = [
     {
-      key: 'SKU',
-      label: 'SKU',
-      align: 'left',
-      minWidth: '130px',
-      sortable: true,
-      render: (row) => <span className="font-monospace fw-semibold text-dark">{row.SKU}</span>
-    },
-    {
       key: 'Name',
-      label: 'Item Name',
+      label: 'Item Information',
       align: 'left',
       minWidth: '220px',
       sortable: true,
@@ -210,6 +208,14 @@ export const MasterCatalog: React.FC = () => {
       )
     },
     {
+      key: 'SKU',
+      label: 'SKU',
+      align: 'left',
+      minWidth: '130px',
+      sortable: true,
+      render: (row) => <span className="font-monospace text-dark">{row.SKU}</span>
+    },
+    {
       key: 'Category_ID',
       label: 'Category',
       align: 'left',
@@ -222,13 +228,13 @@ export const MasterCatalog: React.FC = () => {
       )
     },
     {
-      key: 'Inventory_Type_Code',
+      key: 'Inventory_Type_Name',
       label: 'Type',
       align: 'left',
-      minWidth: '90px',
+      minWidth: '130px',
       sortable: true,
       render: (row) => (
-        <span className="text-muted small fw-medium">{row.Inventory_Type_Code}</span>
+        <span className="text-muted small fw-medium">{row.Inventory_Type_Name || row.Inventory_Type_Code}</span>
       )
     },
     {
@@ -247,8 +253,14 @@ export const MasterCatalog: React.FC = () => {
       sortable: true,
       render: (row) => (
         <div className="small">
-          <div className="text-dark">{row.System || '—'}</div>
-          <div className="text-muted">{row.Component || ''}</div>
+          {!row.System && !row.Component ? (
+            <div className="text-muted">No Data</div>
+          ) : (
+            <>
+              <div className={row.System ? 'text-dark' : 'text-muted'}>{row.System || 'No Data'}</div>
+              <div className="text-muted">{row.Component || 'No Data'}</div>
+            </>
+          )}
         </div>
       )
     },
@@ -287,6 +299,8 @@ export const MasterCatalog: React.FC = () => {
         columns={columns}
         data={filteredItems}
         keyField="ID"
+        isLoading={loading && items.length === 0}
+        refreshing={loading}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="Filter items by SKU, name, brand..."

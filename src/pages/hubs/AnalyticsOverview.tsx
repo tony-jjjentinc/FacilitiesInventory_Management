@@ -6,6 +6,7 @@ import type { AnalyticsGroup, AnalyticsOverviewResponse, AnalyticsRow } from '..
 const GROUPS: { key: AnalyticsGroup; label: string }[] = [
   { key: 'SUBDEPARTMENT', label: 'Sub-Department' },
   { key: 'ACTIVITY', label: 'Activity / Project' },
+  { key: 'ACTIVITY_TYPE', label: 'Activity Category' },
   { key: 'SYSTEM', label: 'System' },
   { key: 'COMPONENT', label: 'Component' }
 ];

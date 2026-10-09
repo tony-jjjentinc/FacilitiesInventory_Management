@@ -238,7 +238,7 @@ export const ApprovalsQueue: React.FC = () => {
       <DataCard<any>
         title="Loss & Disposal Approvals Queue"
         description="Review and digitally sign off on damage, expiration, and scrap reports requiring inventory disposal write-off."
-        actions={[{ key: 'report', label: 'Report Incident', icon: 'bi-plus-circle', onClick: () => setIsReportModalOpen(true) }]}
+        actions={[{ key: 'report', label: 'Report Incident', onClick: () => setIsReportModalOpen(true) }]}
         onRefresh={() => { invalidateCache('incident:queue'); fetchIncidents(); }}
         tabs={[
           { key: 'PENDING_APPROVAL', label: 'Pending Review' },

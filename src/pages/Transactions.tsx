@@ -310,7 +310,7 @@ export const Transactions: React.FC = () => {
       <DataCard<any>
         title="Double-Entry Transaction Ledger"
         description="Immutable facilities inventory ledger tracking receipts, dispatches, tool deployments, and staging drafts."
-        actions={[{ key: 'stage', label: 'Stage New Transaction', icon: 'bi-plus-circle', onClick: () => setIsCreateOpen(true) }]}
+        actions={[{ key: 'stage', label: 'Stage New Transaction', onClick: () => setIsCreateOpen(true) }]}
         onRefresh={() => { invalidateCache('transaction:history'); fetchTransactions(); }}
         tabs={[
           { key: 'ALL', label: 'All Movements' },

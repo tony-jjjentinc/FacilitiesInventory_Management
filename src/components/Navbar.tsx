@@ -46,7 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
   const navItems: { id: string; path: string; label: string; badge?: number }[] = [
     { id: 'overview', path: '/overview', label: 'Dashboard' },
     ...(canSeeAnalytics ? [{ id: 'analytics', path: '/analytics', label: 'Analytics' }] : []),
-    { id: 'inventory', path: '/inventory', label: 'Inventory Stock' },
+    { id: 'inventory', path: '/inventory', label: 'Inventory' },
     { id: 'activities', path: '/activities', label: 'Activities' },
     { id: 'transactions', path: '/transactions', label: 'Transactions', badge: counts.receipts },
     ...(isHeadOrAdmin ? [{ id: 'admin', path: '/admin', label: 'Admin', badge: counts.approvals }, { id: 'configuration', path: '/configuration', label: 'Configuration' }] : [])

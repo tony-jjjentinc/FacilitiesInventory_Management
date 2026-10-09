@@ -878,8 +878,8 @@ export const Configuration: React.FC = () => {
             activeTab={activeTab}
             onTabChange={(k) => goTable(configKeyToSlug(k as ConfigTableKey))}
             actions={[
-              { key: 'rollover', label: 'Launch Rollover Wizard', icon: 'bi-arrow-repeat', onClick: () => setIsRolloverModalOpen(true), hidden: !(activeTab === 'Sheet_Records' && isHeadAdmin) },
-              { key: 'add', label: `Add ${currentTabDef.singular}`, icon: 'bi-plus-lg', onClick: handleCreateNew, hidden: !(isHeadAdmin && activeTab !== 'Sheet_Records') }
+              { key: 'rollover', label: 'Launch Rollover Wizard', onClick: () => setIsRolloverModalOpen(true), hidden: !(activeTab === 'Sheet_Records' && isHeadAdmin) },
+              { key: 'add', label: `Add ${currentTabDef.singular}`, onClick: handleCreateNew, hidden: !(isHeadAdmin && activeTab !== 'Sheet_Records') }
             ]}
             onRefresh={() => {
               invalidateCache(`config:${activeTab}`);
