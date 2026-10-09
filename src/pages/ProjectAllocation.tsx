@@ -1,18 +1,16 @@
+import { DispatchPileSection, EMPTY_PILE_CHOICE, type PileChoice } from '../components/cost/DispatchPileSection';
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
-import type { ActivityRecord, ActivityInventoryItem, ConsumedInventoryItem } from '../types';
+import type { ActivityRecord, ActivityInventoryItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 
 export const ProjectAllocation: React.FC = () => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityRecord | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityInventoryItem[]>([]);
-  const [consumedItems, setConsumedItems] = useState<ConsumedInventoryItem[]>([]);
-  const [activeLedgerTab, setActiveLedgerTab] = useState<'allocated' | 'consumed'>('allocated');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isItemsLoading, setIsItemsLoading] = useState<boolean>(false);
-  const [isConsumedLoading, setIsConsumedLoading] = useState<boolean>(false);
   const [search, setSearch] = useState<string>('');
 
   // Modals state
@@ -23,6 +21,7 @@ export const ProjectAllocation: React.FC = () => {
   const [modalFeedback, setModalFeedback] = useState<string | null>(null);
 
   // Form states
+  const [pileChoice, setPileChoice] = useState<PileChoice>(EMPTY_PILE_CHOICE);
   const [dispatchForm, setDispatchForm] = useState({
     itemId: '',
     quantity: '1',
@@ -85,25 +84,6 @@ export const ProjectAllocation: React.FC = () => {
     }
   };
 
-  const fetchConsumedItems = async (activityId: string) => {
-    setIsConsumedLoading(true);
-    try {
-      await fetchWithSwr<ConsumedInventoryItem[]>(
-        `consumption:list:${activityId}`,
-        () => apiRequest<ConsumedInventoryItem[]>('inventory:getConsumedItems', { referenceId: activityId, scope: 'ACTIVITY' }),
-        (data) => {
-          if (Array.isArray(data)) {
-            setConsumedItems(data);
-          }
-          setIsConsumedLoading(false);
-        }
-      );
-    } catch (err) {
-      console.error('Failed to load consumed items:', err);
-      setIsConsumedLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchActivities();
   }, []);
@@ -111,10 +91,8 @@ export const ProjectAllocation: React.FC = () => {
   useEffect(() => {
     if (selectedActivity) {
       fetchActivityItems(selectedActivity.Activity_ID);
-      fetchConsumedItems(selectedActivity.Activity_ID);
     } else {
       setActivityItems([]);
-      setConsumedItems([]);
     }
   }, [selectedActivity]);
 
@@ -133,7 +111,6 @@ export const ProjectAllocation: React.FC = () => {
   // Total KPIs
   const totalProjects = activities.length;
   const activeProjects = activities.filter(a => a.Status === 'ACTIVE').length;
-  const totalAllocatedBudget = activities.reduce((sum, a) => sum + (Number(a.Allocated_Budget) || 0), 0);
   const totalCurrentCost = activities.reduce((sum, a) => sum + (Number(a.Current_Net_Cost) || 0), 0);
 
   // Filter activities
@@ -153,16 +130,28 @@ export const ProjectAllocation: React.FC = () => {
     if (!selectedActivity) return;
     setIsSubmitting(true);
     setModalFeedback(null);
+    const qty = Number(dispatchForm.quantity) || 1;
+    const selection = pileChoice.customize
+      ? Object.entries(pileChoice.picks).filter(([, v]) => Number(v) > 0).map(([layerId, v]) => ({ layerId, quantity: Number(v) }))
+      : undefined;
+    if (selection) {
+      const sum = selection.reduce((t, x) => t + x.quantity, 0);
+      if (Math.abs(sum - qty) > 1e-9) { setModalFeedback(`The picked deliveries add up to ${sum}, but the quantity is ${qty}.`); setIsSubmitting(false); return; }
+      if (!pileChoice.reason.trim()) { setModalFeedback('Give a reason for picking deliveries.'); setIsSubmitting(false); return; }
+    }
     try {
       await apiRequest('inventory:dispatch', {
         activityId: selectedActivity.Activity_ID,
         warehouseLocation: dispatchForm.warehouseLocation,
+        areaId: pileChoice.areaId,
+        overrideReason: selection ? pileChoice.reason.trim() : '',
         accountablePartyId: selectedActivity.Site_Supervisor_ID,
         remarks: dispatchForm.remarks,
         items: [
           {
             itemId: dispatchForm.itemId.trim(),
-            quantity: Number(dispatchForm.quantity) || 1,
+            quantity: qty,
+            ...(selection ? { pileSelection: selection } : {})
           }
         ]
       });
@@ -174,6 +163,7 @@ export const ProjectAllocation: React.FC = () => {
       await fetchActivityItems(selectedActivity.Activity_ID);
       setIsDispatchOpen(false);
       setDispatchForm({ itemId: '', quantity: '1', warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN', remarks: '' });
+      setPileChoice(EMPTY_PILE_CHOICE);
     } catch (err: any) {
       setModalFeedback(err.message || 'Dispatch failed.');
     } finally {
@@ -202,7 +192,6 @@ export const ProjectAllocation: React.FC = () => {
       invalidateCache('transaction:history');
       await fetchActivities();
       await fetchActivityItems(selectedActivity.Activity_ID);
-      await fetchConsumedItems(selectedActivity.Activity_ID);
       setIsConsumeOpen(false);
       setConsumeForm({ itemId: '', quantity: '1', purpose: '', workDescription: '' });
     } catch (err: any) {
@@ -276,41 +265,16 @@ export const ProjectAllocation: React.FC = () => {
       )
     },
     {
-      key: 'Allocated_Budget',
-      label: 'Budget (PHP)',
-      sortable: true,
-      align: 'right',
-      minWidth: '120px',
-      render: (row) => Number(row.Allocated_Budget || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
-    },
-    {
       key: 'Current_Net_Cost',
       label: 'Net Cost (PHP)',
       sortable: true,
       align: 'right',
       minWidth: '130px',
-      render: (row) => {
-        const budget = Number(row.Allocated_Budget) || 1;
-        const cost = Number(row.Current_Net_Cost) || 0;
-        const pct = Math.round((cost / budget) * 100);
-        const isNearCap = pct >= 90;
-        return (
-          <div>
-            <div className={`fw-bold ${isNearCap ? 'text-danger' : 'text-dark'}`}>
-              {cost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </div>
-            <div className="progress mt-1" style={{ height: '4px' }}>
-              <div
-                className={`progress-bar ${isNearCap ? 'bg-danger' : 'bg-primary'}`}
-                style={{ width: `${Math.min(pct, 100)}%` }}
-              ></div>
-            </div>
-            <small className={`d-block mt-1 ${isNearCap ? 'text-danger fw-bold' : 'text-secondary'}`}>
-              {pct}% consumed
-            </small>
-          </div>
-        );
-      }
+      render: (row) => (
+        <div className="fw-bold text-dark">
+          {(Number(row.Current_Net_Cost) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </div>
+      )
     },
     {
       key: 'Status',
@@ -431,73 +395,6 @@ export const ProjectAllocation: React.FC = () => {
     }
   ];
 
-  const consumedColumns: Column<ConsumedInventoryItem>[] = [
-    {
-      key: 'Consumption_ID',
-      label: 'Consumption ID',
-      minWidth: '140px',
-      render: (row) => (
-        <div>
-          <span className="font-monospace fw-semibold text-success">{row.Consumption_ID}</span>
-          <div className="small text-muted">{row.Timestamp}</div>
-        </div>
-      )
-    },
-    {
-      key: 'Item_ID',
-      label: 'Material / Tool',
-      minWidth: '220px',
-      render: (row) => (
-        <div>
-          <div className="fw-medium text-dark">{row.Item_Name}</div>
-          <div className="small text-secondary font-monospace">{row.Item_ID} &bull; {row.Item_SKU}</div>
-        </div>
-      )
-    },
-    {
-      key: 'Quantity',
-      label: 'Qty Consumed',
-      align: 'right',
-      minWidth: '110px',
-      render: (row) => <span className="fw-bold text-dark">{row.Quantity} {row.UOM}</span>
-    },
-    {
-      key: 'Unit_Cost',
-      label: 'Unit Cost',
-      align: 'right',
-      minWidth: '100px',
-      render: (row) => `₱${Number(row.Unit_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-    },
-    {
-      key: 'Total_Cost',
-      label: 'Total Billed',
-      align: 'right',
-      minWidth: '110px',
-      render: (row) => <span className="fw-semibold text-primary">₱${Number(row.Total_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-    },
-    {
-      key: 'Purpose',
-      label: 'Purpose & Installation Work',
-      minWidth: '230px',
-      render: (row) => (
-        <div>
-          <div className="fw-semibold text-dark small">{row.Purpose || 'N/A'}</div>
-          {row.Work_Description && <div className="text-secondary small">{row.Work_Description}</div>}
-        </div>
-      )
-    },
-    {
-      key: 'Logged_By_ID',
-      label: 'Logged By',
-      minWidth: '160px',
-      render: (row) => (
-        <div>
-          <div className="small text-dark">{row.Logged_By_ID}</div>
-          {row.Transaction_ID && <span className="badge bg-light text-dark font-monospace border">{row.Transaction_ID}</span>}
-        </div>
-      )
-    }
-  ];
 
   return (
     <div className="container py-4 px-3 px-md-4">
@@ -519,7 +416,7 @@ export const ProjectAllocation: React.FC = () => {
             <span>Dispatch Stock</span>
           </button>
           <button
-            className="btn btn-outline-success btn-sm d-flex align-items-center gap-1"
+            className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
             disabled={!selectedActivity}
             onClick={() => setIsConsumeOpen(true)}
           >
@@ -527,7 +424,7 @@ export const ProjectAllocation: React.FC = () => {
             <span>Log Consumption</span>
           </button>
           <button
-            className="btn btn-outline-warning btn-sm d-flex align-items-center gap-1"
+            className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
             disabled={!selectedActivity}
             onClick={() => setIsSurplusOpen(true)}
           >
@@ -539,7 +436,7 @@ export const ProjectAllocation: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="row g-3 mb-4">
-        <div className="col-12 col-sm-6 col-lg-3">
+        <div className="col-12 col-sm-6">
           <div className="card shadow-sm border-0 h-100">
             <div className="card-body">
               <span className="text-secondary small fw-medium">Total Work Orders</span>
@@ -548,18 +445,7 @@ export const ProjectAllocation: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="col-12 col-sm-6 col-lg-3">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body">
-              <span className="text-secondary small fw-medium">Allocated Budget</span>
-              <h3 className="fw-bold text-dark mt-1 mb-0">
-                ₱{totalAllocatedBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </h3>
-              <small className="text-muted">Total Activity Ceiling</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-12 col-sm-6 col-lg-3">
+        <div className="col-12 col-sm-6">
           <div className="card shadow-sm border-0 h-100">
             <div className="card-body">
               <span className="text-secondary small fw-medium">Cumulative Net Cost</span>
@@ -567,17 +453,6 @@ export const ProjectAllocation: React.FC = () => {
                 ₱{totalCurrentCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
               <small className="text-muted">Net Dispatched Materials</small>
-            </div>
-          </div>
-        </div>
-        <div className="col-12 col-sm-6 col-lg-3">
-          <div className="card shadow-sm border-0 h-100">
-            <div className="card-body">
-              <span className="text-secondary small fw-medium">Budget Consumption</span>
-              <h3 className="fw-bold text-dark mt-1 mb-0">
-                {totalAllocatedBudget > 0 ? Math.round((totalCurrentCost / totalAllocatedBudget) * 100) : 0}%
-              </h3>
-              <small className="text-muted">Overall Portfolio Usage</small>
             </div>
           </div>
         </div>
@@ -625,53 +500,21 @@ export const ProjectAllocation: React.FC = () => {
                 Location: {selectedActivity.Site_Location} | Supervisor: {selectedActivity.Site_Supervisor_ID} | Billed Cost: ₱{Number(selectedActivity.Current_Net_Cost || 0).toLocaleString()}
               </small>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <div className="btn-group btn-group-sm" role="group">
-                <button
-                  type="button"
-                  className={`btn ${activeLedgerTab === 'allocated' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                  onClick={() => setActiveLedgerTab('allocated')}
-                >
-                  <i className="bi bi-boxes me-1"></i> Allocated Materials ({activityItems.length})
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${activeLedgerTab === 'consumed' ? 'btn-success' : 'btn-outline-secondary'}`}
-                  onClick={() => setActiveLedgerTab('consumed')}
-                >
-                  <i className="bi bi-clock-history me-1"></i> Consumed History ({consumedItems.length})
-                </button>
-              </div>
-              <button
-                className="btn btn-sm btn-outline-primary"
-                onClick={() => {
-                  fetchActivityItems(selectedActivity.Activity_ID);
-                  fetchConsumedItems(selectedActivity.Activity_ID);
-                }}
-                title="Refresh"
-              >
-                <i className="bi bi-arrow-clockwise"></i>
-              </button>
-            </div>
+            <button
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => fetchActivityItems(selectedActivity.Activity_ID)}
+            >
+              Refresh
+            </button>
           </div>
           <div className="card-body p-0">
-            {activeLedgerTab === 'allocated' ? (
-              <DataTable
-                data={activityItems}
-                columns={itemColumns}
-                keyField="Activity_Line_ID"
-                isLoading={isItemsLoading}
-                emptyMessage="No materials dispatched to this activity yet."
-              />
-            ) : (
-              <DataTable
-                data={consumedItems}
-                columns={consumedColumns}
-                keyField="Consumption_ID"
-                isLoading={isConsumedLoading}
-                emptyMessage="No consumption records logged for this activity yet. Click 'Log Consumption' above to record installed materials."
-              />
-            )}
+            <DataTable
+              data={activityItems}
+              columns={itemColumns}
+              keyField="Activity_Line_ID"
+              isLoading={isItemsLoading}
+              emptyMessage="No materials dispatched to this activity yet."
+            />
           </div>
         </div>
       )}
@@ -679,7 +522,7 @@ export const ProjectAllocation: React.FC = () => {
       {/* Dispatch Modal */}
       {isDispatchOpen && selectedActivity && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <form onSubmit={handleDispatch}>
                 <div className="modal-header">
@@ -724,6 +567,13 @@ export const ProjectAllocation: React.FC = () => {
                       onChange={(e) => setDispatchForm({ ...dispatchForm, warehouseLocation: e.target.value })}
                     />
                   </div>
+                  <DispatchPileSection
+                    itemId={dispatchForm.itemId}
+                    location={dispatchForm.warehouseLocation}
+                    quantity={Number(dispatchForm.quantity) || 0}
+                    value={pileChoice}
+                    onChange={setPileChoice}
+                  />
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Remarks</label>
                     <input
@@ -752,7 +602,7 @@ export const ProjectAllocation: React.FC = () => {
       {/* Log Consumption Modal */}
       {isConsumeOpen && selectedActivity && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog">
             <div className="modal-content">
               <form onSubmit={handleConsume}>
                 <div className="modal-header">
@@ -830,7 +680,7 @@ export const ProjectAllocation: React.FC = () => {
       {/* Return Surplus Modal */}
       {isSurplusOpen && selectedActivity && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog">
             <div className="modal-content">
               <form onSubmit={handleSurplusReturn}>
                 <div className="modal-header">

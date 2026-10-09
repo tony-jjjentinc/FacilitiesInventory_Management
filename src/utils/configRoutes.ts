@@ -9,6 +9,7 @@ export const CONFIG_SLUG_MAP: { slug: string; key: ConfigTableKey }[] = [
   { slug: 'uom', key: 'UOM' },
   { slug: 'uom-category', key: 'UOM_Category' },
   { slug: 'warehouse-location', key: 'Warehouse_Location' },
+  { slug: 'warehouse-storage', key: 'Warehouse_Storage' },
   { slug: 'fiscal-source', key: 'Sheet_Records' },
 ];
 

@@ -81,7 +81,7 @@ export const WarehouseStock: React.FC = () => {
       align: 'left',
       minWidth: '140px',
       sortable: true,
-      render: (row) => <span className="small text-muted">{row.Warehouse_Location}</span>
+      render: (row) => <span className="small text-muted">{row.Warehouse_Location}{row.Area_ID ? <span className="font-monospace"> · {row.Area_ID}</span> : null}</span>
     },
     {
       key: 'Serial_Number',
@@ -163,7 +163,7 @@ export const WarehouseStock: React.FC = () => {
           </p>
         </div>
 
-        <button className="btn btn-outline-secondary btn-sm" onClick={fetchStock} disabled={isLoading}>
+        <button className="btn btn-secondary btn-sm" onClick={fetchStock} disabled={isLoading}>
           {isLoading ? 'Updating...' : 'Refresh'}
         </button>
       </div>

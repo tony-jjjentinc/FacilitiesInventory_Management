@@ -40,7 +40,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       tabIndex={-1}
       style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1060 }}
     >
-      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '420px' }}>
+      <div className="modal-dialog" style={{ maxWidth: '420px' }}>
         <div className="modal-content border shadow-sm" style={{ borderRadius: '8px' }}>
           <div className="modal-header py-3 px-4 bg-light border-bottom">
             <h6 className="modal-title fw-bold text-dark mb-0">{title}</h6>

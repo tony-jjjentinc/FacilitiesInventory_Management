@@ -84,14 +84,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   const goTo = (pathOrTab: string) => {
     const routeMap: Record<string, string> = {
       overview: '/overview',
-      catalog: '/catalog',
-      warehouse: '/warehouse',
-      transactions: '/transactions',
-      receiving: '/receiving',
-      alerts: '/alerts',
-      approvals: '/approvals',
-      config: '/configuration/item',
-      configuration: '/configuration/item'
+      catalog: '/inventory?tab=catalog',
+      warehouse: '/inventory',
+      transactions: '/transactions?tab=ledger',
+      receiving: '/transactions',
+      alerts: '/inventory?tab=alerts',
+      approvals: '/admin',
+      config: '/configuration',
+      configuration: '/configuration'
     };
     const target = routeMap[pathOrTab] || (pathOrTab.startsWith('/') ? pathOrTab : `/${pathOrTab}`);
     navigate(target);

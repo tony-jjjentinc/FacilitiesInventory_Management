@@ -9,9 +9,11 @@ import { useSystemInfo } from '../context/SystemContext';
 interface NavbarProps {
   user: UserClaims | null;
   onLogout: () => void;
+  onFeed?: (counts: { receipts: number; approvals: number }) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
+  const [counts, setCounts] = useState({ receipts: 0, approvals: 0 });
   const { systemInfo } = useSystemInfo();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -38,22 +40,29 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
   const isHeadOrAdmin = isUserHeadOrAdmin(user);
 
-  const navItems = [
-    { id: 'overview', path: '/overview', label: 'Dashboard', icon: 'bi-grid-1x2' },
-    { id: 'catalog', path: '/catalog', label: 'Master Catalog', icon: 'bi-box-seam' },
-    { id: 'warehouse', path: '/warehouse', label: 'Warehouse Stock', icon: 'bi-buildings' },
-    { id: 'allocation', path: '/allocation', label: 'Project Allocation', icon: 'bi-diagram-3' },
-    { id: 'custody', path: '/custody', label: 'Tool Custody', icon: 'bi-person-badge' },
-    { id: 'transactions', path: '/transactions', label: 'Transactions', icon: 'bi-journal-text' },
-    { id: 'receiving', path: '/receiving', label: 'Receiving', icon: 'bi-box-arrow-in-down' },
-    { id: 'alerts', path: '/alerts', label: 'ROP Alerts', icon: 'bi-exclamation-triangle' },
-    ...(isHeadOrAdmin
-      ? [
-          { id: 'approvals', path: '/approvals', label: 'Approvals', icon: 'bi-clipboard-check' },
-          { id: 'configuration', path: '/configuration/item', label: 'Configuration', icon: 'bi-sliders' }
-        ]
-      : [])
+  const roles = (user?.roles || []).map(r => String(r).trim().toLowerCase());
+  const canSeeAnalytics = roles.some(r => ['super admin', 'head', 'sub-department'].includes(r));
+
+  const navItems: { id: string; path: string; label: string; badge?: number }[] = [
+    { id: 'overview', path: '/overview', label: 'Dashboard' },
+    ...(canSeeAnalytics ? [{ id: 'analytics', path: '/analytics', label: 'Analytics' }] : []),
+    { id: 'inventory', path: '/inventory', label: 'Inventory Stock' },
+    { id: 'activities', path: '/activities', label: 'Activities' },
+    { id: 'transactions', path: '/transactions', label: 'Transactions', badge: counts.receipts },
+    ...(isHeadOrAdmin ? [{ id: 'admin', path: '/admin', label: 'Admin', badge: counts.approvals }, { id: 'configuration', path: '/configuration', label: 'Configuration' }] : [])
   ];
+
+  const isItemActive = (item: { id: string; path: string }) =>
+    location.pathname === item.path || location.pathname.startsWith(item.path + '/') || (item.id === 'overview' && location.pathname === '/');
+
+  const handleFeed = (items: { id: string; count?: number }[]) => {
+    const next = {
+      receipts: items.find(n => n.id === 'NOTIF_RECEIPTS_AWAITING')?.count || 0,
+      approvals: items.find(n => n.id === 'NOTIF_PENDING_INCIDENTS')?.count || 0
+    };
+    setCounts(next);
+    onFeed?.(next);
+  };
 
   const handleNavClick = (path: string) => {
     navigate(path);
@@ -101,16 +110,10 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   >
                     {systemInfo.shortName}
                   </span>
-                  <span
-                    className="badge bg-secondary-subtle text-secondary border px-1 py-0 d-none d-sm-inline"
-                    style={{ fontSize: "0.62rem" }}
-                  >
-                    {systemInfo.version}
-                  </span>
                 </div>
                 <span
                   className="text-muted d-block"
-                  style={{ fontSize: "0.7rem", marginTop: "2px" }}
+                  style={{ fontSize: "0.7rem", marginTop: "0px" }}
                 >
                   {systemInfo.subtitle}
                 </span>
@@ -124,10 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             aria-label="Main Navigation"
           >
             {navItems.map((item) => {
-              const isActive =
-                item.id === 'configuration'
-                  ? location.pathname.startsWith('/configuration')
-                  : location.pathname === item.path || (item.id === 'overview' && location.pathname === '/');
+              const isActive = isItemActive(item);
               return (
                 <button
                   key={item.id}
@@ -136,6 +136,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   onClick={() => handleNavClick(item.path)}
                 >
                   <span>{item.label}</span>
+                  {item.badge ? <span className="badge rounded-pill bg-danger ms-2">{item.badge}</span> : null}
                 </button>
               );
             })}
@@ -146,15 +147,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             className="d-flex align-items-center justify-content-end gap-1 gap-sm-2"
             style={{ flexShrink: 0 }}
           >
-            <NotificationBell
-              onNavigate={(route) => {
-                const target = route.startsWith('/') ? route : `/${route}`;
-                handleNavClick(target);
-              }}
-            />
-
             {user && (
-              <div className="position-relative ms-1" ref={accountMenuRef}>
+              <div className="position-relative" ref={accountMenuRef}>
                 {/* Account Profile Trigger Button */}
                 <button
                   type="button"
@@ -227,22 +221,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                           </div>
                         </div>
                       </div>
-                      <div className="d-flex align-items-center gap-1 mt-2 flex-wrap">
-                        <span
-                          className="badge bg-primary-subtle text-primary border"
-                          style={{ fontSize: "0.68rem" }}
-                        >
-                          {user.roles?.[0] || "User"}
-                        </span>
-                        {user.department && user.department.length > 0 && (
-                          <span
-                            className="badge bg-light text-secondary border"
-                            style={{ fontSize: "0.68rem" }}
-                          >
-                            {user.department.join(", ")}
-                          </span>
-                        )}
-                      </div>
                     </div>
 
                     {/* Actions List */}
@@ -264,6 +242,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                 )}
               </div>
             )}
+
+            <NotificationBell
+              onLoaded={handleFeed}
+              onNavigate={(route) => {
+                const target = route.startsWith('/') ? route : `/${route}`;
+                handleNavClick(target);
+              }}
+            />
           </div>
         </div>
       </header>
@@ -307,10 +293,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
           <div>
             <div className="d-flex flex-column gap-1">
               {navItems.map((item) => {
-                const isActive =
-                  item.id === 'configuration'
-                    ? location.pathname.startsWith('/configuration')
-                    : location.pathname === item.path || (item.id === 'overview' && location.pathname === '/');
+                const isActive = isItemActive(item);
                 return (
                   <button
                     key={item.id}
@@ -322,6 +305,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                     onClick={() => handleNavClick(item.path)}
                   >
                     <span>{item.label}</span>
+                    {item.badge ? <span className="badge rounded-pill bg-danger ms-auto">{item.badge}</span> : null}
                   </button>
                 );
               })}
@@ -346,12 +330,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   >
                     {user.email}
                   </div>
-                  <span
-                    className="badge bg-secondary-subtle text-secondary border px-1 py-0 mt-1"
-                    style={{ fontSize: "0.65rem" }}
-                  >
-                    {user.roles?.[0] || "User"}
-                  </span>
                 </div>
               </div>
 
@@ -360,7 +338,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                 className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 py-2"
                 onClick={onLogout}
               >
-                <i className="bi bi-box-arrow-right"></i>
                 <span>Sign Out</span>
               </button>
             </div>

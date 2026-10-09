@@ -333,7 +333,7 @@ export const MasterCatalog: React.FC = () => {
       {/* Minimal Modal */}
       {showModal && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered">
+          <div className="modal-dialog modal-lg">
             <div className="modal-content border-0 shadow">
               <div className="modal-header py-3 px-4 bg-light border-bottom">
                 <h6 className="modal-title fw-bold text-dark mb-0">Create Catalog Item</h6>

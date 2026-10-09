@@ -102,7 +102,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               message: '2 loss reports are awaiting Department Head review.',
               count: 2,
               severity: 'WARNING',
-              route: '/approvals'
+              route: '/admin'
             },
             {
               id: 'NOTIF_ROP_CRITICAL',
@@ -112,7 +112,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               message: 'Consumable stock critically depleted.',
               count: 3,
               severity: 'DANGER',
-              route: '/alerts'
+              route: '/inventory?tab=alerts'
             }
           ]);
           break;
@@ -296,8 +296,8 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               sourceRefId: 'MRL-6506',
               destinationType: 'INVENTORY',
               destinationRefId: 'FACILITIES_WAREHOUSE_MAIN',
-              loggedById: 'custodian@jjjei.com',
-              accountablePartyId: 'custodian@jjjei.com',
+              loggedById: 'custodian@jjjentinc.com',
+              accountablePartyId: 'custodian@jjjentinc.com',
               status: 'POSTED',
               remarks: 'Physical delivery intake verified',
               items: [
@@ -324,7 +324,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               lossType: 'DAMAGE',
               originType: 'INVENTORY',
               originRefId: 'FACILITIES_WAREHOUSE_MAIN',
-              liablePartyId: 'technician.m@jjjei.com',
+              liablePartyId: 'technician.m@jjjentinc.com',
               approvalStatus: 'PENDING_APPROVAL',
               incidentDescription: 'PPR pipe bundles cracked during forklift transit maneuver.',
               attachmentUrl: '',
@@ -357,7 +357,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
           resolve([
             {
               Custody_ID: 'CUST-2026-0001',
-              Custodian_ID: 'mark.santos@jjjei.com',
+              Custodian_ID: 'mark.santos@jjjentinc.com',
               Custodian_Name: 'Mark Santos',
               Item_ID: 'ITM-0004',
               Item_SKU: 'TLS-PWR-0001',
@@ -372,7 +372,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
             },
             {
               Custody_ID: 'CUST-2026-0002',
-              Custodian_ID: 'ramon.reyes@jjjei.com',
+              Custodian_ID: 'ramon.reyes@jjjentinc.com',
               Custodian_Name: 'Ramon Reyes',
               Item_ID: 'ITM-0005',
               Item_SKU: 'TLS-TST-0002',
@@ -413,8 +413,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               Site_Location: 'Tower A - 4th Floor Plant Room',
               Start_Date: '2026-03-01',
               Target_End_Date: '2026-04-15',
-              Site_Supervisor_ID: 'engineer.lead@jjjei.com',
-              Allocated_Budget: 150000,
+              Site_Supervisor_ID: 'engineer.lead@jjjentinc.com',
               Current_Net_Cost: 45230,
               Status: 'ACTIVE'
             },
@@ -425,8 +424,7 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               Site_Location: 'Powerhouse Substation Yard',
               Start_Date: '2026-03-10',
               Target_End_Date: '2026-03-25',
-              Site_Supervisor_ID: 'elect.lead@jjjei.com',
-              Allocated_Budget: 80000,
+              Site_Supervisor_ID: 'elect.lead@jjjentinc.com',
               Current_Net_Cost: 73500,
               Status: 'ACTIVE'
             }
@@ -527,8 +525,8 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               Total_Cost: 2073,
               Purpose: 'Cooling Loop Line Replacement',
               Work_Description: 'Installed on 4th floor chiller chilled water feed network',
-              Logged_By_ID: 'custodian@jjjei.com',
-              Accountable_Party_ID: 'engineer.lead@jjjei.com',
+              Logged_By_ID: 'custodian@jjjentinc.com',
+              Accountable_Party_ID: 'engineer.lead@jjjentinc.com',
               Transaction_ID: 'TXN-2026-0045',
               Status: 'POSTED',
               Remarks: 'Verified by site inspector'
@@ -550,8 +548,8 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
               Total_Cost: 691,
               Purpose: 'Depot Water Supply Repair',
               Work_Description: 'Replaced cracked intake manifold at warehouse washing bay',
-              Logged_By_ID: 'custodian@jjjei.com',
-              Accountable_Party_ID: 'custodian@jjjei.com',
+              Logged_By_ID: 'custodian@jjjentinc.com',
+              Accountable_Party_ID: 'custodian@jjjentinc.com',
               Transaction_ID: 'TXN-2026-0099',
               Status: 'POSTED',
               Remarks: 'Depot internal maintenance'
@@ -620,6 +618,45 @@ function mockLocalResponse(action: string, payload: any): Promise<any> {
             status: 'RECOVERED',
             recoveredItemsCount: 1
           });
+          break;
+
+        case 'receiving:getStorageOptions':
+          resolve({
+            warehouses: [{ id: 'FACILITIES_WAREHOUSE_MAIN', name: 'Facilities Main Warehouse' }],
+            storage: [
+              { storageId: 'ST-0001', warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN', storageType: 'AREA', parentStorageId: '', name: 'Plumbing Area', shelfNumber: '', level: '', ownerSubDepartment: 'Plumbing' },
+              { storageId: 'ST-0002', warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN', storageType: 'SHELF', parentStorageId: 'ST-0001', name: '', shelfNumber: '3', level: '', ownerSubDepartment: '' }
+            ]
+          });
+          break;
+
+        case 'receiving:listMrls':
+          resolve({
+            mrls: [{ mrlNumber: '6506', mrqNumber: '26-001', integr8GiNumber: '000008', releasedAt: 'Jan 26, 2026', batchNumber: 'Batch #1', projectName: 'Q1 Request for Office Supplies', classificationId: 'ADM 26-001', location: 'Admin Office', lineCount: 1, totalQuantity: 10 }],
+            lastSyncedAt: null,
+            pendingCount: 0
+          });
+          break;
+
+        case 'receiving:getMrlDetails':
+          resolve({
+            mrq: { mrqNumber: '26-001', integr8MrNumber: '000008', dateRequested: 'Jan 06, 2026', dateRequired: 'Urgent', classificationId: 'ADM 26-001', activityName: 'Q1 Request for Office Supplies', purpose: 'Quarterly supplies', location: 'Admin Office', taggingNumber: '', costCenter: 'Admin Office', requestedBy: 'JS. Tinasas', department: 'Facilities', status: 'SUBMITTED' },
+            mrl: { mrlNumber: payload.mrlNumber, integr8GiNumber: '000008', releasedAt: 'Jan 26, 2026', batchNumber: 'Batch #1', releaseType: 'STANDARD' },
+            lines: [{ lineNo: 1, itemId: 'ITM-0001', itemSku: 'CNS-PLB-0001', itemName: 'PPR Pipe 1/2" x 4m', procurementName: 'PPR Pipe 1/2" x 4m', requestedQty: 10, releasedQty: 10, uom: 'pc', mapped: true, price: { unitCost: 232.75, source: 'SUPPLIER', supplierId: 'SUP-002', supplierName: 'Pipelife Philippines Corp.' }, priceOptions: [{ source: 'SUPPLIER', supplierId: 'SUP-002', supplierName: 'Pipelife Philippines Corp.', unitCost: 232.75, preferred: true }] }],
+            suggestedActivity: null
+          });
+          break;
+
+        case 'receiving:getPending':
+          resolve([]);
+          break;
+
+        case 'receiving:getItemPrices':
+          resolve({});
+          break;
+
+        case 'receiving:submit':
+          resolve({ receiptId: 'RCP-2026-0001', status: 'PENDING_CONFIRMATION', receiverId: payload.receiverId, verifiedCount: (payload.items || []).filter((i: any) => i.lineStatus !== 'REJECTED').length, rejectedCount: (payload.items || []).filter((i: any) => i.lineStatus === 'REJECTED').length });
           break;
 
         default:

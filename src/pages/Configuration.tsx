@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
 import { getCurrentUser, isUserHeadOrAdmin } from '../services/auth';
@@ -25,6 +25,7 @@ const CONFIG_TABS: ConfigTabDef[] = [
   { key: 'UOM', label: 'Units of Measure', idField: 'ID', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
   { key: 'UOM_Category', label: 'UOM Categories', idField: 'ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
   { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
+  { key: 'Warehouse_Storage', label: 'Storage Areas', idField: 'Storage_ID', description: 'Areas, shelves (number and level), containers, and spaces inside each warehouse' },
   { key: 'Sheet_Records', label: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' }
 ];
 
@@ -64,8 +65,10 @@ const DEFAULT_COMPONENTS = [
 ];
 
 export const Configuration: React.FC = () => {
-  const { subTab } = useParams<{ subTab?: string }>();
-  const navigate = useNavigate();
+  // The table being edited is `?table=`
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subTab = searchParams.get('table') || undefined;
+  const goTable = (slug: string) => setSearchParams({ table: slug });
 
   // Derive active tab from route parameter slug
   const activeTab: ConfigTableKey = slugToConfigKey(subTab);
@@ -285,6 +288,12 @@ export const Configuration: React.FC = () => {
       defaultData.Allowed_Values_or_Unit = '';
       defaultData.Description = '';
       defaultData.Status = 'ACTIVE';
+    } else if (activeTab === 'Warehouse_Storage') {
+      Object.assign(defaultData, {
+        Storage_ID: '', Warehouse_Location: '', Storage_Type: 'AREA', Parent_Storage_ID: '', Name: '',
+        Shelf_Number: '', Level: '', Owner_SubDepartment: '', Description: '', Status: 'ACTIVE'
+      });
+      delete defaultData.Is_Active;
     }
     setEditFormData(defaultData);
     setIsCreatingNew(true);
@@ -779,6 +788,29 @@ export const Configuration: React.FC = () => {
           }] : [])
         ];
 
+      case 'Warehouse_Storage':
+        return [
+          { key: 'Storage_ID', label: 'Storage ID', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="font-monospace text-dark fw-semibold small">{r.Storage_ID}</span> },
+          { key: 'Warehouse_Location', label: 'Warehouse', align: 'left', minWidth: '180px', sortable: true, render: (r) => <span className="font-monospace small">{r.Warehouse_Location}</span> },
+          { key: 'Storage_Type', label: 'Type', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="badge bg-light text-dark border">{r.Storage_Type}</span> },
+          { key: 'Name', label: 'Name / Shelf', align: 'left', minWidth: '200px', sortable: true, render: (r) => <span className="fw-medium text-dark">{r.Name || (r.Shelf_Number ? `Shelf ${r.Shelf_Number}` : '—')}{r.Level ? <span className="text-muted small ms-2">Level {r.Level}</span> : null}</span> },
+          { key: 'Parent_Storage_ID', label: 'Inside', align: 'left', minWidth: '110px', render: (r) => <span className="font-monospace small text-muted">{r.Parent_Storage_ID || '—'}</span> },
+          { key: 'Owner_SubDepartment', label: 'Owner Sub-Dept', align: 'left', minWidth: '150px', render: (r) => r.Owner_SubDepartment || <span className="text-muted small">Common</span> },
+          { key: 'Status', label: 'Status', align: 'left', minWidth: '100px', render: (r) => <span className={`badge ${String(r.Status).toUpperCase() === 'INACTIVE' ? 'bg-secondary' : 'bg-success-subtle text-success border'}`}>{r.Status || 'ACTIVE'}</span> },
+          ...(isHeadAdmin ? [{
+            key: 'actions', label: 'Actions', align: 'right' as const, minWidth: '90px', render: (r: any) => (
+              <div className="d-flex justify-content-end align-items-center gap-1">
+                <button type="button" className="btn-icon-action action-edit" title="Edit record" aria-label="Edit record" onClick={() => handleEditRecord(r)}>
+                  <i className="bi bi-pencil"></i>
+                </button>
+                <button type="button" className="btn-icon-action action-delete" title="Deactivate record" aria-label="Deactivate record" onClick={() => promptDeleteConfirmation(r)}>
+                  <i className="bi bi-archive"></i>
+                </button>
+              </div>
+            )
+          }] : [])
+        ];
+
       case 'Sheet_Records':
         return [
           { key: 'Year', label: 'Fiscal Year', align: 'left', minWidth: '110px', sortable: true, render: (r) => <span className="fw-bold text-dark">{r.Year}</span> },
@@ -816,13 +848,23 @@ export const Configuration: React.FC = () => {
 
   return (
     <div className="container-fluid py-3 px-3 px-md-4">
+
+        <div className='mb-2 mb-4'>
+          <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+            Loss & Disposal Approvals Queue
+          </h4>
+          <p className="text-muted small mb-0">
+            Review and digitally sign off on damage, expiration, and scrap reports requiring inventory disposal write-off.
+          </p>
+        </div>
+
       {/* Mobile Navigation Dropdown (< 992px) */}
       <div className="d-lg-none mb-3">
         <select
           id="config-mobile-select"
           className="form-select form-select-sm bg-white shadow-sm"
           value={configKeyToSlug(activeTab)}
-          onChange={(e) => navigate(`/configuration/${e.target.value}`)}
+          onChange={(e) => goTable(e.target.value)}
         >
           {CONFIG_TABS.map(tab => (
             <option key={tab.key} value={configKeyToSlug(tab.key)}>
@@ -855,7 +897,7 @@ export const Configuration: React.FC = () => {
                       fontSize: '0.84rem',
                       lineHeight: 1.3
                     }}
-                    onClick={() => navigate(`/configuration/${configKeyToSlug(tab.key)}`)}
+                    onClick={() => goTable(configKeyToSlug(tab.key))}
                   >
                     <span className="text-truncate">{tab.label}</span>
                   </button>
@@ -879,7 +921,7 @@ export const Configuration: React.FC = () => {
                 {activeTab === 'Sheet_Records' && isHeadAdmin && (
                   <button
                     type="button"
-                    className="btn btn-outline-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
+                    className="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
                     style={{ height: '31px' }}
                     onClick={() => setIsRolloverModalOpen(true)}
                   >
@@ -902,7 +944,7 @@ export const Configuration: React.FC = () => {
 
                 <button
                   type="button"
-                  className="btn btn-outline-secondary btn-sm py-1 px-2 d-flex align-items-center gap-1"
+                  className="btn btn-secondary btn-sm py-1 px-2 d-flex align-items-center gap-1"
                   style={{ height: '31px' }}
                   onClick={() => {
                     invalidateCache(`config:${activeTab}`);
@@ -937,7 +979,7 @@ export const Configuration: React.FC = () => {
       {/* View Item Specifications Modal */}
       {viewingItem && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
             <div className="modal-content border shadow-sm">
               {/* Modal Header: SKU removed as requested */}
               <div className="modal-header py-3 px-4 bg-light border-bottom">
@@ -1116,7 +1158,7 @@ export const Configuration: React.FC = () => {
       {/* Edit / Create Modal Form */}
       {isEditing && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}>
-          <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
             <div className="modal-content border shadow-sm">
               <div className="modal-header py-3 px-4 bg-light border-bottom">
                 <h6 className="modal-title fw-bold text-dark mb-0">
@@ -1475,13 +1517,24 @@ export const Configuration: React.FC = () => {
                     {Object.keys(editFormData).filter(k => k !== 'actions').map(k => (
                       <div key={k} className="col-12 col-md-6">
                         <label className="form-label small text-muted mb-1">{k.replace(/_/g, ' ')}</label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          value={editFormData[k] !== undefined && editFormData[k] !== null ? String(editFormData[k]) : ''}
-                          disabled={!isCreatingNew && k === currentTabDef.idField}
-                          onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
-                        />
+                        {activeTab === 'Warehouse_Storage' && (k === 'Storage_Type' || k === 'Status') ? (
+                          <select
+                            className="form-select form-select-sm"
+                            value={String(editFormData[k] ?? '')}
+                            onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
+                          >
+                            {(k === 'Storage_Type' ? ['AREA', 'SHELF', 'LEVEL', 'CONTAINER', 'SPACE'] : ['ACTIVE', 'INACTIVE']).map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            value={editFormData[k] !== undefined && editFormData[k] !== null ? String(editFormData[k]) : ''}
+                            placeholder={activeTab === 'Warehouse_Storage' && k === 'Storage_ID' ? 'Leave blank to auto-assign' : undefined}
+                            disabled={!isCreatingNew && k === currentTabDef.idField}
+                            onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
+                          />
+                        )}
                       </div>
                     ))}
                   </div>

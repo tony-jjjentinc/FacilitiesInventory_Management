@@ -328,7 +328,7 @@ export const Transactions: React.FC = () => {
           </button>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+            className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
             onClick={() => {
               invalidateCache('transaction:history');
               fetchTransactions();
@@ -407,7 +407,7 @@ export const Transactions: React.FC = () => {
       {/* Line Item Detail Modal */}
       {selectedTx && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }} tabIndex={-1}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-dialog modal-xl">
             <div className="modal-content shadow border-0">
               <div className="modal-header bg-light border-bottom">
                 <div>
@@ -453,6 +453,7 @@ export const Transactions: React.FC = () => {
                         <th>UOM</th>
                         <th className="text-end">Unit Cost</th>
                         <th className="text-end">Total Cost</th>
+                        <th>Delivery</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -469,6 +470,7 @@ export const Transactions: React.FC = () => {
                             <td>{item.uom}</td>
                             <td className="text-end font-monospace">₱{(item.unitCost || 0).toFixed(2)}</td>
                             <td className="text-end font-monospace fw-bold">₱{(item.totalCost || 0).toFixed(2)}</td>
+                            <td className="font-monospace small text-muted">{item.layerId || '—'}</td>
                           </tr>
                         ))
                       ) : (
@@ -494,7 +496,7 @@ export const Transactions: React.FC = () => {
       {/* Stage New Transaction Modal */}
       {isCreateOpen && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }} tabIndex={-1}>
-          <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-dialog modal-lg">
             <div className="modal-content shadow border-0">
               <div className="modal-header bg-primary text-white border-bottom">
                 <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
@@ -553,7 +555,7 @@ export const Transactions: React.FC = () => {
                       <input
                         type="text"
                         className="form-control form-control-sm"
-                        placeholder="e.g. technician.lead@jjjei.com"
+                        placeholder="e.g. technician.lead@jjjentinc.com"
                         value={newAccountableParty}
                         onChange={(e) => setNewAccountableParty(e.target.value)}
                       />

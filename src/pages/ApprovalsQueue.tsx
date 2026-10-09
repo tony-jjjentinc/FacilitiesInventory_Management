@@ -248,7 +248,7 @@ export const ApprovalsQueue: React.FC = () => {
         <div className="d-flex align-items-center gap-2">
           <button
             type="button"
-            className="btn btn-outline-danger btn-sm d-flex align-items-center gap-2"
+            className="btn btn-primary btn-sm d-flex align-items-center gap-2"
             onClick={() => setIsReportModalOpen(true)}
           >
             <i className="bi bi-plus-circle"></i>
@@ -256,7 +256,7 @@ export const ApprovalsQueue: React.FC = () => {
           </button>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+            className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
             onClick={() => {
               invalidateCache('incident:queue');
               fetchIncidents();

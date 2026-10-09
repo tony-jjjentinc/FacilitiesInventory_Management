@@ -239,7 +239,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
         tabIndex={-1}
         style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', zIndex: 1055 }}
       >
-        <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div className="modal-dialog modal-lg modal-dialog-scrollable">
           <div className="modal-content border shadow-sm">
             {content}
           </div>

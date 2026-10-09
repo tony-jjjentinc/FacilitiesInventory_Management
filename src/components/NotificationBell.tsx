@@ -1,20 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { NotificationItem } from '../types';
 import { apiRequest } from '../services/api';
 
 interface NotificationBellProps {
   onNavigate: (route: string) => void;
+  onLoaded?: (items: NotificationItem[]) => void;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate, onLoaded }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // close when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDown = (e: MouseEvent) => { if (!rootRef.current?.contains(e.target as Node)) setIsOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [isOpen]);
 
   const fetchNotifs = async () => {
     try {
       const data = await apiRequest<NotificationItem[]>('notifications:get');
       if (Array.isArray(data)) {
         setNotifications(data);
+        onLoaded?.(data);
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -31,13 +44,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate }
   const hasDanger = notifications.some(n => n.severity === 'DANGER');
 
   return (
-    <div className="position-relative">
+    <div className="position-relative" ref={rootRef}>
       <button
         type="button"
-        className="btn btn-outline-secondary btn-sm position-relative d-flex align-items-center justify-content-center"
+        className="btn btn-sm position-relative d-flex align-items-center justify-content-center"
         onClick={() => setIsOpen(!isOpen)}
         title="Notifications"
-        style={{ width: '34px', height: '31px', padding: 0 }}
       >
         <i className="bi bi-bell fs-6"></i>
         {totalCount > 0 && (

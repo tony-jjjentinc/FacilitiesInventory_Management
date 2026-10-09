@@ -244,6 +244,13 @@ export const CustodyRegister: React.FC = () => {
       render: (row) => row.Date_Assigned || 'N/A'
     },
     {
+      key: 'Unit_Cost',
+      label: 'Unit Cost',
+      align: 'right',
+      minWidth: '110px',
+      render: (row) => (Number(row.Unit_Cost) > 0 ? `₱${Number(row.Unit_Cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : <span className="badge bg-warning text-dark">no price</span>)
+    },
+    {
       key: 'Status',
       label: 'Status',
       sortable: true,
@@ -387,7 +394,7 @@ export const CustodyRegister: React.FC = () => {
       {/* Deploy Tool Modal */}
       {isDeployOpen && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog">
             <div className="modal-content">
               <form onSubmit={handleDeploy}>
                 <div className="modal-header">
@@ -405,7 +412,7 @@ export const CustodyRegister: React.FC = () => {
                       <input
                         type="text"
                         className="form-control form-control-sm"
-                        placeholder="technician@jjjei.com"
+                        placeholder="technician@jjjentinc.com"
                         required
                         value={deployForm.custodianId}
                         onChange={(e) => setDeployForm({ ...deployForm, custodianId: e.target.value })}
@@ -495,7 +502,7 @@ export const CustodyRegister: React.FC = () => {
       {/* Transfer Custody Modal */}
       {isTransferOpen && selectedCustody && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog">
             <div className="modal-content">
               <form onSubmit={handleTransfer}>
                 <div className="modal-header">
@@ -521,7 +528,7 @@ export const CustodyRegister: React.FC = () => {
                     <input
                       type="text"
                       className="form-control form-control-sm"
-                      placeholder="new.technician@jjjei.com"
+                      placeholder="new.technician@jjjentinc.com"
                       required
                       value={transferForm.targetCustodianId}
                       onChange={(e) => setTransferForm({ ...transferForm, targetCustodianId: e.target.value })}
@@ -555,7 +562,7 @@ export const CustodyRegister: React.FC = () => {
       {/* Surrender Tool Modal */}
       {isRetrieveOpen && selectedCustody && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-dialog">
             <div className="modal-content">
               <form onSubmit={handleRetrieve}>
                 <div className="modal-header">

@@ -40,7 +40,7 @@ export function parseTokenClaims(token: string): UserClaims | null {
       return {
         id: 'DEV-USER-001',
         name: 'Facilities Administrator',
-        email: 'admin.facilities@jjjei.com',
+        email: 'admin.facilities@jjjentinc.com',
         roles: ['Super Admin', 'Head'],
         department: ['Facilities'],
         exp: Date.now() + 36000000

@@ -105,7 +105,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}
       tabIndex={-1}
     >
-      <div className="modal-dialog modal-dialog-centered modal-lg">
+      <div className="modal-dialog modal-lg">
         <div className="modal-content shadow border-0">
           <div className="modal-header bg-danger-subtle text-danger border-bottom">
             <h5 className="modal-title fw-bold d-flex align-items-center gap-2">
@@ -175,7 +175,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <input
                     type="text"
                     className="form-control form-control-sm"
-                    placeholder="Email or Employee ID (e.g. tech.m@jjjei.com)"
+                    placeholder="Email or Employee ID (e.g. tech.m@jjjentinc.com)"
                     value={liablePartyId}
                     onChange={(e) => setLiablePartyId(e.target.value)}
                   />
