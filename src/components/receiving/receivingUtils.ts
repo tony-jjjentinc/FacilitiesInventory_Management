@@ -45,6 +45,21 @@ export function spotsInArea(nodes: StorageNode[], areaId: string): StorageNode[]
   });
 }
 
+/** A plain date (yyyy-MM-dd). Also tidies a JavaScript date string such as "Mon Jun 29 2026 00:00:00 GMT+0800 (...)". */
+export function simpleDate(v: string | undefined | null): string {
+  const t = String(v || '').trim();
+  if (!/^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{2} \d{4} \d{2}:\d{2}:\d{2}/.test(t)) return t;
+  const d = new Date(t.replace(/\s*\(.*\)$/, ''));
+  if (isNaN(d.getTime())) return t;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Activity as shown in dropdowns: "[Classification No.] Project Name". */
+export function activityLabel(a: { Activity_ID: string; Activity_Name: string; ProcInv_Class_Ref?: string }): string {
+  return `[${a.ProcInv_Class_Ref || 'No Classification No.'}] ${a.Activity_Name || a.Activity_ID}`;
+}
+
 export function newLineKey(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -55,7 +70,7 @@ export function validateReceiving(
   reference: string,
   lines: ReceivingLine[],
   party: ReceivingParty,
-  myEmail: string
+  _myEmail: string
 ): string | null {
   if (!reference.trim()) return mode === 'MRL' ? 'Select or enter an MRL number.' : 'Enter the voucher or reference number.';
   if (lines.length === 0) return 'There are no lines to receive.';
@@ -73,7 +88,6 @@ export function validateReceiving(
   if (party.destinationType === 'ACTIVITY' && !party.activityId) return 'Choose the activity that receives these items.';
   if (party.destinationType === 'WAREHOUSE' && !party.warehouseLocation) return 'Choose the receiving warehouse.';
   if (!EMAIL_RE.test(party.receiverId.trim())) return "Enter the receiving party's email address.";
-  if (party.receiverId.trim().toLowerCase() === myEmail.toLowerCase()) return 'The receiving party must be a different person from you.';
   return null;
 }
 
@@ -94,6 +108,7 @@ export function buildPayload(
     warehouseLocation: party.warehouseLocation,
     areaId: party.destinationType === 'WAREHOUSE' ? party.areaId : '',
     receiverId: party.receiverId.trim().toLowerCase(),
+    autoReceive: party.autoReceive,
     remarks: party.remarks.trim(),
     items: lines.map(l => ({
       lineNo: l.lineNo,

@@ -10,7 +10,7 @@ export interface Column<T> {
   render?: (row: T, index: number) => React.ReactNode;
 }
 
-interface DataTableProps<T> {
+export interface DataTableProps<T> {
   columns: Column<T>[];
   data: T[];
   keyField: keyof T | string;
@@ -22,6 +22,10 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   initialPageSize?: number;
   isLoading?: boolean;
+  /** background refresh: rows stay visible, a thin bar shows above the table */
+  refreshing?: boolean;
+  /** extra full-width row under a row (return nothing to skip), e.g. item details */
+  renderExpanded?: (row: T) => React.ReactNode;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -35,7 +39,9 @@ export function DataTable<T extends Record<string, any>>({
   actions,
   emptyMessage = 'No records found.',
   initialPageSize = 10,
-  isLoading = false
+  isLoading = false,
+  refreshing = false,
+  renderExpanded
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -118,6 +124,12 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
 
+      {refreshing && !isLoading && (
+        <div className="progress rounded-0" style={{ height: '3px' }} role="status" aria-label="Refreshing data">
+          <div className="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+        </div>
+      )}
+
       {/* Table Body */}
       <div className="table-responsive">
         <table className="table table-hover align-middle mb-0">
@@ -170,8 +182,11 @@ export function DataTable<T extends Record<string, any>>({
                 </td>
               </tr>
             ) : (
-              pageData.map((row, idx) => (
-                <tr key={`${String(row[keyField] ?? 'row')}-${startIndex + idx}`}>
+              pageData.map((row, idx) => {
+                const extra = renderExpanded ? renderExpanded(row) : null;
+                return (
+                <React.Fragment key={`${String(row[keyField] ?? 'row')}-${startIndex + idx}`}>
+                <tr>
                   {columns.map((col) => {
                     const alignClass = getAlignmentClass(col.align);
                     return (
@@ -188,7 +203,10 @@ export function DataTable<T extends Record<string, any>>({
                     );
                   })}
                 </tr>
-              ))
+                {extra && <tr className="table-light"><td colSpan={columns.length}>{extra}</td></tr>}
+                </React.Fragment>
+                );
+              })
             )}
           </tbody>
         </table>

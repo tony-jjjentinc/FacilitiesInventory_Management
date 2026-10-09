@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { TabBar, useTabParam } from '../../components/TabBar';
 import { getCurrentUser, isUserHeadOrAdmin } from '../../services/auth';
 import { AnalyticsOverview } from './AnalyticsOverview';
+import { AnalyticsTrackers } from './AnalyticsTrackers';
 import { CostOfStock, CostPerProject, type PriceDraft } from './CostViews';
 
-const KEYS = ['overview', 'stock', 'projects'];
+const KEYS = ['overview', 'breakdown', 'stock', 'projects'];
 
 export const AnalyticsHub: React.FC = () => {
   const [tab, setTab] = useTabParam(KEYS);
@@ -15,9 +16,10 @@ export const AnalyticsHub: React.FC = () => {
 
   return (
     <>
-      <TabBar label="Analytics" active={tab} onChange={setTab} tabs={[{ key: 'overview', label: 'Overview' }, { key: 'stock', label: 'Cost of Stock' }, { key: 'projects', label: 'Cost per Project' }]} />
+      <TabBar label="Analytics" active={tab} onChange={setTab} tabs={[{ key: 'overview', label: 'Overview' }, { key: 'breakdown', label: 'Breakdown' }, { key: 'stock', label: 'Cost of Stock' }, { key: 'projects', label: 'Cost per Project' }]} />
       <div className="container py-4 px-3 px-md-4">
-        {tab === 'overview' && <AnalyticsOverview />}
+        {tab === 'overview' && <AnalyticsTrackers />}
+        {tab === 'breakdown' && <AnalyticsOverview />}
         {tab === 'stock' && <CostOfStock isAdmin={isAdmin} onSetPrice={setPrice} />}
         {tab === 'projects' && <CostPerProject isAdmin={isAdmin} onSetPrice={setPrice} />}
       </div>

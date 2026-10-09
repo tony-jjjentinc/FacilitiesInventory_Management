@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../services/api';
+import { useToast } from '../../context/ToastContext';
+import { notifySubmit, submitStatusText, type SubmitResult } from './submitFeedback';
 import { getCurrentUser } from '../../services/auth';
 import type { ReceivingLine, ReceivingParty, ReceivingSourceType } from '../../types';
-import { ManualLineAdder } from './ManualLineAdder';
+import { ManualItemModal } from './ManualItemModal';
 import { ReceivingLinesSection } from './ReceivingLinesSection';
 import { ReceivingPartySection } from './ReceivingPartySection';
 import { StepCard } from './StepCard';
-import { SubmitBar } from './SubmitBar';
-import { ReceivingReviewModal } from './ReceivingReviewModal';
+import { ConfirmationSection } from './ConfirmationSection';
 import { buildPayload, spotsInArea, validateReceiving } from './receivingUtils';
 import type { useReceivingLookups } from './useReceivingLookups';
 
@@ -17,7 +18,7 @@ interface Props {
   onViewPending: () => void;
 }
 
-const EMPTY_PARTY: ReceivingParty = { destinationType: 'WAREHOUSE', activityId: '', warehouseLocation: '', areaId: '', receiverId: '', remarks: '' };
+const EMPTY_PARTY: ReceivingParty = { destinationType: 'WAREHOUSE', activityId: '', warehouseLocation: '', areaId: '', receiverId: '', autoReceive: false, remarks: '' };
 
 const SOURCES: { value: ReceivingSourceType; label: string; hint: string }[] = [
   { value: 'MANUAL', label: 'Manual entry', hint: 'Entry reference (old or unaccounted stock)' },
@@ -32,10 +33,10 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
   const [reference, setReference] = useState('');
   const [lines, setLines] = useState<ReceivingLine[]>([]);
   const [party, setParty] = useState<ReceivingParty>(EMPTY_PARTY);
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [result, setResult] = useState<{ receiptId: string; receiverId: string; verifiedCount: number } | null>(null);
+  const toast = useToast();
+  const [result, setResult] = useState<SubmitResult | null>(null);
 
   useEffect(() => {
     if (!party.warehouseLocation && lookups.storage.warehouses.length > 0) {
@@ -51,25 +52,23 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
 
   const review = () => {
     const problem = validateReceiving('MANUAL', reference, lines, party, me);
-    if (problem) { setError(problem); return; }
-    setError('');
-    setReviewOpen(true);
+    if (problem) { toast.error(problem); return; }
+    submit();
   };
 
   const submit = async () => {
     setSubmitting(true);
     try {
-      const res = await apiRequest<{ receiptId: string; receiverId: string; verifiedCount: number }>(
+      const res = await apiRequest<SubmitResult>(
         'receiving:submit', buildPayload(sourceType, reference, null, lines, party));
       setResult(res);
-      setReviewOpen(false);
+      notifySubmit(res, toast);
       setLines([]);
       setReference('');
       setParty({ ...EMPTY_PARTY, warehouseLocation: lookups.storage.warehouses[0]?.id || '' });
       onSubmitted();
     } catch (err: any) {
-      setReviewOpen(false);
-      setError(err.message || 'Submitting the receipt failed.');
+      toast.error(err.message || 'Submitting the receipt failed.');
     } finally {
       setSubmitting(false);
     }
@@ -79,11 +78,10 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
     <div>
       {result && (
         <div className="alert alert-success py-2 small" role="status">
-          Receipt <strong>{result.receiptId}</strong> submitted: {result.verifiedCount} item(s). Waiting for <strong>{result.receiverId}</strong> to confirm.{' '}
+          Receipt <strong>{result.receiptId}</strong> submitted: {result.verifiedCount} item(s). {submitStatusText(result)}{' '}
           <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={onViewPending}>View pending receipts</button>
         </div>
       )}
-      {(error || lookups.error) && <div className="alert alert-danger py-2 small">{error || lookups.error}</div>}
 
       <StepCard title="1. Source" hint="Where the items came from.">
         <div className="row g-3">
@@ -101,16 +99,15 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
         </div>
       </StepCard>
 
-      <ManualLineAdder onAdd={line => setLines(prev => [...prev, line])} />
-      <ReceivingLinesSection mode="MANUAL" title="2. Items" hint="Set the quantity and price for each item."
+      <ReceivingLinesSection mode="MANUAL" title="2. Items" hint="Add each item that was received, then adjust quantity and price here."
+        actions={<button type="button" className="btn btn-primary btn-sm" onClick={() => setAddOpen(true)}>Add item</button>}
         lines={lines} onChange={setLines} spotOptions={spotOptions} allStorage={lookups.storage.storage} />
       <ReceivingPartySection title="3. Receiving" party={party} onChange={setParty} storage={lookups.storage} activities={lookups.activities}
         details={null} suggested={null} onActivityCreated={lookups.reloadActivities} />
+          <ConfirmationSection title="4. Confirmation" reference={`${source.label} ${reference}`} lines={lines} party={party} storage={lookups.storage} activities={lookups.activities}
+            busy={submitting} onClear={() => { setLines([]); setReference(''); }} onSubmit={review} />
 
-      <SubmitBar lines={lines} onClear={() => { setLines([]); setReference(''); }} onReview={review} />
-
-      <ReceivingReviewModal open={reviewOpen} title={`Review ${source.label}`} reference={reference} lines={lines} party={party}
-        busy={submitting} onConfirm={submit} onCancel={() => setReviewOpen(false)} />
+      <ManualItemModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={line => setLines(prev => [...prev, line])} />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
-import type { InHouseCustodyItem } from '../types';
+import type { InHouseCustodyItem, StorageOptions } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 
 export const CustodyRegister: React.FC = () => {
@@ -26,8 +26,14 @@ export const CustodyRegister: React.FC = () => {
     serialNumber: '',
     quantity: '1',
     warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN',
+    siteAreaId: '',
+    siteNote: '',
     remarks: ''
   });
+  const [storageOptions, setStorageOptions] = useState<StorageOptions | null>(null);
+  useEffect(() => {
+    if (isDeployOpen && !storageOptions) apiRequest<StorageOptions>('receiving:getStorageOptions').then(setStorageOptions).catch(() => {});
+  }, [isDeployOpen, storageOptions]);
 
   // Transfer Form
   const [transferForm, setTransferForm] = useState({
@@ -101,6 +107,8 @@ export const CustodyRegister: React.FC = () => {
         custodianId: deployForm.custodianId.trim(),
         custodianName: deployForm.custodianName.trim(),
         warehouseLocation: deployForm.warehouseLocation,
+        siteAreaId: deployForm.siteAreaId,
+        siteNote: deployForm.siteNote.trim(),
         remarks: deployForm.remarks,
         items: [
           {
@@ -122,6 +130,8 @@ export const CustodyRegister: React.FC = () => {
         serialNumber: '',
         quantity: '1',
         warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN',
+        siteAreaId: '',
+        siteNote: '',
         remarks: ''
       });
     } catch (err: any) {
@@ -266,7 +276,7 @@ export const CustodyRegister: React.FC = () => {
       }
     },
     {
-      key: 'Custody_ID',
+      key: 'actions',
       label: 'Actions',
       align: 'right',
       minWidth: '160px',
@@ -472,6 +482,21 @@ export const CustodyRegister: React.FC = () => {
                         value={deployForm.warehouseLocation}
                         onChange={(e) => setDeployForm({ ...deployForm, warehouseLocation: e.target.value })}
                       />
+                    </div>
+                  </div>
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Where it will be kept</label>
+                      <select className="form-select form-select-sm" value={deployForm.siteAreaId} onChange={(e) => setDeployForm({ ...deployForm, siteAreaId: e.target.value })}>
+                        <option value="">No area</option>
+                        {(storageOptions?.storage || []).filter(n => n.storageType === 'AREA' && n.warehouseLocation === deployForm.warehouseLocation).map(a => (
+                          <option key={a.storageId} value={a.storageId}>{a.name}{a.ownerSubDepartment ? ` — ${a.ownerSubDepartment}` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Site note</label>
+                      <input type="text" className="form-control form-control-sm" placeholder="e.g. Crib 2, Tower A" value={deployForm.siteNote} onChange={(e) => setDeployForm({ ...deployForm, siteNote: e.target.value })} />
                     </div>
                   </div>
                   <div className="mb-3">

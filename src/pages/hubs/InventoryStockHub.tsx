@@ -15,7 +15,7 @@ export const InventoryStockHub: React.FC = () => {
         label="Inventory Stock" active={tab} onChange={setTab}
         tabs={[
           { key: 'warehouse', label: 'Warehouse Stock' },
-          { key: 'catalog', label: 'Master Catalog' },
+          { key: 'catalog', label: 'Inventory Catalog' },
           { key: 'custody', label: 'Tool Custody' },
           { key: 'alerts', label: 'Reorder Alerts' }
         ]}

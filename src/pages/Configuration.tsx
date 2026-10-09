@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
 import { getCurrentUser, isUserHeadOrAdmin } from '../services/auth';
-import { DataTable, type Column } from '../components/DataTable';
+import type { Column } from '../components/DataTable';
+import { DataCard } from '../components/DataCard';
+import { TabBar } from '../components/TabBar';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { RolloverWizard } from './RolloverWizard';
 import type { ConfigTableKey } from '../types';
@@ -12,21 +14,23 @@ import { slugToConfigKey, configKeyToSlug } from '../utils/configRoutes';
 interface ConfigTabDef {
   key: ConfigTableKey;
   label: string;
+  /** Singular name used in button and modal titles ("Add Inventory Category") */
+  singular: string;
   idField: string;
   description: string;
 }
 
 const CONFIG_TABS: ConfigTabDef[] = [
-  { key: 'Item', label: 'Item Masterlist', idField: 'ID', description: 'Catalog items, trade categories, and physical classifications' },
-  { key: 'Supplier', label: 'Suppliers', idField: 'ID', description: 'Approved vendors, contact personnel, and corporate addresses' },
-  { key: 'Item_Supplier_and_Pricing', label: 'Supplier Pricing', idField: 'Record_ID', description: 'Item-supplier links, contract prices, MOQ, and lead times' },
-  { key: 'Inventory_Category', label: 'Inventory Categories', idField: 'ID', description: 'Technical trades (PLB, ELE, HVA, CIV, PWR, etc.)' },
-  { key: 'Inventory_Property_Keys', label: 'Property Keys', idField: 'Key', description: 'Authorized specification property keys for technical inventory items' },
-  { key: 'UOM', label: 'Units of Measure', idField: 'ID', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
-  { key: 'UOM_Category', label: 'UOM Categories', idField: 'ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
-  { key: 'Warehouse_Location', label: 'Warehouse Locations', idField: 'ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
-  { key: 'Warehouse_Storage', label: 'Storage Areas', idField: 'Storage_ID', description: 'Areas, shelves (number and level), containers, and spaces inside each warehouse' },
-  { key: 'Sheet_Records', label: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' }
+  { key: 'Item', label: 'Item Masterlist', singular: 'Item', idField: 'ID', description: 'Catalog items, trade categories, and physical classifications' },
+  { key: 'Supplier', label: 'Suppliers', singular: 'Supplier', idField: 'ID', description: 'Approved vendors, contact personnel, and corporate addresses' },
+  { key: 'Item_Supplier_and_Pricing', label: 'Supplier Pricing', singular: 'Supplier Price', idField: 'Record_ID', description: 'Item-supplier links, contract prices, MOQ, and lead times' },
+  { key: 'Inventory_Category', label: 'Inventory Categories', singular: 'Inventory Category', idField: 'ID', description: 'Technical trades (PLB, ELE, HVA, CIV, PWR, etc.)' },
+  { key: 'Inventory_Property_Keys', label: 'Property Keys', singular: 'Property Key', idField: 'Key', description: 'Authorized specification property keys for technical inventory items' },
+  { key: 'UOM', label: 'Units of Measure', singular: 'Unit of Measure', idField: 'ID', description: 'Measurement units and symbols (pc, box, mtr, set, kg)' },
+  { key: 'UOM_Category', label: 'UOM Categories', singular: 'UOM Category', idField: 'ID', description: 'Unit dimensions (Count, Length, Volume, Mass, Area)' },
+  { key: 'Warehouse_Location', label: 'Warehouse Locations', singular: 'Warehouse Location', idField: 'ID', description: 'Physical warehouses, storage aisles, and capacity limits' },
+  { key: 'Warehouse_Storage', label: 'Storage Areas', singular: 'Storage Area', idField: 'Storage_ID', description: 'Areas, shelves (number and level), containers, and spaces inside each warehouse' },
+  { key: 'Sheet_Records', label: 'Fiscal Source', singular: 'Fiscal Source', idField: 'Year', description: 'Active and archived annual operational spreadsheets' }
 ];
 
 const DEFAULT_SYSTEMS = [
@@ -64,6 +68,15 @@ const DEFAULT_COMPONENTS = [
   'Safety & PPE'
 ];
 
+/** Sidebar entries; a group with several tables shows them as tabs inside the card. */
+const CONFIG_GROUPS: { id: string; label: string; tables: ConfigTableKey[] }[] = [
+  { id: 'items', label: 'Items', tables: ['Item', 'Inventory_Category', 'Inventory_Property_Keys'] },
+  { id: 'suppliers', label: 'Suppliers & Pricing', tables: ['Supplier', 'Item_Supplier_and_Pricing'] },
+  { id: 'units', label: 'Units', tables: ['UOM', 'UOM_Category'] },
+  { id: 'warehouses', label: 'Warehouses', tables: ['Warehouse_Location', 'Warehouse_Storage'] },
+  { id: 'fiscal', label: 'Fiscal Source', tables: ['Sheet_Records'] }
+];
+
 export const Configuration: React.FC = () => {
   // The table being edited is `?table=`
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,6 +85,11 @@ export const Configuration: React.FC = () => {
 
   // Derive active tab from route parameter slug
   const activeTab: ConfigTableKey = slugToConfigKey(subTab);
+  const activeGroup = CONFIG_GROUPS.find(g => g.tables.includes(activeTab)) || CONFIG_GROUPS[0];
+  const goGroup = (id: string) => {
+    const g = CONFIG_GROUPS.find(x => x.id === id);
+    if (g) goTable(configKeyToSlug(g.tables[0]));
+  };
   const [records, setRecords] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -97,6 +115,7 @@ export const Configuration: React.FC = () => {
   const [lookupPropertyKeys, setLookupPropertyKeys] = useState<any[]>([]);
   const [lookupComponents, setLookupComponents] = useState<string[]>(DEFAULT_COMPONENTS);
   const [lookupSystems, setLookupSystems] = useState<string[]>(DEFAULT_SYSTEMS);
+  const [lookupSubDepartments, setLookupSubDepartments] = useState<string[]>([]);
 
   // Item preview modal collapsible state
   const [isPropertiesExpanded, setIsPropertiesExpanded] = useState(false);
@@ -158,6 +177,8 @@ export const Configuration: React.FC = () => {
         if (typeRes.records && typeRes.records.length > 0) setLookupTypes(typeRes.records);
         if (propKeysRes.records && propKeysRes.records.length > 0) setLookupPropertyKeys(propKeysRes.records);
         if (configRes.records && configRes.records.length > 0) {
+          const subs = configRes.records.map((r: any) => String(r.Sub_Departments || '').trim()).filter((v: string) => v.length > 0);
+          setLookupSubDepartments(Array.from(new Set(subs)) as string[]);
           const comps = configRes.records
             .map((r: any) => String(r.Component || r.component || '').trim())
             .filter((c: string) => c.length > 0);
@@ -847,134 +868,33 @@ export const Configuration: React.FC = () => {
   });
 
   return (
-    <div className="container-fluid py-3 px-3 px-md-4">
-
-        <div className='mb-2 mb-4'>
-          <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-            Loss & Disposal Approvals Queue
-          </h4>
-          <p className="text-muted small mb-0">
-            Review and digitally sign off on damage, expiration, and scrap reports requiring inventory disposal write-off.
-          </p>
-        </div>
-
-      {/* Mobile Navigation Dropdown (< 992px) */}
-      <div className="d-lg-none mb-3">
-        <select
-          id="config-mobile-select"
-          className="form-select form-select-sm bg-white shadow-sm"
-          value={configKeyToSlug(activeTab)}
-          onChange={(e) => goTable(e.target.value)}
-        >
-          {CONFIG_TABS.map(tab => (
-            <option key={tab.key} value={configKeyToSlug(tab.key)}>
-              {tab.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Main Two-Column Layout: Left Sidebar + Right Content */}
-      <div className="row g-3 g-md-4">
-        {/* Left Sidebar (Desktop >= 992px) */}
-        <aside className="col-lg-3 col-xl-2 d-none d-lg-block">
-          <div className="card border shadow-sm bg-white p-2 sticky-top" style={{ top: '0px', zIndex: 10 }}>
-            <div className="nav flex-column gap-1" role="tablist" aria-orientation="vertical">
-              {CONFIG_TABS.map(tab => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    className={`btn text-start border-0 py-2 px-3 rounded d-flex align-items-center justify-content-between ${
-                      isActive
-                        ? 'btn-primary text-white fw-semibold shadow-sm'
-                        : 'btn-light text-dark bg-transparent hover-bg-light'
-                    }`}
-                    style={{
-                      fontSize: '0.84rem',
-                      lineHeight: 1.3
-                    }}
-                    onClick={() => goTable(configKeyToSlug(tab.key))}
-                  >
-                    <span className="text-truncate">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
-
-        {/* Right Main Content Area: Wrapped in Card */}
-        <div className="col-12 col-lg-9 col-xl-10">
-          <div className="card border shadow-sm bg-white overflow-hidden">
-            {/* Card Header: Context Title, Description, and Action Buttons */}
-            <div className="card-header bg-white py-3 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <div>
-                <h5 className="fw-bold mb-0 text-dark">{currentTabDef.label}</h5>
-                <span className="small text-muted">{currentTabDef.description}</span>
-              </div>
-
-              <div className="d-flex align-items-center gap-2">
-                {activeTab === 'Sheet_Records' && isHeadAdmin && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
-                    style={{ height: '31px' }}
-                    onClick={() => setIsRolloverModalOpen(true)}
-                  >
-                    <i className="bi bi-arrow-repeat"></i>
-                    <span>Launch Rollover Wizard</span>
-                  </button>
-                )}
-
-                {isHeadAdmin && activeTab !== 'Sheet_Records' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1"
-                    style={{ height: '31px' }}
-                    onClick={handleCreateNew}
-                  >
-                    <i className="bi bi-plus-lg"></i>
-                    <span>Add {currentTabDef.label.slice(0, -1) || 'Record'}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm py-1 px-2 d-flex align-items-center gap-1"
-                  style={{ height: '31px' }}
-                  onClick={() => {
-                    invalidateCache(`config:${activeTab}`);
-                    loadTableData(activeTab, true);
-                  }}
-                  disabled={isLoading || isRevalidating}
-                  title={isRevalidating ? 'Synchronizing fresh data in background' : 'Force re-fetch from database'}
-                >
-                  <i className={`bi bi-arrow-clockwise ${isRevalidating ? 'spin-animation' : ''}`}></i>
-                  <span>{isRevalidating ? 'Syncing...' : isLoading ? 'Loading...' : 'Refresh'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Card Body: DataTable */}
-            <div className="card-body p-3 p-md-4">
-              <DataTable
-                columns={getColumnsForTab(activeTab)}
-                data={filteredRecords}
-                keyField={currentTabDef.idField}
-                searchQuery={search}
-                onSearchChange={setSearch}
-                searchPlaceholder={`Filter ${currentTabDef.label}...`}
-                emptyMessage={`No ${currentTabDef.label} records found.`}
-                isLoading={isLoading}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+    <>
+      <TabBar label="Configuration" active={activeGroup.id} onChange={goGroup} tabs={CONFIG_GROUPS.map(g => ({ key: g.id, label: g.label }))} />
+    <div className="container py-4 px-3 px-md-4">
+          <DataCard
+            title={currentTabDef.label}
+            description={currentTabDef.description}
+            tabs={activeGroup.tables.map(k => ({ key: k, label: CONFIG_TABS.find(t => t.key === k)!.label }))}
+            activeTab={activeTab}
+            onTabChange={(k) => goTable(configKeyToSlug(k as ConfigTableKey))}
+            actions={[
+              { key: 'rollover', label: 'Launch Rollover Wizard', icon: 'bi-arrow-repeat', onClick: () => setIsRolloverModalOpen(true), hidden: !(activeTab === 'Sheet_Records' && isHeadAdmin) },
+              { key: 'add', label: `Add ${currentTabDef.singular}`, icon: 'bi-plus-lg', onClick: handleCreateNew, hidden: !(isHeadAdmin && activeTab !== 'Sheet_Records') }
+            ]}
+            onRefresh={() => {
+              invalidateCache(`config:${activeTab}`);
+              loadTableData(activeTab, true);
+            }}
+            refreshing={isLoading || isRevalidating}
+            columns={getColumnsForTab(activeTab)}
+            data={filteredRecords}
+            keyField={currentTabDef.idField}
+            searchQuery={search}
+            onSearchChange={setSearch}
+            searchPlaceholder={`Filter ${currentTabDef.label}...`}
+            emptyMessage={`No ${currentTabDef.label} records found.`}
+            isLoading={isLoading && records.length === 0}
+          />
 
       {/* View Item Specifications Modal */}
       {viewingItem && (
@@ -1162,7 +1082,7 @@ export const Configuration: React.FC = () => {
             <div className="modal-content border shadow-sm">
               <div className="modal-header py-3 px-4 bg-light border-bottom">
                 <h6 className="modal-title fw-bold text-dark mb-0">
-                  {isCreatingNew ? `Create New ${currentTabDef.label.slice(0, -1)}` : `Edit ${currentTabDef.label.slice(0, -1)}`}
+                  {isCreatingNew ? `Create New ${currentTabDef.singular}` : `Edit ${currentTabDef.singular}`}
                 </h6>
                 <button type="button" className="btn-close" onClick={() => setIsEditing(false)}></button>
               </div>
@@ -1517,7 +1437,19 @@ export const Configuration: React.FC = () => {
                     {Object.keys(editFormData).filter(k => k !== 'actions').map(k => (
                       <div key={k} className="col-12 col-md-6">
                         <label className="form-label small text-muted mb-1">{k.replace(/_/g, ' ')}</label>
-                        {activeTab === 'Warehouse_Storage' && (k === 'Storage_Type' || k === 'Status') ? (
+                        {activeTab === 'Warehouse_Storage' && k === 'Owner_SubDepartment' ? (
+                          <select
+                            className="form-select form-select-sm"
+                            value={String(editFormData[k] ?? '')}
+                            onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
+                          >
+                            <option value="">Common area (no owner)</option>
+                            {editFormData[k] && !lookupSubDepartments.some(s => s.toLowerCase() === String(editFormData[k]).toLowerCase()) && (
+                              <option value={String(editFormData[k])}>{String(editFormData[k])} (not in the list)</option>
+                            )}
+                            {lookupSubDepartments.map(sd => <option key={sd} value={sd}>{sd}</option>)}
+                          </select>
+                        ) : activeTab === 'Warehouse_Storage' && (k === 'Storage_Type' || k === 'Status') ? (
                           <select
                             className="form-select form-select-sm"
                             value={String(editFormData[k] ?? '')}
@@ -1573,5 +1505,6 @@ export const Configuration: React.FC = () => {
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
+    </>
   );
 };

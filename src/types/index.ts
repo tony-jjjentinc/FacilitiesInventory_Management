@@ -65,6 +65,8 @@ export interface WarehouseStockItem {
   Last_Transaction_ID: string;
   Last_Updated: string;
   Area_ID?: string;
+  First_Received_At?: string;
+  Last_Issued_At?: string;
 }
 
 export interface InHouseCustodyItem {
@@ -281,6 +283,8 @@ export interface MrlDetailLine {
   requestedQty: number;
   releasedQty: number;
   uom: string;
+  /** Unit of the item in the catalog (blank when the item is not in the catalog). */
+  catalogUom: string;
   mapped: boolean;
   price: ResolvedPrice;
   priceOptions: PriceOption[];
@@ -339,6 +343,7 @@ export interface StorageOptions {
   warehouses: StorageWarehouse[];
   storage: StorageNode[];
   subDepartments?: string[];
+  uoms?: string[];
 }
 
 /** One editable receiving line (both modes). */
@@ -352,6 +357,7 @@ export interface ReceivingLine {
   releasedQty?: number;
   receivedQty: string;
   uom: string;
+  catalogUom?: string;
   unitCost: string;
   /** What the system resolved for the item (before the user touched it). */
   originalSource: ResolvedPrice['source'];
@@ -371,6 +377,8 @@ export interface ReceivingParty {
   warehouseLocation: string;
   areaId: string;
   receiverId: string;
+  /** receive the items straight away (only when the receiving party is the signed-in user) */
+  autoReceive: boolean;
   remarks: string;
 }
 
@@ -517,4 +525,32 @@ export interface AnalyticsOverviewResponse {
   rows: AnalyticsRow[];
   totals: Omit<AnalyticsRow, 'key' | 'label'>;
   meta: { workbooks: number; stockAsOf: string; layersEnabled: boolean; notes: string[] };
+}
+
+/** Where an item is now, who holds it and since when (inventory:getItemTrace). */
+export interface ItemTraceHolder {
+  who: { custodianId?: string; custodianName?: string; subDepartment?: string };
+  where: { locationType: string; warehouseLocation?: string; areaId?: string; siteNote?: string; activityId?: string; activityName?: string; siteLocation?: string; sourceAreaId?: string };
+  when: { arrivedAt: string; lastUsedAt: string };
+  quantity: number;
+  uom: string;
+  serialNumber: string;
+}
+
+export interface ItemTraceEvent {
+  transactionId: string;
+  type: string;
+  status: string;
+  who: { loggedById: string; accountablePartyId: string; subDepartment: string };
+  where: { from: string; to: string; areaId: string; storageId: string };
+  when: { at: string };
+  quantity: number;
+  uom: string;
+  unitCost: number;
+}
+
+export interface ItemTrace {
+  item: { itemId: string; sku: string; name: string };
+  holders: { warehouse: ItemTraceHolder[]; custody: ItemTraceHolder[]; activities: ItemTraceHolder[] };
+  events: ItemTraceEvent[];
 }

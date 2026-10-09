@@ -6,12 +6,15 @@ import { MrlReceiving } from '../../components/receiving/MrlReceiving';
 import { PendingConfirmations } from '../../components/receiving/PendingConfirmations';
 import { useReceivingLookups } from '../../components/receiving/useReceivingLookups';
 import { prefetchMrls } from '../../components/receiving/useMrlList';
+import { useToast } from '../../context/ToastContext';
 
 const KEYS = ['receive-mrl', 'receive-manual', 'pending', 'ledger'];
 
 export const TransactionsHub: React.FC = () => {
   const [tab, setTab] = useTabParam(KEYS);
   const lookups = useReceivingLookups();
+  const toast = useToast();
+  useEffect(() => { if (lookups.error) toast.error(lookups.error); }, [lookups.error, toast]);
   const [awaitingMe, setAwaitingMe] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const onCountChange = useCallback((n: number) => setAwaitingMe(n), []);
@@ -42,8 +45,8 @@ export const TransactionsHub: React.FC = () => {
         <div className={tab === 'pending' ? '' : 'd-none'}>
           <PendingConfirmations active={tab === 'pending'} refreshKey={refreshKey} onCountChange={onCountChange} />
         </div>
+        {tab === 'ledger' && <Transactions />}
       </div>
-      {tab === 'ledger' && <Transactions />}
     </>
   );
 };

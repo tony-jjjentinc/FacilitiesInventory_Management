@@ -4,6 +4,7 @@ import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { ActivityRecord, ActivityInventoryItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
+import { RefreshButton } from '../components/RefreshButton';
 
 export const ProjectAllocation: React.FC = () => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
@@ -293,7 +294,7 @@ export const ProjectAllocation: React.FC = () => {
       }
     },
     {
-      key: 'Activity_ID',
+      key: 'actions',
       label: 'Actions',
       align: 'right',
       minWidth: '100px',
@@ -500,12 +501,7 @@ export const ProjectAllocation: React.FC = () => {
                 Location: {selectedActivity.Site_Location} | Supervisor: {selectedActivity.Site_Supervisor_ID} | Billed Cost: ₱{Number(selectedActivity.Current_Net_Cost || 0).toLocaleString()}
               </small>
             </div>
-            <button
-              className="btn btn-sm btn-outline-secondary"
-              onClick={() => fetchActivityItems(selectedActivity.Activity_ID)}
-            >
-              Refresh
-            </button>
+            <RefreshButton onClick={() => fetchActivityItems(selectedActivity.Activity_ID)} loading={isItemsLoading} />
           </div>
           <div className="card-body p-0">
             <DataTable

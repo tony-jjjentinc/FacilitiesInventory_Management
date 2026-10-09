@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import type { WarehouseStockItem } from '../types';
-import { DataTable, type Column } from '../components/DataTable';
+import type { Column } from '../components/DataTable';
+import { DataCard } from '../components/DataCard';
+import { ActionMenu } from '../components/ActionMenu';
+import { ItemTraceModal } from '../components/ItemTraceModal';
 
 import { fetchWithSwr } from '../services/cache';
 
@@ -10,6 +13,7 @@ export const WarehouseStock: React.FC = () => {
   const [locationFilter, setLocationFilter] = useState('');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [traceRow, setTraceRow] = useState<WarehouseStockItem | null>(null);
 
   const fetchStock = async () => {
     setIsLoading(true);
@@ -149,27 +153,40 @@ export const WarehouseStock: React.FC = () => {
         }
         return <span className="badge bg-light text-muted border">Normal</span>;
       }
+    },
+    {
+      key: 'First_Received_At',
+      label: 'Arrived',
+      align: 'center',
+      minWidth: '110px',
+      sortable: true,
+      render: (row) => <span className="small text-muted">{row.First_Received_At ? String(row.First_Received_At).slice(0, 10) : '—'}</span>
+    },
+    {
+      key: 'Last_Issued_At',
+      label: 'Last issued',
+      align: 'center',
+      minWidth: '110px',
+      sortable: true,
+      render: (row) => <span className="small text-muted">{row.Last_Issued_At ? String(row.Last_Issued_At).slice(0, 10) : '—'}</span>
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      align: 'center',
+      minWidth: '80px',
+      render: (row) => <div className="d-flex justify-content-center"><ActionMenu actions={[{ key: 'trace', label: 'View trace', hint: 'Who holds it, where it is, and its recent movements', onClick: () => setTraceRow(row) }]} /></div>
     }
   ];
 
   return (
     <div className="container py-4 px-3 px-md-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">Warehouse Stock</h4>
-          <p className="text-muted small mb-0">
-            Real-time materialized on-hand balances, Moving Average Unit Cost (AVCO), and valuations.
-          </p>
-        </div>
-
-        <button className="btn btn-secondary btn-sm" onClick={fetchStock} disabled={isLoading}>
-          {isLoading ? 'Updating...' : 'Refresh'}
-        </button>
-      </div>
-
-      {/* DataTable */}
-      <DataTable
+      <DataCard
+        title="Warehouse Stock"
+        description="Real-time materialized on-hand balances, Moving Average Unit Cost (AVCO), and valuations."
+        onRefresh={fetchStock}
+        refreshing={isLoading}
+        isLoading={isLoading && stock.length === 0}
         columns={columns}
         data={filteredStock}
         keyField="Inventory_ID"
@@ -184,11 +201,11 @@ export const WarehouseStock: React.FC = () => {
             onChange={(e) => setLocationFilter(e.target.value)}
           >
             <option value="">All Warehouse Locations</option>
-            <option value="FACILITIES_WAREHOUSE_MAIN">Main Warehouse</option>
-            <option value="FACILITIES_WAREHOUSE_SUB_NORTH">North Sub-Warehouse</option>
+            {Array.from(new Set(stock.map(s => s.Warehouse_Location).filter(Boolean))).sort().map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         }
       />
+      {traceRow && <ItemTraceModal itemId={traceRow.Item_ID} serialNumber={traceRow.Serial_Number} onClose={() => setTraceRow(null)} />}
     </div>
   );
 };

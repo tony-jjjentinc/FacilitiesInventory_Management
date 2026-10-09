@@ -193,7 +193,7 @@ export const RopAlertCenter: React.FC = () => {
         <div className="col-12 col-md-6">
           <div className="card border shadow-sm p-3 bg-white">
             <div className="text-muted small text-uppercase fw-semibold mb-1">Critical Depletion (Safety Stock Breached)</div>
-            <h4 className="fw-bold mb-1 text-danger">{criticalCount} SKUs</h4>
+            <h4 className="fw-bold mb-1 text-danger">{criticalCount} items</h4>
             <div className="text-muted small">Immediate stockout risk for ongoing projects</div>
           </div>
         </div>
@@ -201,7 +201,7 @@ export const RopAlertCenter: React.FC = () => {
         <div className="col-12 col-md-6">
           <div className="card border shadow-sm p-3 bg-white">
             <div className="text-muted small text-uppercase fw-semibold mb-1">Reorder Warnings (Lead Time Threshold)</div>
-            <h4 className="fw-bold mb-1 text-warning">{warningCount} SKUs</h4>
+            <h4 className="fw-bold mb-1 text-warning">{warningCount} items</h4>
             <div className="text-muted small">Requisition drafting required within lead time window</div>
           </div>
         </div>

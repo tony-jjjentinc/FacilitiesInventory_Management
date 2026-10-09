@@ -10,6 +10,7 @@ interface ConfirmModalProps {
   isLoading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  children?: React.ReactNode;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -21,7 +22,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   isDanger = false,
   isLoading = false,
   onConfirm,
-  onCancel
+  onCancel,
+  children
 }) => {
   React.useEffect(() => {
     if (isOpen) {
@@ -55,6 +57,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
           <div className="modal-body p-4">
             <p className="text-secondary small mb-0">{message}</p>
+            {children}
           </div>
 
           <div className="modal-footer py-2 px-4 bg-light border-top d-flex justify-content-end gap-2">

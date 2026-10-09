@@ -14,9 +14,8 @@ interface Props {
   label: string;
 }
 
-/** Page tabs: underline style, scrolls sideways on narrow screens. Styles in index.css (`.page-tabs`). */
-export const TabBar: React.FC<Props> = ({ tabs, active, onChange, label }) => (
-  <div className="container pt-3 px-3 px-md-4">
+/** Underline tabs, scroll sideways on narrow screens. Styles in index.css (`.page-tabs`). */
+export const Tabs: React.FC<Props> = ({ tabs, active, onChange, label }) => (
     <nav className="page-tabs" role="tablist" aria-label={label}>
       {tabs.map(t => (
         <button
@@ -32,7 +31,11 @@ export const TabBar: React.FC<Props> = ({ tabs, active, onChange, label }) => (
         </button>
       ))}
     </nav>
-  </div>
+);
+
+/** Page-level tabs: `Tabs` inside the page container. */
+export const TabBar: React.FC<Props> = (props) => (
+  <div className="container pt-3 px-3 px-md-4"><Tabs {...props} /></div>
 );
 
 /** The active tab lives in the URL (`?tab=`). The first key is the default and keeps the URL clean. */

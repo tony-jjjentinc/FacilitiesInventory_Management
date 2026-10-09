@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { StepCard } from './StepCard';
 import { getCurrentUser } from '../../services/auth';
+import { DUMMY_RECEIVING_PARTIES } from './receivingParties';
+import { activityLabel } from './receivingUtils';
 import type { MrlDetails, OpenActivity, ReceivingParty, StorageOptions, SuggestedActivity } from '../../types';
 
 interface Props {
@@ -21,6 +23,8 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
   const set = (patch: Partial<ReceivingParty>) => onChange({ ...party, ...patch });
   const areas = storage.storage.filter(s => s.storageType === 'AREA' && s.warehouseLocation === party.warehouseLocation);
   const area = areas.find(a => a.storageId === party.areaId);
+  const meEmail = (getCurrentUser()?.email || '').trim().toLowerCase();
+  const isSelf = !!meEmail && party.receiverId.trim().toLowerCase() === meEmail;
 
   return (
     <StepCard title={title} hint="Where the items go, and who confirms they arrived.">
@@ -64,7 +68,7 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
             <label className="form-label small fw-semibold mb-1">Activity</label>
             {suggested && party.activityId !== suggested.activityId && (
               <div className="small mb-2">
-                Matches this MRQ ({details?.mrq.classificationId}): <strong>{suggested.activityId}</strong> — {suggested.activityName}{' '}
+                Matches this MRQ: <strong>[{details?.mrq.classificationId}] {suggested.activityName}</strong>{' '}
                 <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => set({ activityId: suggested.activityId })}>Use it</button>
               </div>
             )}
@@ -78,9 +82,7 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
               <select className="form-select form-select-sm" value={party.activityId} onChange={e => set({ activityId: e.target.value })}>
                 <option value="">Select an open activity</option>
                 {activities.map(a => (
-                  <option key={a.Activity_ID} value={a.Activity_ID}>
-                    {a.Activity_ID} — {a.Activity_Name}{a.ProcInv_Class_Ref ? ` [${a.ProcInv_Class_Ref}]` : ''}
-                  </option>
+                  <option key={a.Activity_ID} value={a.Activity_ID}>{activityLabel(a)}</option>
                 ))}
               </select>
               {!details && <button type="button" className="btn btn-outline-secondary btn-sm text-nowrap" onClick={() => setShowCreate(true)}>New activity</button>}
@@ -90,10 +92,27 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
         )}
 
         <div className="col-md-6">
-          <label className="form-label small fw-semibold mb-1">Receiving party (email)</label>
-          <input type="email" className="form-control form-control-sm"
-            value={party.receiverId} onChange={e => set({ receiverId: e.target.value })} />
-          <div className="form-text">This person confirms receipt with their own login. Nothing is posted until they do.</div>
+          <label className="form-label small fw-semibold mb-1" htmlFor="receiving-party">Receiving party</label>
+          <div className="d-flex align-items-center gap-3">
+            <select id="receiving-party" className="form-select form-select-sm" value={party.receiverId}
+              onChange={e => set({ receiverId: e.target.value, autoReceive: e.target.value === meEmail ? party.autoReceive : false })}>
+              <option value="">Select the receiving party</option>
+              {meEmail && <option value={meEmail}>Myself ({meEmail})</option>}
+              {DUMMY_RECEIVING_PARTIES.filter(p => p.email !== meEmail).map(p => (
+                <option key={p.email} value={p.email}>{p.name} — {p.role}</option>
+              ))}
+            </select>
+            <div className="form-check mb-0 text-nowrap" title={isSelf ? 'Post the items to the inventory as soon as you submit' : 'Choose your own account to receive the items straight away'}>
+              <input id="auto-receive" type="checkbox" className="form-check-input" checked={party.autoReceive} disabled={!isSelf}
+                onChange={e => set({ autoReceive: e.target.checked })} />
+              <label htmlFor="auto-receive" className="form-check-label small">Auto-receive</label>
+            </div>
+          </div>
+          <div className="form-text">
+            {party.autoReceive
+              ? 'The items are received into the inventory as soon as you submit.'
+              : 'This person confirms receipt with their own login. Nothing is posted until they do. Sample accounts for now.'}
+          </div>
         </div>
         <div className="col-md-6">
           <label className="form-label small fw-semibold mb-1">Remarks</label>

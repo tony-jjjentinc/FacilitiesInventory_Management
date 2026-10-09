@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../services/api';
-import { DataTable, type Column } from '../../components/DataTable';
+import type { Column } from '../../components/DataTable';
+import { DataCard } from '../../components/DataCard';
 import type { ConsumedInventoryItem } from '../../types';
 
 /** Every material consumption logged against an activity, newest first. */
@@ -120,23 +121,19 @@ export const ConsumptionLog: React.FC = () => {
 
   return (
     <div className="container py-4 px-3 px-md-4">
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">Consumption Log</h4>
-          <p className="text-muted small mb-0">Materials logged as used on activities. Log new usage from the Allocation tab.</p>
-        </div>
-        <button className="btn btn-secondary btn-sm" onClick={load} disabled={loading}>{loading ? 'Updating...' : 'Refresh'}</button>
-      </div>
       {error && <div className="alert alert-danger py-2 small">{error}</div>}
-      <div className="card shadow-sm border-0">
-        <DataTable
+      <DataCard
+        title="Consumption Log"
+        description="Materials logged as used on activities. Log new usage from the Allocation tab."
+        onRefresh={load}
+        refreshing={loading}
           columns={columns}
           data={filtered}
           keyField="Consumption_ID"
           searchQuery={search}
           onSearchChange={setSearch}
           searchPlaceholder="Search"
-          isLoading={loading}
+          isLoading={loading && rows.length === 0}
           emptyMessage="No consumption has been logged yet."
           filters={
             <select className="form-select form-select-sm" style={{ width: '200px' }} aria-label="Filter by activity" value={activity} onChange={e => setActivity(e.target.value)}>
@@ -145,7 +142,6 @@ export const ConsumptionLog: React.FC = () => {
             </select>
           }
         />
-      </div>
     </div>
   );
 };

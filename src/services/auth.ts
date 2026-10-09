@@ -158,6 +158,14 @@ export function hasAnyRole(requiredRoles: string[]): boolean {
 /**
  * Checks if the user has Super Admin or Head administrative privileges.
  */
+/** Super Admin, Head and Sub-Department can add items to the inventory item catalog. */
+export function canAddToCatalog(user: UserClaims | null): boolean {
+  if (!user || !Array.isArray(user.roles)) return false;
+  return user.roles.some(
+    r => typeof r === 'string' && ['super admin', 'head', 'sub-department'].includes(r.trim().toLowerCase())
+  );
+}
+
 export function isUserHeadOrAdmin(user: UserClaims | null): boolean {
   if (!user || !Array.isArray(user.roles)) return false;
   return user.roles.some(

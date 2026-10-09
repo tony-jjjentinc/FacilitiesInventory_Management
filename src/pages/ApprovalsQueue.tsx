@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { LossIncident } from '../types';
-import { DataTable, type Column } from '../components/DataTable';
+import type { Column } from '../components/DataTable';
+import { DataCard } from '../components/DataCard';
 import { ReportIncidentModal } from '../components/ReportIncidentModal';
 import { getCurrentUser } from '../services/auth';
 
@@ -234,91 +235,26 @@ export const ApprovalsQueue: React.FC = () => {
 
   return (
     <div className="container px-4 py-4">
-      {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-            Loss & Disposal Approvals Queue
-          </h4>
-          <p className="text-muted small mb-0">
-            Review and digitally sign off on damage, expiration, and scrap reports requiring inventory disposal write-off.
-          </p>
-        </div>
-
-        <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-primary btn-sm d-flex align-items-center gap-2"
-            onClick={() => setIsReportModalOpen(true)}
-          >
-            <i className="bi bi-plus-circle"></i>
-            Report Incident
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
-            onClick={() => {
-              invalidateCache('incident:queue');
-              fetchIncidents();
-            }}
-          >
-            <i className="bi bi-arrow-clockwise"></i> Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Filter Tabs & Search */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-body p-3">
-          <div className="row g-3 align-items-center justify-content-between">
-            <div className="col-12 col-md-auto d-flex gap-2">
-              <button
-                type="button"
-                className={`btn btn-sm ${statusFilter === 'PENDING_APPROVAL' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('PENDING_APPROVAL')}
-              >
-                Pending Review
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${statusFilter === 'APPROVED' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('APPROVED')}
-              >
-                Approved
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${statusFilter === 'ALL' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('ALL')}
-              >
-                All Incidents
-              </button>
-            </div>
-
-            <div className="col-12 col-md-4">
-              <div className="input-group input-group-sm">
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search text-muted"></i>
-                </span>
-                <input
-                  type="text"
-                  className="form-control border-start-0"
-                  placeholder="Search by ID, liable party, description..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <DataTable<any>
+      <DataCard<any>
+        title="Loss & Disposal Approvals Queue"
+        description="Review and digitally sign off on damage, expiration, and scrap reports requiring inventory disposal write-off."
+        actions={[{ key: 'report', label: 'Report Incident', icon: 'bi-plus-circle', onClick: () => setIsReportModalOpen(true) }]}
+        onRefresh={() => { invalidateCache('incident:queue'); fetchIncidents(); }}
+        tabs={[
+          { key: 'PENDING_APPROVAL', label: 'Pending Review' },
+          { key: 'APPROVED', label: 'Approved' },
+          { key: 'ALL', label: 'All Incidents' }
+        ]}
+        activeTab={statusFilter}
+        onTabChange={(k) => setStatusFilter(k as typeof statusFilter)}
         data={filteredIncidents}
         columns={columns}
         keyField="lossId"
-        isLoading={isLoading}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by ID, liable party, description..."
+        isLoading={isLoading && incidents.length === 0}
+        refreshing={isLoading}
         emptyMessage="No loss incidents found for this filter."
       />
 

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { TransactionEntry, TransactionLineItem } from '../types';
-import { DataTable, type Column } from '../components/DataTable';
+import type { Column } from '../components/DataTable';
+import { DataCard } from '../components/DataCard';
 
 export const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<TransactionEntry[]>([]);
@@ -305,102 +306,28 @@ export const Transactions: React.FC = () => {
   ];
 
   return (
-    <div className="container px-4 py-4">
-      {/* Header */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-            Double-Entry Transaction Ledger
-          </h4>
-          <p className="text-muted small mb-0">
-            Immutable facilities inventory ledger tracking receipts, dispatches, tool deployments, and staging drafts.
-          </p>
-        </div>
-
-        <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            className="btn btn-primary btn-sm d-flex align-items-center gap-2"
-            onClick={() => setIsCreateOpen(true)}
-          >
-            <i className="bi bi-plus-circle"></i>
-            Stage New Transaction
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
-            onClick={() => {
-              invalidateCache('transaction:history');
-              fetchTransactions();
-            }}
-          >
-            <i className="bi bi-arrow-clockwise"></i> Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Filter Tabs & Search */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-body p-3">
-          <div className="row g-3 align-items-center justify-content-between">
-            <div className="col-12 col-md-auto d-flex gap-2">
-              <button
-                type="button"
-                className={`btn btn-sm ${statusFilter === 'ALL' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('ALL')}
-              >
-                All Movements
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm position-relative ${statusFilter === 'PENDING' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('PENDING')}
-              >
-                Pending Review
-                {pendingCount > 0 && (
-                  <span className="badge bg-warning text-dark ms-1 rounded-pill">{pendingCount}</span>
-                )}
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${statusFilter === 'POSTED' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('POSTED')}
-              >
-                Posted / Executed
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${statusFilter === 'VOIDED' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setStatusFilter('VOIDED')}
-              >
-                Voided / Cancelled
-              </button>
-            </div>
-
-            <div className="col-12 col-md-4">
-              <div className="input-group input-group-sm">
-                <span className="input-group-text bg-white border-end-0">
-                  <i className="bi bi-search text-muted"></i>
-                </span>
-                <input
-                  type="text"
-                  className="form-control border-start-0"
-                  placeholder="Search by TXN ID, source, destination, notes..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <DataTable<any>
+    <div>
+      <DataCard<any>
+        title="Double-Entry Transaction Ledger"
+        description="Immutable facilities inventory ledger tracking receipts, dispatches, tool deployments, and staging drafts."
+        actions={[{ key: 'stage', label: 'Stage New Transaction', icon: 'bi-plus-circle', onClick: () => setIsCreateOpen(true) }]}
+        onRefresh={() => { invalidateCache('transaction:history'); fetchTransactions(); }}
+        tabs={[
+          { key: 'ALL', label: 'All Movements' },
+          { key: 'PENDING', label: 'Pending Review', badge: pendingCount },
+          { key: 'POSTED', label: 'Posted / Executed' },
+          { key: 'VOIDED', label: 'Voided / Cancelled' }
+        ]}
+        activeTab={statusFilter}
+        onTabChange={(k) => setStatusFilter(k as typeof statusFilter)}
         data={filteredTransactions}
         columns={columns}
         keyField="transactionId"
-        isLoading={isLoading}
+        searchQuery={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by TXN ID, source, destination, notes..."
+        isLoading={isLoading && transactions.length === 0}
+        refreshing={isLoading}
         emptyMessage="No transaction ledger records found."
       />
 

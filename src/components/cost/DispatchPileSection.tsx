@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../../services/api';
+import { getCurrentUser, isUserHeadOrAdmin } from '../../services/auth';
 import type { CostPile, StorageOptions } from '../../types';
 
 export interface PileChoice {
@@ -43,6 +44,10 @@ export const DispatchPileSection: React.FC<Props> = ({ itemId, location, quantit
   }, [itemId, location, value.areaId]);
 
   const areas = storage.storage.filter(s => s.storageType === 'AREA' && s.warehouseLocation === location);
+  const area = areas.find(a => a.storageId === value.areaId);
+  const me = getCurrentUser();
+  const mine = (me?.subdepartments || []).map(x => String(x).trim().toLowerCase());
+  const otherOwner = area && area.ownerSubDepartment && !isUserHeadOrAdmin(me) && !mine.includes(area.ownerSubDepartment.trim().toLowerCase()) ? area : null;
   const picked = Object.values(value.picks).reduce((s, v) => s + (Number(v) || 0), 0);
 
   // what the default (oldest first) would take, to show the ₱0 warning before dispatching
@@ -59,6 +64,9 @@ export const DispatchPileSection: React.FC<Props> = ({ itemId, location, quantit
           <option value="">Whole warehouse</option>
           {areas.map(a => <option key={a.storageId} value={a.storageId}>{a.name}{a.ownerSubDepartment ? ` — ${a.ownerSubDepartment}` : ''}</option>)}
         </select>
+        {otherOwner && (
+          <div className="form-text text-warning-emphasis">This area belongs to {otherOwner.ownerSubDepartment}, not your sub-department. You can continue; the movement is recorded against {otherOwner.ownerSubDepartment}.</div>
+        )}
         <div className="form-text">The oldest delivery inside the chosen area is used first.</div>
       </div>
 
