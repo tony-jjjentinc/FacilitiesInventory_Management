@@ -13,6 +13,7 @@ import { StepCard } from './StepCard';
 import { ConfirmationSection } from './ConfirmationSection';
 import { buildPayload, newLineKey, priceFields, simpleDate, spotsInArea, validateReceiving } from './receivingUtils';
 import type { useReceivingLookups } from './useReceivingLookups';
+import { Loading } from '../Loading';
 
 interface Props {
   lookups: ReturnType<typeof useReceivingLookups>;
@@ -138,7 +139,7 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
           </div>
           <div className="col-auto">
             <button type="button" className="btn btn-primary btn-sm" onClick={() => requestLoad(mrlNumber, mrqNumber)} disabled={loading}>
-              {loading ? 'Loading' : 'Fetch'}
+              {loading ? <Loading variant="button" label="Fetching…" /> : 'Fetch'}
             </button>
           </div>
           <div className="col-auto">

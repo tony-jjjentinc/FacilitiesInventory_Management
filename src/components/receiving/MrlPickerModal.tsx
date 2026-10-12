@@ -4,6 +4,7 @@ import { DataTable, type Column } from '../DataTable';
 import type { StagedMrlSummary } from '../../types';
 import { useMrlList } from './useMrlList';
 import { simpleDate } from './receivingUtils';
+import { Loading } from '../Loading';
 
 interface Props {
   open: boolean;
@@ -98,12 +99,6 @@ export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => 
           </div>
           <div className="modal-body p-0">
             {error && <div className={`alert ${data ? 'alert-warning' : 'alert-danger'} py-2 small m-3 mb-0`}>{error}</div>}
-            {busy && (
-              <div className="d-flex align-items-center gap-2 px-3 py-2 border-bottom small text-secondary" role="status" aria-live="polite">
-                <span className="spinner-border spinner-border-sm text-primary"></span>
-                {syncing ? 'Syncing from ProcInv…' : loadingAll && !data ? 'Still loading MRLs…' : 'Updating the list…'}
-              </div>
-            )}
             <div>
               <DataTable
               columns={columns}
@@ -113,6 +108,8 @@ export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => 
               onSearchChange={setSearch}
               searchPlaceholder="Search"
               initialPageSize={10}
+              isLoading={loadingAll && !data}
+              refreshing={busy}
               emptyMessage={period === 'ALL' ? 'No MRLs available. Try "Sync from ProcInv".' : 'No MRLs released in this period. Choose a wider range, or try "Sync from ProcInv".'}
               filters={
                 <>
@@ -131,7 +128,7 @@ export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => 
               }
               actions={
                 <button type="button" className="btn btn-secondary btn-sm text-nowrap" onClick={sync} disabled={busy}>
-                  {syncing ? 'Syncing…' : 'Sync from ProcInv'}
+                  {syncing ? <Loading variant="button" label="Syncing…" /> : 'Sync from ProcInv'}
                 </button>
               }
               />

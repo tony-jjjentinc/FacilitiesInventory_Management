@@ -19,7 +19,23 @@ export class ApiError extends Error {
   }
 }
 
+/** Plain wording for refusals: no error codes, and a clear sentence when the role is simply not allowed. */
+function friendlyError(error: string | null | undefined, code: string | null | undefined): string {
+  const text = (error || '').trim();
+  if (code === 'FORBIDDEN_ACTION') return text.replace(/^FORBIDDEN_ACTION:\s*/, '') || "You can't do this.";
+  if (code === 'UNAUTHORIZED') {
+    const detail = text.replace(/^Access denied\.\s*/i, '');
+    return /sub-department|department|your role/i.test(detail) && !/Insufficient role/i.test(detail) ? detail : "You don't have access to this. Ask an administrator if you need it.";
+  }
+  return text || code || 'Unknown API error occurred.';
+}
+
+/** Fired after any call that can change data, so the notification bell refreshes right away instead of at its next poll. */
+export const DATA_CHANGED_EVENT = 'jjjei:data-changed';
+const READS = /:(get|list|check|info)[A-Za-z]*$/;
+
 export const SESSION_EXPIRED_EVENT = 'jjjei:session-expired';
+export const SESSION_EXPIRED_MESSAGE = 'You have been logged out. Your session expired, please log in again.';
 
 /**
  * Dispatches a POST request to the Google Apps Script Web App.
@@ -59,9 +75,10 @@ export async function apiRequest<T = any>(action: string, payload: any = {}): Pr
       clearStoredToken();
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
-    throw new ApiError(result.error || result.errorCode || 'Unknown API error occurred.', result.errorCode);
+    throw new ApiError(result.errorCode === 'SESSION_EXPIRED' ? SESSION_EXPIRED_MESSAGE : friendlyError(result.error, result.errorCode), result.errorCode);
   }
 
+  if (!READS.test(action) && action !== 'auth:login') window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
   return result.data as T;
 }
 

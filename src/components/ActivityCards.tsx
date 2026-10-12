@@ -1,5 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { ActivityRecord } from '../types';
+import { entityPath } from './entity/entityPaths';
+import { getCurrentUser } from '../services/auth';
+import { getAccess } from '../services/access';
 
 interface Props {
   activities: ActivityRecord[];
@@ -32,7 +36,11 @@ const day = (v?: string) => (v ? String(v).slice(0, 10) : '—');
 
 /** Activities as cards with search, status and type filters and sorting. Clicking a card selects it. */
 export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelect, loading }) => {
-  const [search, setSearch] = useState('');
+  const costs = getAccess(getCurrentUser()).canSeeCosts;
+  const [urlParams] = useSearchParams();
+  const [search, setSearch] = useState(urlParams.get('q') || ''); // ?q= comes from the general search
+  // opening a search result while already on this page changes the URL without remounting
+  useEffect(() => { const v = urlParams.get('q'); if (v !== null) setSearch(v); }, [urlParams]);
   const [status, setStatus] = useState('');
   const [type, setType] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('Activity_ID');
@@ -80,7 +88,7 @@ export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelec
         </select>
         <div className="d-flex gap-1 ms-md-auto">
           <select className="form-select form-select-sm" style={{ width: '140px' }} aria-label="Sort by" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}>
-            {SORTS.map(s => <option key={s.key} value={s.key}>Sort: {s.label}</option>)}
+            {SORTS.filter(s => costs || s.key !== 'Current_Net_Cost').map(s => <option key={s.key} value={s.key}>Sort: {s.label}</option>)}
           </select>
           <button type="button" className="btn btn-secondary btn-sm" style={{ width: '34px', padding: 0 }} onClick={() => setAsc(!asc)}
             title={asc ? 'Ascending' : 'Descending'} aria-label={asc ? 'Ascending' : 'Descending'}>
@@ -118,16 +126,17 @@ export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelec
                     <div className="fw-medium text-dark mb-1">{a.Activity_Name}</div>
                     <div className="small text-secondary mb-3">{a.Site_Location || 'No Data'}</div>
                     <div className="d-flex justify-content-between align-items-end">
-                      <div>
+                      {costs ? <div>
                         <div className="text-muted" style={{ fontSize: '0.72rem' }}>Net cost</div>
                         <div className="fw-bold text-dark">₱{(Number(a.Current_Net_Cost) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                      </div>
+                      </div> : <span />}
                       {a.Activity_Type && <span className="badge bg-secondary">{a.Activity_Type}</span>}
                     </div>
                   </div>
                   <div className="card-footer bg-white small text-muted d-flex justify-content-between gap-2">
                     <span className="text-truncate" title={a.Site_Supervisor_ID}>{a.Site_Supervisor_ID || 'No supervisor'}</span>
                     <span className="text-nowrap">{day(a.Start_Date)} → {a.Target_End_Date ? day(a.Target_End_Date) : 'TBD'}</span>
+                    <Link to={entityPath('ACTIVITY', a.Activity_ID)} className="text-decoration-none text-nowrap" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>View page</Link>
                   </div>
                 </div>
               </div>

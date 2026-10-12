@@ -3,6 +3,7 @@ import { login } from '../services/auth';
 import type { UserClaims } from '../types';
 import { Logo } from '../components/Logo';
 import { useSystemInfo } from '../context/SystemContext';
+import { Loading } from '../components/Loading';
 
 interface LoginProps {
   onLoginSuccess: (user: UserClaims) => void;
@@ -93,10 +94,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             className="btn btn-primary w-100 py-2 fw-medium"
             disabled={isLoading}
           >
-            {isLoading ? (
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            ) : null}
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? <Loading variant="button" label="Signing in..." /> : 'Sign In'}
           </button>
         </form>
       </div>

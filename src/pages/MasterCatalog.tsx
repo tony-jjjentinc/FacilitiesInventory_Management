@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { InventoryTypeCode } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
+import { Loading } from '../components/Loading';
+import { entityPath } from '../components/entity/entityPaths';
+import { getCurrentUser, isUserHeadOrAdmin } from '../services/auth';
 
 interface RawCatalogItem {
   ID: string;
@@ -44,8 +48,12 @@ const INVENTORY_TYPES: { code: InventoryTypeCode; name: string }[] = [
 ];
 
 export const MasterCatalog: React.FC = () => {
+  const isAdmin = isUserHeadOrAdmin(getCurrentUser()); // this form saves through the admin-only config API
   const [items, setItems] = useState<RawCatalogItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [urlParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(urlParams.get('q') || ''); // ?q= comes from the general search
+  // opening a search result while already on this page changes the URL without remounting
+  useEffect(() => { const v = urlParams.get('q'); if (v !== null) setSearchQuery(v); }, [urlParams]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -88,6 +96,7 @@ export const MasterCatalog: React.FC = () => {
 
   useEffect(() => {
     loadItems();
+    if (!isAdmin) return;
     apiRequest('config:getTable', { table: 'Inventory_Property_Keys' })
       .then(res => {
         if (res.records && Array.isArray(res.records)) {
@@ -95,7 +104,7 @@ export const MasterCatalog: React.FC = () => {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [isAdmin]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -198,7 +207,7 @@ export const MasterCatalog: React.FC = () => {
       sortable: true,
       render: (row) => (
         <div>
-          <div className="fw-medium text-dark">{row.Name}</div>
+          <Link to={entityPath('ITEM', row.ID)} className="fw-medium text-dark text-decoration-none">{row.Name}</Link>
           {row.Brand || row.Model ? (
             <div className="text-muted small">
               {row.Brand} {row.Model ? `• ${row.Model}` : ''} {row.Variant ? `(${row.Variant})` : ''}
@@ -289,9 +298,9 @@ export const MasterCatalog: React.FC = () => {
           </p>
         </div>
 
-        <button className="btn btn-dark btn-sm" onClick={() => setShowModal(true)}>
+        {isAdmin && <button className="btn btn-dark btn-sm" onClick={() => setShowModal(true)}>
           Add Catalog Item
-        </button>
+        </button>}
       </div>
 
       {/* Minimal DataTable */}
@@ -556,8 +565,7 @@ export const MasterCatalog: React.FC = () => {
                   disabled={!formData.name || isSaving}
                   onClick={handleSaveItem}
                 >
-                  {isSaving && <span className="spinner-border spinner-border-sm" role="status"></span>}
-                  <span>{isSaving ? 'Saving...' : 'Save Item'}</span>
+                  {isSaving ? <Loading variant="button" label="Saving..." /> : 'Save Item'}
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { ReceivingLine, StorageNode } from '../../types';
 import { PriceChooser } from './PriceChooser';
 import { nodeLabel, spotPath } from './receivingUtils';
+import { Select } from '../Select';
 
 interface Props {
   line: ReceivingLine;
@@ -74,10 +75,9 @@ export const LineEditModal: React.FC<Props> = ({ line, mode, uoms, spotOptions, 
                 {spotOptions.length > 0 && (
                   <>
                     <label className="form-label small fw-semibold mb-1 mt-3" htmlFor="edit-spot">Storage spot</label>
-                    <select id="edit-spot" className="form-select form-select-sm" value={storageId} onChange={e => setStorageId(e.target.value)}>
-                      <option value="">Whole area</option>
+                    <Select optional noneLabel="None (whole area)" id="edit-spot" className="form-select form-select-sm" value={storageId} onChange={e => setStorageId(e.target.value)}>
                       {spotOptions.map(sp => <option key={sp.storageId} value={sp.storageId}>{spotPath(allStorage, sp.storageId) || nodeLabel(sp)}</option>)}
-                    </select>
+                    </Select>
                   </>
                 )}
               </div>

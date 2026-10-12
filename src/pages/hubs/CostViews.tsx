@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../../services/api';
 import type { OpenActivity, ProjectCostsResponse, StockCostsResponse, StorageOptions } from '../../types';
+import { Select } from '../../components/Select';
+import { Loading } from '../../components/Loading';
 
 const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const cost4 = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
@@ -234,22 +236,19 @@ export const SetPrice: React.FC = () => {
           <div className="col-md-7">
             <label className="form-label small fw-semibold">{draft.scopeType === 'WAREHOUSE' ? 'Warehouse' : draft.scopeType === 'AREA' ? 'Area' : draft.scopeType === 'ACTIVITY' ? 'Activity' : 'Custodian ID'} *</label>
             {draft.scopeType === 'WAREHOUSE' && (
-              <select className="form-select form-select-sm" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })}>
-                <option value="">Select…</option>
+              <Select className="form-select form-select-sm" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })}>
                 {storage.warehouses.map(w => <option key={w.id} value={w.id}>{w.name} ({w.id})</option>)}
-              </select>
+              </Select>
             )}
             {draft.scopeType === 'AREA' && (
-              <select className="form-select form-select-sm" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })}>
-                <option value="">Select…</option>
+              <Select className="form-select form-select-sm" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })}>
                 {areas.map(a => <option key={a.storageId} value={a.storageId}>{a.name} ({a.storageId})</option>)}
-              </select>
+              </Select>
             )}
             {draft.scopeType === 'ACTIVITY' && (
-              <select className="form-select form-select-sm" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })}>
-                <option value="">Select…</option>
+              <Select className="form-select form-select-sm" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })}>
                 {activities.map(a => <option key={a.Activity_ID} value={a.Activity_ID}>{a.Activity_ID} — {a.Activity_Name}</option>)}
-              </select>
+              </Select>
             )}
             {draft.scopeType === 'CUSTODIAN' && (
               <input className="form-control form-control-sm font-monospace" required value={draft.scopeRef} onChange={e => set({ scopeRef: e.target.value })} />
@@ -270,7 +269,7 @@ export const SetPrice: React.FC = () => {
           </div>
         </div>
         <div className="d-flex justify-content-end mt-4">
-          <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Set price'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{busy ? <Loading variant="button" label="Saving…" /> : 'Set price'}</button>
         </div>
       </div>
     </form>

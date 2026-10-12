@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserClaims } from '../types';
 import { isUserHeadOrAdmin } from '../services/auth';
+import { getAccess } from '../services/access';
 import { NotificationBell } from './NotificationBell';
+import { GlobalSearch } from './GlobalSearch';
 import { Logo } from './Logo';
 import { useSystemInfo } from '../context/SystemContext';
 
@@ -18,6 +20,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Ctrl/Cmd+K opens the general search from any page
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(true); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,8 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
 
   const isHeadOrAdmin = isUserHeadOrAdmin(user);
 
-  const roles = (user?.roles || []).map(r => String(r).trim().toLowerCase());
-  const canSeeAnalytics = roles.some(r => ['super admin', 'head', 'sub-department'].includes(r));
+  const canSeeAnalytics = getAccess(user).canSeeAnalytics;
 
   const navItems: { id: string; path: string; label: string; badge?: number }[] = [
     { id: 'overview', path: '/overview', label: 'Dashboard' },
@@ -122,31 +131,49 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
           </div>
 
           {/* Center Section: Navigation Options (Desktop) */}
-          <nav
-            className="d-none d-lg-flex align-items-center justify-content-center gap-1 flex-grow-1 mx-2"
-            aria-label="Main Navigation"
-          >
-            {navItems.map((item) => {
-              const isActive = isItemActive(item);
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`nav-tab-link ${isActive ? "active" : ""}`}
-                  onClick={() => handleNavClick(item.path)}
-                >
-                  <span>{item.label}</span>
-                  {item.badge ? <span className="badge rounded-pill bg-danger ms-2">{item.badge}</span> : null}
-                </button>
-              );
-            })}
+          <nav className="d-none d-lg-flex justify-content-center flex-grow-1 mx-2" aria-label="Main Navigation">
+            <ul className="nav nav-pills nav-pills-sm gap-1">
+              {navItems.map((item) => {
+                const isActive = isItemActive(item);
+                return (
+                  <li key={item.id} className="nav-item">
+                    <button
+                      type="button"
+                      className={`nav-link ${isActive ? "active" : ""}`}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => handleNavClick(item.path)}
+                    >
+                      <span>{item.label}</span>
+                      {item.badge ? <span className="badge rounded-pill bg-danger ms-2">{item.badge}</span> : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
 
-          {/* Right Section: Notifications & Account Profile */}
+          {/* Right Section: Search, Notifications & Account Profile */}
           <div
             className="d-flex align-items-center justify-content-end gap-1 gap-sm-2"
             style={{ flexShrink: 0 }}
           >
+            {user && (
+              <>
+                <button type="button" className="btn btn-sm d-flex align-items-center justify-content-center" onClick={() => setSearchOpen(true)}
+                  title="Search (Ctrl+K)" aria-label="Search">
+                  <i className="bi bi-search fs-6"></i>
+                </button>
+                <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+              </>
+            )}
+
+            <NotificationBell
+              onLoaded={handleFeed}
+              onNavigate={(route) => {
+                const target = route.startsWith('/') ? route : `/${route}`;
+                handleNavClick(target);
+              }}
+            />
             {user && (
               <div className="position-relative" ref={accountMenuRef}>
                 {/* Account Profile Trigger Button */}
@@ -242,14 +269,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
                 )}
               </div>
             )}
-
-            <NotificationBell
-              onLoaded={handleFeed}
-              onNavigate={(route) => {
-                const target = route.startsWith('/') ? route : `/${route}`;
-                handleNavClick(target);
-              }}
-            />
           </div>
         </div>
       </header>

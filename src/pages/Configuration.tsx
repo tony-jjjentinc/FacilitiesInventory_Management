@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
@@ -10,6 +10,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { RolloverWizard } from './RolloverWizard';
 import type { ConfigTableKey } from '../types';
 import { slugToConfigKey, configKeyToSlug } from '../utils/configRoutes';
+import { Select } from '../components/Select';
 
 interface ConfigTabDef {
   key: ConfigTableKey;
@@ -202,7 +203,7 @@ export const Configuration: React.FC = () => {
     loadLookups();
   }, []);
 
-  const loadTableData = async (tableKey: ConfigTableKey, isManualRefresh = false) => {
+  const loadTableData = useCallback(async (tableKey: ConfigTableKey, isManualRefresh = false) => {
     const cacheKey = `config:${tableKey}`;
     const cached = getCachedData<any[]>(cacheKey);
 
@@ -256,12 +257,12 @@ export const Configuration: React.FC = () => {
         setIsRevalidating(false);
       }
     }
-  };
+  }, [currentTabDef]);
 
   useEffect(() => {
     setSearch('');
     loadTableData(activeTab);
-  }, [activeTab]);
+  }, [activeTab, loadTableData]);
 
   // Open Form for Editing
   const handleEditRecord = (record: any) => {
@@ -1271,12 +1272,11 @@ export const Configuration: React.FC = () => {
                       <div className="row g-3">
                         <div className="col-12 col-md-6">
                           <label className="form-label small text-muted mb-1">System</label>
-                          <select
+                          <Select optional noneLabel="N/A"
                             className="form-select form-select-sm"
                             value={editFormData.System || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, System: e.target.value })}
                           >
-                            <option value="">N/A</option>
                             {editFormData.System && !lookupSystems.includes(editFormData.System) && (
                               <option value={editFormData.System}>{editFormData.System}</option>
                             )}
@@ -1285,17 +1285,16 @@ export const Configuration: React.FC = () => {
                                 {sys}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         </div>
 
                         <div className="col-12 col-md-6">
                           <label className="form-label small text-muted mb-1">Component</label>
-                          <select
+                          <Select optional noneLabel="N/A"
                             className="form-select form-select-sm"
                             value={editFormData.Component || ''}
                             onChange={(e) => setEditFormData({ ...editFormData, Component: e.target.value })}
                           >
-                            <option value="">N/A</option>
                             {editFormData.Component && !lookupComponents.includes(editFormData.Component) && (
                               <option value={editFormData.Component}>{editFormData.Component}</option>
                             )}
@@ -1304,7 +1303,7 @@ export const Configuration: React.FC = () => {
                                 {comp}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         </div>
 
                         <div className="col-12 col-md-6">
@@ -1438,17 +1437,16 @@ export const Configuration: React.FC = () => {
                       <div key={k} className="col-12 col-md-6">
                         <label className="form-label small text-muted mb-1">{k.replace(/_/g, ' ')}</label>
                         {activeTab === 'Warehouse_Storage' && k === 'Owner_SubDepartment' ? (
-                          <select
+                          <Select optional noneLabel="None (common area)"
                             className="form-select form-select-sm"
                             value={String(editFormData[k] ?? '')}
                             onChange={(e) => setEditFormData({ ...editFormData, [k]: e.target.value })}
                           >
-                            <option value="">Common area (no owner)</option>
                             {editFormData[k] && !lookupSubDepartments.some(s => s.toLowerCase() === String(editFormData[k]).toLowerCase()) && (
                               <option value={String(editFormData[k])}>{String(editFormData[k])} (not in the list)</option>
                             )}
                             {lookupSubDepartments.map(sd => <option key={sd} value={sd}>{sd}</option>)}
-                          </select>
+                          </Select>
                         ) : activeTab === 'Warehouse_Storage' && (k === 'Storage_Type' || k === 'Status') ? (
                           <select
                             className="form-select form-select-sm"

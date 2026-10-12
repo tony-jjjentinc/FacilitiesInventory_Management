@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { InHouseCustodyItem, StorageOptions } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
+import { Select } from '../components/Select';
+import { Loading } from '../components/Loading';
+import { Link } from 'react-router-dom';
+import { entityPath } from '../components/entity/entityPaths';
+import { getCurrentUser } from '../services/auth';
+import { getAccess, hideCosts, holdsTool } from '../services/access';
 
 export const CustodyRegister: React.FC = () => {
+  const access = getAccess(getCurrentUser());
   const [custodyItems, setCustodyItems] = useState<InHouseCustodyItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   const [search, setSearch] = useState<string>('');
@@ -47,7 +54,7 @@ export const CustodyRegister: React.FC = () => {
     remarks: ''
   });
 
-  const fetchCustody = async () => {
+  const fetchCustody = useCallback(async () => {
     setIsLoading(true);
     try {
       await fetchWithSwr<InHouseCustodyItem[]>(
@@ -64,11 +71,11 @@ export const CustodyRegister: React.FC = () => {
       console.error('Failed to load custody list:', err);
       setIsLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchCustody();
-  }, [statusFilter]);
+  }, [fetchCustody]);
 
   useEffect(() => {
     if (isDeployOpen || isTransferOpen || isRetrieveOpen) {
@@ -224,7 +231,7 @@ export const CustodyRegister: React.FC = () => {
       minWidth: '220px',
       render: (row) => (
         <div>
-          <div className="fw-medium text-dark">{row.Item_Name}</div>
+          <Link to={entityPath('ITEM', row.Item_ID)} className="fw-medium text-dark text-decoration-none">{row.Item_Name}</Link>
           <div className="small text-secondary">{row.Item_SKU}</div>
         </div>
       )
@@ -284,9 +291,12 @@ export const CustodyRegister: React.FC = () => {
         if (row.Status !== 'ACTIVE') {
           return <span className="small text-muted">{row.Status}</span>;
         }
+        // a field account hands over only what it holds; custodians also take tools back
+        const canTransfer = access.isCustodian || holdsTool(access, row.Custodian_ID);
+        if (!canTransfer && !access.isCustodian) return <span className="small text-muted">{row.Status}</span>;
         return (
           <div className="btn-group btn-group-sm">
-            <button
+            {canTransfer && <button
               className="btn btn-outline-primary"
               onClick={() => {
                 setSelectedCustody(row);
@@ -295,8 +305,8 @@ export const CustodyRegister: React.FC = () => {
               title="Transfer to another staff member"
             >
               Transfer
-            </button>
-            <button
+            </button>}
+            {access.isCustodian && <button
               className="btn btn-outline-secondary"
               onClick={() => {
                 setSelectedCustody(row);
@@ -305,7 +315,7 @@ export const CustodyRegister: React.FC = () => {
               title="Surrender back to warehouse"
             >
               Surrender
-            </button>
+            </button>}
           </div>
         );
       }
@@ -322,12 +332,12 @@ export const CustodyRegister: React.FC = () => {
             Track toolkits assigned to technicians, execute peer-to-peer handovers (TRANSFER:IN_HOUSE), and process returns (IN:RETRIEVE).
           </p>
         </div>
-        <button
+        {access.isCustodian && <button
           className="btn btn-primary btn-sm d-flex align-items-center gap-1"
           onClick={() => setIsDeployOpen(true)}
         >
           <span>Assign Tool</span>
-        </button>
+        </button>}
       </div>
 
       {/* KPI Cards */}
@@ -392,7 +402,7 @@ export const CustodyRegister: React.FC = () => {
         <div className="card-body p-0">
           <DataTable
             data={filteredItems}
-            columns={columns}
+            columns={hideCosts(columns, access)}
             keyField="Custody_ID"
             isLoading={isLoading}
             emptyMessage="No tool custody records found matching filters."
@@ -486,12 +496,11 @@ export const CustodyRegister: React.FC = () => {
                   <div className="row g-3 mb-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Where it will be kept</label>
-                      <select className="form-select form-select-sm" value={deployForm.siteAreaId} onChange={(e) => setDeployForm({ ...deployForm, siteAreaId: e.target.value })}>
-                        <option value="">No area</option>
+                      <Select optional noneLabel="None" className="form-select form-select-sm" value={deployForm.siteAreaId} onChange={(e) => setDeployForm({ ...deployForm, siteAreaId: e.target.value })}>
                         {(storageOptions?.storage || []).filter(n => n.storageType === 'AREA' && n.warehouseLocation === deployForm.warehouseLocation).map(a => (
                           <option key={a.storageId} value={a.storageId}>{a.name}{a.ownerSubDepartment ? ` — ${a.ownerSubDepartment}` : ''}</option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Site note</label>
@@ -514,7 +523,7 @@ export const CustodyRegister: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Deploying...' : 'Confirm Deployment'}
+                    {isSubmitting ? <Loading variant="button" label="Deploying..." /> : 'Confirm Deployment'}
                   </button>
                 </div>
               </form>
@@ -574,7 +583,7 @@ export const CustodyRegister: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Transferring...' : 'Confirm Handover'}
+                    {isSubmitting ? <Loading variant="button" label="Transferring..." /> : 'Confirm Handover'}
                   </button>
                 </div>
               </form>
@@ -623,7 +632,7 @@ export const CustodyRegister: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Surrendering...' : 'Confirm Return'}
+                    {isSubmitting ? <Loading variant="button" label="Surrendering..." /> : 'Confirm Return'}
                   </button>
                 </div>
               </form>

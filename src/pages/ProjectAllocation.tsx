@@ -1,13 +1,18 @@
 import { DispatchPileSection, EMPTY_PILE_CHOICE, type PileChoice } from '../components/cost/DispatchPileSection';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { ActivityRecord, ActivityInventoryItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 import { RefreshButton } from '../components/RefreshButton';
 import { ActivityCards } from '../components/ActivityCards';
+import { Select } from '../components/Select';
+import { Loading } from '../components/Loading';
+import { getCurrentUser } from '../services/auth';
+import { getAccess, hideCosts } from '../services/access';
 
 export const ProjectAllocation: React.FC = () => {
+  const access = getAccess(getCurrentUser());
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityRecord | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityInventoryItem[]>([]);
@@ -44,7 +49,7 @@ export const ProjectAllocation: React.FC = () => {
     remarks: ''
   });
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     setIsLoading(true);
     try {
       await fetchWithSwr<ActivityRecord[]>(
@@ -53,9 +58,7 @@ export const ProjectAllocation: React.FC = () => {
         (data) => {
           if (Array.isArray(data)) {
             setActivities(data);
-            if (!selectedActivity && data.length > 0) {
-              setSelectedActivity(data[0]);
-            }
+            if (data.length > 0) setSelectedActivity(prev => prev || data[0]); // only the first load picks one
           }
           setIsLoading(false);
         }
@@ -64,7 +67,7 @@ export const ProjectAllocation: React.FC = () => {
       console.error('Failed to load activities:', err);
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const fetchActivityItems = async (activityId: string) => {
     setIsItemsLoading(true);
@@ -87,7 +90,7 @@ export const ProjectAllocation: React.FC = () => {
 
   useEffect(() => {
     fetchActivities();
-  }, []);
+  }, [fetchActivities]);
 
   useEffect(() => {
     if (selectedActivity) {
@@ -321,27 +324,27 @@ export const ProjectAllocation: React.FC = () => {
           </p>
         </div>
         <div className="d-flex gap-2">
-          <button
+          {access.isCustodian && <button
             className="btn btn-primary btn-sm d-flex align-items-center gap-1"
             disabled={!selectedActivity}
             onClick={() => setIsDispatchOpen(true)}
           >
             <span>Dispatch Stock</span>
-          </button>
-          <button
+          </button>}
+          {access.canField && <button
             className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
             disabled={!selectedActivity}
             onClick={() => setIsConsumeOpen(true)}
           >
             <span>Log Consumption</span>
-          </button>
-          <button
+          </button>}
+          {access.canField && <button
             className="btn btn-secondary btn-sm d-flex align-items-center gap-1"
             disabled={!selectedActivity}
             onClick={() => setIsSurplusOpen(true)}
           >
             <span>Return Surplus</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -382,7 +385,7 @@ export const ProjectAllocation: React.FC = () => {
                 <h6 className="fw-bold text-dark mb-0">{selectedActivity.Activity_Name}</h6>
               </div>
               <small className="text-secondary">
-                Location: {selectedActivity.Site_Location} | Supervisor: {selectedActivity.Site_Supervisor_ID} | Billed Cost: ₱{Number(selectedActivity.Current_Net_Cost || 0).toLocaleString()}
+                Location: {selectedActivity.Site_Location} | Supervisor: {selectedActivity.Site_Supervisor_ID}{access.canSeeCosts && <> | Billed Cost: ₱{Number(selectedActivity.Current_Net_Cost || 0).toLocaleString()}</>}
               </small>
             </div>
             <RefreshButton onClick={() => fetchActivityItems(selectedActivity.Activity_ID)} loading={isItemsLoading} />
@@ -390,7 +393,7 @@ export const ProjectAllocation: React.FC = () => {
           <div className="card-body p-0">
             <DataTable
               data={activityItems}
-              columns={itemColumns}
+              columns={hideCosts(itemColumns, access)}
               keyField="Activity_Line_ID"
               isLoading={isItemsLoading}
               emptyMessage="No materials dispatched to this activity yet."
@@ -470,7 +473,7 @@ export const ProjectAllocation: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Dispatching...' : 'Confirm Dispatch'}
+                    {isSubmitting ? <Loading variant="button" label="Dispatching..." /> : 'Confirm Dispatch'}
                   </button>
                 </div>
               </form>
@@ -496,19 +499,18 @@ export const ProjectAllocation: React.FC = () => {
                   {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Material Item *</label>
-                    <select
+                    <Select
                       className="form-select form-select-sm"
                       required
                       value={consumeForm.itemId}
                       onChange={(e) => setConsumeForm({ ...consumeForm, itemId: e.target.value })}
                     >
-                      <option value="">-- Select Allocated Item --</option>
                       {activityItems.map(itm => (
                         <option key={itm.Item_ID} value={itm.Item_ID}>
                           {itm.Item_ID} - {itm.Item_Name} (Available: {(Number(itm.Net_Used) || 0) - (Number(itm.Qty_Expended) || 0)} {itm.UOM})
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Quantity Expended *</label>
@@ -548,7 +550,7 @@ export const ProjectAllocation: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-success" disabled={isSubmitting}>
-                    {isSubmitting ? 'Logging...' : 'Record Consumption'}
+                    {isSubmitting ? <Loading variant="button" label="Logging..." /> : 'Record Consumption'}
                   </button>
                 </div>
               </form>
@@ -574,19 +576,18 @@ export const ProjectAllocation: React.FC = () => {
                   {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Material Item *</label>
-                    <select
+                    <Select
                       className="form-select form-select-sm"
                       required
                       value={surplusForm.itemId}
                       onChange={(e) => setSurplusForm({ ...surplusForm, itemId: e.target.value })}
                     >
-                      <option value="">-- Select Allocated Item --</option>
                       {activityItems.map(itm => (
                         <option key={itm.Item_ID} value={itm.Item_ID}>
                           {itm.Item_ID} - {itm.Item_Name} (Net Active: {itm.Net_Used} {itm.UOM})
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Quantity Returned *</label>
@@ -624,7 +625,7 @@ export const ProjectAllocation: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-warning" disabled={isSubmitting}>
-                    {isSubmitting ? 'Returning...' : 'Confirm Surplus Return'}
+                    {isSubmitting ? <Loading variant="button" label="Returning..." /> : 'Confirm Surplus Return'}
                   </button>
                 </div>
               </form>

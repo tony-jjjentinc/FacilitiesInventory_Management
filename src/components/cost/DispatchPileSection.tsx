@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { getCurrentUser, isUserHeadOrAdmin } from '../../services/auth';
 import type { CostPile, StorageOptions } from '../../types';
+import { Select } from '../Select';
 
 export interface PileChoice {
   areaId: string;
@@ -51,8 +52,11 @@ export const DispatchPileSection: React.FC<Props> = ({ itemId, location, quantit
   const picked = Object.values(value.picks).reduce((s, v) => s + (Number(v) || 0), 0);
 
   // what the default (oldest first) would take, to show the ₱0 warning before dispatching
-  let left = quantity;
-  const defaultTake = piles.map(p => { const t = Math.max(0, Math.min(p.quantityRemaining, left)); left -= t; return t; });
+  const defaultTake = piles.reduce<number[]>((acc, p) => {
+    const left = quantity - acc.reduce((s, t) => s + t, 0);
+    acc.push(Math.max(0, Math.min(p.quantityRemaining, left)));
+    return acc;
+  }, []);
   const zeroDefault = piles.some((p, i) => defaultTake[i] > 0 && p.unitCost <= 0);
   const zeroPicked = piles.some(p => (Number(value.picks[p.layerId]) || 0) > 0 && p.unitCost <= 0);
 
@@ -60,10 +64,9 @@ export const DispatchPileSection: React.FC<Props> = ({ itemId, location, quantit
     <div>
       <div className="mb-3">
         <label className="form-label small fw-semibold">Area</label>
-        <select className="form-select form-select-sm" value={value.areaId} onChange={e => onChange({ ...value, areaId: e.target.value, picks: {} })}>
-          <option value="">Whole warehouse</option>
+        <Select optional noneLabel="None (whole warehouse)" className="form-select form-select-sm" value={value.areaId} onChange={e => onChange({ ...value, areaId: e.target.value, picks: {} })}>
           {areas.map(a => <option key={a.storageId} value={a.storageId}>{a.name}{a.ownerSubDepartment ? ` — ${a.ownerSubDepartment}` : ''}</option>)}
-        </select>
+        </Select>
         {otherOwner && (
           <div className="form-text text-warning-emphasis">This area belongs to {otherOwner.ownerSubDepartment}, not your sub-department. You can continue; the movement is recorded against {otherOwner.ownerSubDepartment}.</div>
         )}

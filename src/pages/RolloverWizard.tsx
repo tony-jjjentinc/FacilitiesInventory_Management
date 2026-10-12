@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { apiRequest } from '../services/api';
 import { invalidateCache } from '../services/cache';
 import { getCurrentUser } from '../services/auth';
+import { Loading } from '../components/Loading';
 
 interface RolloverWizardProps {
   onClose?: () => void;
@@ -132,10 +133,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
                 disabled={isChecking}
               >
                 {isChecking ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                    Verifying...
-                  </>
+                  <Loading variant="button" label="Verifying..." />
                 ) : (
                   <>
                     <i className="bi bi-shield-check me-1"></i> Run Audit Checks
@@ -190,10 +188,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
                   disabled={isExecuting}
                 >
                   {isExecuting ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                      Executing Rollover...
-                    </>
+                    <Loading variant="button" label="Executing Rollover..." />
                   ) : (
                     <>
                       <i className="bi bi-arrow-repeat me-1"></i> Confirm & Execute Rollover

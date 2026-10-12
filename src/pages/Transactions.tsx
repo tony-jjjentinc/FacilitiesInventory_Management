@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { TransactionEntry, TransactionLineItem } from '../types';
 import type { Column } from '../components/DataTable';
 import { DataCard } from '../components/DataCard';
+import { Loading } from '../components/Loading';
+import { getCurrentUser } from '../services/auth';
+import { getAccess } from '../services/access';
 
 export const Transactions: React.FC = () => {
+  const access = getAccess(getCurrentUser());
   const [transactions, setTransactions] = useState<TransactionEntry[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'POSTED' | 'VOIDED'>('ALL');
   const [search, setSearch] = useState('');
@@ -17,11 +21,11 @@ export const Transactions: React.FC = () => {
 
   // New Staged Transaction Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newTxType, setNewTxType] = useState('OUT:RELEASE');
-  const [newSourceType, setNewSourceType] = useState('INVENTORY');
-  const [newSourceRefId, setNewSourceRefId] = useState('FACILITIES_WAREHOUSE_MAIN');
-  const [newDestType, setNewDestType] = useState('ACTIVITY');
-  const [newDestRefId, setNewDestRefId] = useState('');
+  const [newTxType, setNewTxType] = useState(access.fieldOnly ? 'IN:EXCESS' : 'OUT:RELEASE');
+  const [newSourceType, setNewSourceType] = useState(access.fieldOnly ? 'ACTIVITY' : 'INVENTORY');
+  const [newSourceRefId, setNewSourceRefId] = useState(access.fieldOnly ? '' : 'FACILITIES_WAREHOUSE_MAIN');
+  const [newDestType, setNewDestType] = useState(access.fieldOnly ? 'INVENTORY' : 'ACTIVITY');
+  const [newDestRefId, setNewDestRefId] = useState(access.fieldOnly ? 'FACILITIES_WAREHOUSE_MAIN' : '');
   const [newAccountableParty, setNewAccountableParty] = useState('');
   const [newRemarks, setNewRemarks] = useState('');
   const [newItemId, setNewItemId] = useState('');
@@ -30,7 +34,7 @@ export const Transactions: React.FC = () => {
   const [createError, setCreateError] = useState('');
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
     const cacheKey = `transaction:history:${statusFilter}`;
     try {
@@ -48,11 +52,11 @@ export const Transactions: React.FC = () => {
       console.error('Failed to load transaction history:', err);
       setIsLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchTransactions();
-  }, [statusFilter]);
+  }, [fetchTransactions]);
 
   useEffect(() => {
     if (isCreateOpen) {
@@ -163,7 +167,7 @@ export const Transactions: React.FC = () => {
     );
   });
 
-  const columns: Column<TransactionEntry>[] = [
+  const allColumns: Column<TransactionEntry>[] = [
     {
       key: 'transactionId',
       label: 'Transaction ID',
@@ -260,7 +264,7 @@ export const Transactions: React.FC = () => {
       align: 'right',
       minWidth: '170px',
       render: (row) => {
-        if (row.status === 'PENDING') {
+        if (row.status === 'PENDING' && access.isCustodian) {
           const isBusy = processingId === row.transactionId;
           return (
             <div className="d-flex justify-content-end gap-1">
@@ -281,7 +285,7 @@ export const Transactions: React.FC = () => {
                 title="Commit & Execute Stock Movement"
               >
                 {isBusy ? (
-                  <span className="spinner-border spinner-border-sm" role="status"></span>
+                  <Loading variant="button" showLabel={false} />
                 ) : (
                   <>
                     <i className="bi bi-check2"></i> Commit
@@ -304,6 +308,7 @@ export const Transactions: React.FC = () => {
       }
     }
   ];
+  const columns = allColumns.filter(c => access.canSeeCosts || c.key !== 'totalCost');
 
   return (
     <div>
@@ -378,8 +383,8 @@ export const Transactions: React.FC = () => {
                         <th>Serial</th>
                         <th className="text-end">Qty</th>
                         <th>UOM</th>
-                        <th className="text-end">Unit Cost</th>
-                        <th className="text-end">Total Cost</th>
+                        {access.canSeeCosts && <th className="text-end">Unit Cost</th>}
+                        {access.canSeeCosts && <th className="text-end">Total Cost</th>}
                         <th>Delivery</th>
                       </tr>
                     </thead>
@@ -395,8 +400,8 @@ export const Transactions: React.FC = () => {
                             <td><span className="small text-muted">{item.serialNumber || 'N/A'}</span></td>
                             <td className="text-end fw-bold">{item.quantity}</td>
                             <td>{item.uom}</td>
-                            <td className="text-end font-monospace">₱{(item.unitCost || 0).toFixed(2)}</td>
-                            <td className="text-end font-monospace fw-bold">₱{(item.totalCost || 0).toFixed(2)}</td>
+                            {access.canSeeCosts && <td className="text-end font-monospace">₱{(item.unitCost || 0).toFixed(2)}</td>}
+                            {access.canSeeCosts && <td className="text-end font-monospace fw-bold">₱{(item.totalCost || 0).toFixed(2)}</td>}
                             <td className="font-monospace small text-muted">{item.layerId || '—'}</td>
                           </tr>
                         ))
@@ -469,11 +474,11 @@ export const Transactions: React.FC = () => {
                           }
                         }}
                       >
-                        <option value="OUT:RELEASE">Outbound Project Dispatch (OUT:RELEASE)</option>
-                        <option value="OUT:DEPLOY">Staff Tool Custody Assignment (OUT:DEPLOY)</option>
+                        {!access.fieldOnly && <option value="OUT:RELEASE">Outbound Project Dispatch (OUT:RELEASE)</option>}
+                        {!access.fieldOnly && <option value="OUT:DEPLOY">Staff Tool Custody Assignment (OUT:DEPLOY)</option>}
                         <option value="IN:EXCESS">Surplus Return from Project (IN:EXCESS)</option>
-                        <option value="IN:RETRIEVE">Tool Custody Surrender (IN:RETRIEVE)</option>
-                        <option value="TRANSFER:INVENTORY">Internal Warehouse Relocation (TRANSFER:INVENTORY)</option>
+                        {!access.fieldOnly && <option value="IN:RETRIEVE">Tool Custody Surrender (IN:RETRIEVE)</option>}
+                        {!access.fieldOnly && <option value="TRANSFER:INVENTORY">Internal Warehouse Relocation (TRANSFER:INVENTORY)</option>}
                       </select>
                     </div>
 
@@ -569,7 +574,7 @@ export const Transactions: React.FC = () => {
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-sm btn-primary" disabled={isSubmittingNew}>
-                    {isSubmittingNew ? 'Drafting...' : 'Save Staged Draft (PENDING)'}
+                    {isSubmittingNew ? <Loading variant="button" label="Drafting..." /> : 'Save Staged Draft (PENDING)'}
                   </button>
                 </div>
               </form>

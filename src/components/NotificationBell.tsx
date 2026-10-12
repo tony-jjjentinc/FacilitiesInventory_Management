@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { NotificationItem } from '../types';
-import { apiRequest } from '../services/api';
+import { apiRequest, DATA_CHANGED_EVENT } from '../services/api';
 
 interface NotificationBellProps {
   onNavigate: (route: string) => void;
@@ -11,6 +11,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate, 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const onLoadedRef = useRef(onLoaded); // the poll below must not restart when the parent passes a new callback
+  useEffect(() => { onLoadedRef.current = onLoaded; });
 
   // close when clicking outside or pressing Escape
   useEffect(() => {
@@ -22,23 +24,37 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ onNavigate, 
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [isOpen]);
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     try {
       const data = await apiRequest<NotificationItem[]>('notifications:get');
       if (Array.isArray(data)) {
         setNotifications(data);
-        onLoaded?.(data);
+        onLoadedRef.current?.(data);
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
     }
-  };
-
-  useEffect(() => {
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 60000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Poll every 2 minutes, but only while this tab is on screen; refresh at once when the user comes back to it
+  // (after more than 30 seconds away), so a background tab costs the server nothing and a returning user never sees old counts.
+  useEffect(() => {
+    let last = 0;
+    const load = () => { last = Date.now(); fetchNotifs(); };
+    load();
+    const interval = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 120000);
+    const onVisible = () => { if (document.visibilityState === 'visible' && Date.now() - last > 30000) load(); };
+    // the user's own writes (a receipt confirmed, an incident approved...) refresh the counts after a short pause
+    let pause: ReturnType<typeof setTimeout> | undefined;
+    const onChanged = () => { clearTimeout(pause); pause = setTimeout(load, 1500); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener(DATA_CHANGED_EVENT, onChanged);
+    return () => {
+      clearInterval(interval); clearTimeout(pause);
+      document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', onVisible); window.removeEventListener(DATA_CHANGED_EVENT, onChanged);
+    };
+  }, [fetchNotifs]);
 
   const totalCount = notifications.reduce((acc, curr) => acc + (curr.count || 1), 0);
   const hasDanger = notifications.some(n => n.severity === 'DANGER');

@@ -71,6 +71,10 @@ export function invalidateCache(keyPrefix?: string): void {
     return;
   }
 
+  // entity pages (warehouse, area, ...) are built from stock, ledger, activity and config data: when any of those
+  // change, their cached copies are stale too
+  if (/^(transaction:history|inventory:stock|custody:list|activity|config:)/.test(keyPrefix)) invalidateCache('entity:');
+
   for (const k of memoryCache.keys()) {
     if (k.startsWith(keyPrefix)) {
       memoryCache.delete(k);

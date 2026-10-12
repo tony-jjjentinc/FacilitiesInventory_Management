@@ -3,9 +3,14 @@ import { apiRequest } from '../../services/api';
 import type { Column } from '../../components/DataTable';
 import { DataCard } from '../../components/DataCard';
 import type { ConsumedInventoryItem } from '../../types';
+import { Link } from 'react-router-dom';
+import { entityPath } from '../../components/entity/entityPaths';
+import { getCurrentUser } from '../../services/auth';
+import { getAccess, hideCosts } from '../../services/access';
 
 /** Every material consumption logged against an activity, newest first. */
 export const ConsumptionLog: React.FC = () => {
+  const access = getAccess(getCurrentUser());
   const [rows, setRows] = useState<ConsumedInventoryItem[]>([]);
   const [search, setSearch] = useState('');
   const [activity, setActivity] = useState('');
@@ -67,7 +72,7 @@ export const ConsumptionLog: React.FC = () => {
       minWidth: '220px',
       render: (row) => (
         <div>
-          <div className="fw-medium text-dark">{row.Item_Name}</div>
+          <Link to={entityPath('ITEM', row.Item_ID)} className="fw-medium text-dark text-decoration-none">{row.Item_Name}</Link>
           <div className="small text-secondary font-monospace">{row.Item_ID} &bull; {row.Item_SKU}</div>
         </div>
       )
@@ -127,7 +132,7 @@ export const ConsumptionLog: React.FC = () => {
         description="Materials logged as used on activities. Log new usage from the Allocation tab."
         onRefresh={load}
         refreshing={loading}
-          columns={columns}
+          columns={hideCosts(columns, access)}
           data={filtered}
           keyField="Consumption_ID"
           searchQuery={search}

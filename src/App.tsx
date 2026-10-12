@@ -1,19 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { getCurrentUser, logout, isUserHeadOrAdmin } from './services/auth';
+import { getCurrentUser, getStoredToken, logout, isUserHeadOrAdmin } from './services/auth';
+import { getAccess } from './services/access';
 import type { UserClaims } from './types';
 import { Navbar } from './components/Navbar';
 import { Login } from './pages/Login';
 import { DashboardOverview } from './pages/DashboardOverview';
-import { AnalyticsHub } from './pages/hubs/AnalyticsHub';
-import { InventoryStockHub } from './pages/hubs/InventoryStockHub';
-import { ActivitiesHub } from './pages/hubs/ActivitiesHub';
-import { TransactionsHub } from './pages/hubs/TransactionsHub';
-import { AdminHub } from './pages/hubs/AdminHub';
-import { Configuration } from './pages/Configuration';
+import { Footer } from './components/Footer';
 import { Error404 } from './pages/404';
-import { useSystemInfo } from './context/SystemContext';
-import { SESSION_EXPIRED_EVENT } from './services/api';
+import { SESSION_EXPIRED_EVENT, SESSION_EXPIRED_MESSAGE } from './services/api';
+import { useToast } from './context/ToastContext';
+import { Loading } from './components/Loading';
+
+/** Pages other than the sign-in and the first screen load when they are opened, so the first visit downloads less. */
+const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, name: K) => lazy(() => load().then(m => ({ default: m[name] })));
+const AnalyticsHub = page(() => import('./pages/hubs/AnalyticsHub'), 'AnalyticsHub');
+const InventoryStockHub = page(() => import('./pages/hubs/InventoryStockHub'), 'InventoryStockHub');
+const ActivitiesHub = page(() => import('./pages/hubs/ActivitiesHub'), 'ActivitiesHub');
+const TransactionsHub = page(() => import('./pages/hubs/TransactionsHub'), 'TransactionsHub');
+const AdminHub = page(() => import('./pages/hubs/AdminHub'), 'AdminHub');
+const Configuration = page(() => import('./pages/Configuration'), 'Configuration');
+const WarehousesIndex = page(() => import('./pages/entity/WarehousesIndex'), 'WarehousesIndex');
+const WarehousePage = page(() => import('./pages/entity/WarehousePage'), 'WarehousePage');
+const AreaPage = page(() => import('./pages/entity/AreaPage'), 'AreaPage');
+const ItemPage = page(() => import('./pages/entity/ItemPage'), 'ItemPage');
+const ActivityPage = page(() => import('./pages/entity/ActivityPage'), 'ActivityPage');
+const SubDepartmentsIndex = page(() => import('./pages/entity/SubDepartmentsIndex'), 'SubDepartmentsIndex');
+const SubDepartmentPage = page(() => import('./pages/entity/SubDepartmentPage'), 'SubDepartmentPage');
+const ComponentTest = page(() => import('./pages/ComponentTest'), 'ComponentTest');
 
 /** Old page addresses (bookmarks, bell links) forward to the matching tab of the new page. */
 const LegacyRedirect: React.FC<{ to: (query: URLSearchParams, params: Record<string, string | undefined>) => string }> = ({ to }) => {
@@ -24,14 +38,16 @@ const LegacyRedirect: React.FC<{ to: (query: URLSearchParams, params: Record<str
 
 export const App: React.FC = () => {
   const [pendingApprovals, setPendingApprovals] = useState(0);
-  const { systemInfo } = useSystemInfo();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState<UserClaims | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    const hadToken = !!getStoredToken();
     const user = getCurrentUser();
     setCurrentUser(user);
     setIsLoading(false);
+    if (hadToken && !user) toast.warning(SESSION_EXPIRED_MESSAGE); // a saved session that ran out while the app was closed
 
     // Cross-tab synchronization: sync session state when localStorage changes in another tab
     const handleStorageChange = (e: StorageEvent) => {
@@ -41,7 +57,12 @@ export const App: React.FC = () => {
       }
     };
 
-    const handleSessionExpired = () => setCurrentUser(null);
+    // The session is over (the API said so, or the token ran out): back to the login screen, with a message
+    const handleSessionExpired = () => {
+      logout();
+      setCurrentUser(null);
+      toast.warning(SESSION_EXPIRED_MESSAGE);
+    };
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
@@ -49,7 +70,17 @@ export const App: React.FC = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     };
-  }, []);
+  }, [toast]);
+
+  // Log out by itself the moment the token runs out, instead of waiting for the next request to fail
+  useEffect(() => {
+    if (!currentUser?.exp) return;
+    const expMs = currentUser.exp < 1e12 ? currentUser.exp * 1000 : currentUser.exp;
+    const wait = expMs - Date.now();
+    if (wait > 2147483000) return; // longer than a timer can hold; the next request will notice
+    const t = window.setTimeout(() => window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT)), Math.max(0, wait));
+    return () => window.clearTimeout(t);
+  }, [currentUser]);
 
   const handleLogout = () => {
     logout();
@@ -57,7 +88,7 @@ export const App: React.FC = () => {
   };
 
   const isHeadOrAdmin = isUserHeadOrAdmin(currentUser);
-  const canSeeAnalytics = (currentUser?.roles || []).some(r => ['super admin', 'head', 'sub-department'].includes(String(r).trim().toLowerCase()));
+  const canSeeAnalytics = getAccess(currentUser).canSeeAnalytics;
 
   if (isLoading) {
     return (
@@ -83,9 +114,18 @@ export const App: React.FC = () => {
         />
 
         <main className="flex-grow-1">
+          <Suspense fallback={<div className="container py-5 text-center"><Loading /></div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<DashboardOverview />} />
+            <Route path="/warehouses" element={<WarehousesIndex />} />
+            <Route path="/warehouses/:id" element={<WarehousePage />} />
+            <Route path="/areas/:id" element={<AreaPage />} />
+            <Route path="/items/:id" element={<ItemPage />} />
+            <Route path="/activities/:id" element={<ActivityPage />} />
+            <Route path="/sub-departments" element={<SubDepartmentsIndex />} />
+            <Route path="/sub-departments/:id" element={<SubDepartmentPage />} />
+            <Route path="/test" element={<ComponentTest />} />
             <Route path="/analytics" element={canSeeAnalytics ? <AnalyticsHub /> : <Navigate to="/overview" replace />} />
             <Route path="/inventory" element={<InventoryStockHub />} />
             <Route path="/activities" element={<ActivitiesHub />} />
@@ -114,17 +154,10 @@ export const App: React.FC = () => {
             {/* Catch-all Fallback */}
             <Route path="*" element={<Error404 />} />
           </Routes>
+          </Suspense>
         </main>
 
-        <footer className="py-3 text-center small text-muted mt-auto">
-          <div className="container-fluid d-flex flex-column flex-md-row justify-content-center justify-content-between align-items-center px-3">
-            <div className="d-flex justify-content-center flex-column align-items-center">
-              {/* <Logo size={32} variant="default" /> */}
-              <span className="fw-semibold small text-jjjei-primary">Juan Jamora, Jr. Enterprises Inc.</span>
-            </div>
-              <span className="fw-normal text-muted small">{systemInfo.name} {systemInfo.version}</span>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </HashRouter>
   );

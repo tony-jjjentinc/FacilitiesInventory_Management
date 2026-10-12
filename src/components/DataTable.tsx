@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Loading } from './Loading';
 
 export interface Column<T> {
   key: string;
@@ -22,7 +23,7 @@ export interface DataTableProps<T> {
   emptyMessage?: string;
   initialPageSize?: number;
   isLoading?: boolean;
-  /** background refresh: rows stay visible, a thin bar shows above the table */
+  /** background refresh (fetching or hydrating): the rows stay visible and a small spinner row, no label, shows first in the table */
   refreshing?: boolean;
   /** extra full-width row under a row (return nothing to skip), e.g. item details */
   renderExpanded?: (row: T) => React.ReactNode;
@@ -88,6 +89,11 @@ export function DataTable<T extends Record<string, any>>({
   const startIndex = (activePage - 1) * pageSize;
   const pageData = sortedData.slice(startIndex, startIndex + pageSize);
 
+  // Rows already on screen stay put while data is fetched again: the spinner row goes first. Only a table with nothing to show yet
+  // (isLoading and no rows) gets the full loading block.
+  const blank = isLoading && data.length === 0;
+  const refreshRow = (refreshing || isLoading) && !blank;
+
   const getAlignmentClass = (align?: 'left' | 'center' | 'right') => {
     if (align === 'center') return 'text-center';
     if (align === 'right') return 'text-end';
@@ -121,12 +127,6 @@ export function DataTable<T extends Record<string, any>>({
           </div>
 
           {actions && <div>{actions}</div>}
-        </div>
-      )}
-
-      {refreshing && !isLoading && (
-        <div className="progress rounded-0" style={{ height: '3px' }} role="status" aria-label="Refreshing data">
-          <div className="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
         </div>
       )}
 
@@ -164,7 +164,14 @@ export function DataTable<T extends Record<string, any>>({
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {refreshRow && (
+              <tr className="data-table-refresh-row">
+                <td colSpan={columns.length} className="text-center py-2">
+                  <Loading variant="text" showLabel={false} />
+                </td>
+              </tr>
+            )}
+            {blank ? (
               <tr>
                 <td colSpan={columns.length} className="text-center py-5 text-muted">
                   <div className="d-flex flex-column align-items-center justify-content-center py-2">
@@ -175,13 +182,13 @@ export function DataTable<T extends Record<string, any>>({
                   </div>
                 </td>
               </tr>
-            ) : pageData.length === 0 ? (
+            ) : pageData.length === 0 ? (refreshRow ? null : (
               <tr>
                 <td colSpan={columns.length} className="text-center py-4 text-muted">
                   {emptyMessage}
                 </td>
               </tr>
-            ) : (
+            )) : (
               pageData.map((row, idx) => {
                 const extra = renderExpanded ? renderExpanded(row) : null;
                 return (

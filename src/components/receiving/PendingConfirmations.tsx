@@ -7,6 +7,8 @@ import { prefetchMrls } from './useMrlList';
 import { useToast } from '../../context/ToastContext';
 import { DataCard } from '../DataCard';
 import type { Column } from '../DataTable';
+import { getCurrentUser } from '../../services/auth';
+import { getAccess } from '../../services/access';
 
 interface Props {
   active: boolean;
@@ -28,6 +30,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const access = getAccess(getCurrentUser()); // pricing is for custodians; money is for accounts that may see it
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,18 +44,18 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
     } finally {
       setLoading(false);
     }
-  }, [onCountChange]);
+  }, [onCountChange, toast]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
   useEffect(() => { if (active) load(); }, [active, load]);
 
-  const unpricedLines = (r: ReceiptRecord) => r.items.filter(l => l.Line_Status === 'VERIFIED' && l.Price_Status === 'PENDING');
+  const unpricedLines = useCallback((r: ReceiptRecord) => !access.isCustodian ? [] : r.items.filter(l => l.Line_Status === 'VERIFIED' && l.Price_Status === 'PENDING'), [access.isCustodian]);
 
   const visible = useMemo(() => receipts.filter(r => {
     if (view === 'awaiting') return r.Status === 'PENDING_CONFIRMATION';
     if (view === 'unpriced') return r.Status !== 'CANCELLED' && unpricedLines(r).length > 0;
     return true;
-  }), [receipts, view]);
+  }), [receipts, view, unpricedLines]);
 
   const afterChange = async (msg: string) => {
     invalidateCache('inventory:stock');
@@ -132,7 +135,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
         ? <>Activity <span className="font-monospace">{r.Activity_ID}</span></>
         : <>Warehouse <span className="font-monospace">{r.Warehouse_Location}</span>{r.Area_ID ? <div className="small text-muted font-monospace">{r.Area_ID}</div> : null}</>
     ) },
-    { key: 'Receiver_ID', label: 'Receiving party', sortable: true, minWidth: '160px' },
+    { key: 'Receiver_ID', label: 'Goods issued to', sortable: true, minWidth: '160px' },
     { key: 'Status', label: 'Status', sortable: true, minWidth: '110px', render: r => (
       <div>
         <span className={`badge ${statusBadge(r.Status)}`}>{r.Status === 'PENDING_CONFIRMATION' ? 'Pending' : r.Status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}</span>
@@ -163,7 +166,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
         {open && (
           <div className="py-2">
             <table className="table table-sm mb-0" style={{ fontSize: '0.8rem' }}>
-              <thead><tr><th>Item</th><th className="text-end">Released</th><th className="text-end">Received</th><th>UOM</th><th className="text-end">Unit cost</th><th>Result</th></tr></thead>
+              <thead><tr><th>Item</th><th className="text-end">Released</th><th className="text-end">Received</th><th>UOM</th>{access.canSeeCosts && <th className="text-end">Unit cost</th>}<th>Result</th></tr></thead>
               <tbody>
                 {r.items.map(l => (
                   <tr key={l.Receipt_Line_ID} className={l.Line_Status === 'REJECTED' ? 'table-danger-subtle' : ''}>
@@ -171,7 +174,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
                     <td className="text-end">{l.Released_Qty === '' ? '—' : l.Released_Qty}</td>
                     <td className="text-end">{l.Line_Status === 'VERIFIED' ? l.Received_Qty : '—'}</td>
                     <td>{l.UOM}</td>
-                    <td className="text-end">{l.Line_Status === 'VERIFIED' ? (l.Price_Status === 'PENDING' ? <span className="badge bg-warning-subtle text-warning-emphasis border">no price</span> : `₱${Number(l.Unit_Cost).toFixed(2)}`) : '—'}</td>
+                    {access.canSeeCosts && <td className="text-end">{l.Line_Status === 'VERIFIED' ? (l.Price_Status === 'PENDING' ? <span className="badge bg-warning-subtle text-warning-emphasis border">no price</span> : `₱${Number(l.Unit_Cost).toFixed(2)}`) : '—'}</td>}
                     <td>{l.Line_Status === 'VERIFIED' ? 'Receive' : `Invalid: ${l.Mismatch_Details}`}</td>
                   </tr>
                 ))}
@@ -211,7 +214,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
         refreshing={loading}
         tabs={[
           { key: 'awaiting', label: 'Awaiting confirmation' },
-          { key: 'unpriced', label: 'Unpriced' },
+          ...(access.isCustodian ? [{ key: 'unpriced', label: 'Unpriced' }] : []),
           { key: 'all', label: 'All' }
         ]}
         activeTab={view}

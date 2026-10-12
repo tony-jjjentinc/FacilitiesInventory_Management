@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { LossIncident } from '../types';
@@ -6,6 +6,7 @@ import type { Column } from '../components/DataTable';
 import { DataCard } from '../components/DataCard';
 import { ReportIncidentModal } from '../components/ReportIncidentModal';
 import { getCurrentUser } from '../services/auth';
+import { Loading } from '../components/Loading';
 
 const isOwnIncident = (liablePartyId?: string) => {
   const me = getCurrentUser();
@@ -21,7 +22,7 @@ export const ApprovalsQueue: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  const fetchIncidents = async () => {
+  const fetchIncidents = useCallback(async () => {
     setIsLoading(true);
     const cacheKey = `incident:queue:${statusFilter}`;
     try {
@@ -39,11 +40,11 @@ export const ApprovalsQueue: React.FC = () => {
       console.error('Failed to load incident approvals queue:', err);
       setIsLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchIncidents();
-  }, [statusFilter]);
+  }, [fetchIncidents]);
 
   const handleApprove = async (lossId: string) => {
     const remarks = window.prompt('Enter approval remarks (optional):', 'Approved by Department Head');
@@ -220,7 +221,7 @@ export const ApprovalsQueue: React.FC = () => {
               title={isOwnIncident(row.liablePartyId) ? 'You are the liable party and cannot approve this write-off' : 'Approve Write-off (OUT:DISPOSAL)'}
             >
               {isBusy ? (
-                <span className="spinner-border spinner-border-sm" role="status"></span>
+                <Loading variant="button" showLabel={false} />
               ) : (
                 <>
                   <i className="bi bi-check-circle"></i> Approve

@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
+import { Loading } from './Loading';
+import { getCurrentUser } from '../services/auth';
+import { getAccess } from '../services/access';
 
 interface ReportIncidentModalProps {
   isOpen: boolean;
@@ -16,6 +19,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   const [originType, setOriginType] = useState('INVENTORY');
   const [originRefId, setOriginRefId] = useState('FACILITIES_WAREHOUSE_MAIN');
   const [liablePartyId, setLiablePartyId] = useState('');
+  const fieldOnly = getAccess(getCurrentUser()).fieldOnly;
   const [description, setDescription] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
 
@@ -179,6 +183,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     value={liablePartyId}
                     onChange={(e) => setLiablePartyId(e.target.value)}
                   />
+                  {fieldOnly && <div className="form-text">Leave empty to name yourself, or enter a colleague of your own sub-department.</div>}
                 </div>
 
                 <div className="col-12">
@@ -278,10 +283,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Submitting...
-                  </>
+                  <Loading variant="button" label="Submitting..." />
                 ) : (
                   <>
                     <i className="bi bi-send-fill"></i>

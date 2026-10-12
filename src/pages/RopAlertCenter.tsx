@@ -4,8 +4,14 @@ import type { WarehouseStockItem } from '../types';
 import { DataTable, type Column } from '../components/DataTable';
 
 import { fetchWithSwr, invalidateCache } from '../services/cache';
+import { Loading } from '../components/Loading';
+import { Link } from 'react-router-dom';
+import { entityPath } from '../components/entity/entityPaths';
+import { getCurrentUser } from '../services/auth';
+import { getAccess, hideCosts } from '../services/access';
 
 export const RopAlertCenter: React.FC = () => {
+  const access = getAccess(getCurrentUser());
   const [stock, setStock] = useState<WarehouseStockItem[]>([]);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalResult, setEvalResult] = useState<any>(null);
@@ -90,7 +96,7 @@ export const RopAlertCenter: React.FC = () => {
       render: (row) => (
         <div>
           <span className="font-monospace fw-semibold text-dark me-2">{row.Item_SKU}</span>
-          <span className="text-dark">{row.Item_Name}</span>
+          <Link to={entityPath('ITEM', row.Item_ID)} className="text-dark text-decoration-none">{row.Item_Name}</Link>
         </div>
       )
     },
@@ -170,13 +176,13 @@ export const RopAlertCenter: React.FC = () => {
           </p>
         </div>
 
-        <button
+        {access.isCustodian && <button
           className="btn btn-dark btn-sm"
           onClick={handleEvaluateRop}
           disabled={isEvaluating}
         >
-          {isEvaluating ? 'Recalculating...' : 'Run ROP Evaluation'}
-        </button>
+          {isEvaluating ? <Loading variant="button" label="Recalculating..." /> : 'Run ROP Evaluation'}
+        </button>}
       </div>
 
       {evalResult && (
@@ -209,7 +215,7 @@ export const RopAlertCenter: React.FC = () => {
 
       {/* DataTable */}
       <DataTable
-        columns={columns}
+        columns={hideCosts(columns, access)}
         data={filteredAlerts}
         keyField="Inventory_ID"
         searchQuery={search}

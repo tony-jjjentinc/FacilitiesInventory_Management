@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import type { WarehouseStockItem } from '../types';
 import type { Column } from '../components/DataTable';
@@ -7,15 +8,22 @@ import { ActionMenu } from '../components/ActionMenu';
 import { ItemTraceModal } from '../components/ItemTraceModal';
 
 import { fetchWithSwr } from '../services/cache';
+import { entityPath } from '../components/entity/entityPaths';
+import { getCurrentUser } from '../services/auth';
+import { getAccess, hideCosts } from '../services/access';
 
 export const WarehouseStock: React.FC = () => {
+  const access = getAccess(getCurrentUser());
   const [stock, setStock] = useState<WarehouseStockItem[]>([]);
-  const [locationFilter, setLocationFilter] = useState('');
+  const [urlParams] = useSearchParams();
+  const [locationFilter, setLocationFilter] = useState(urlParams.get('location') || ''); // ?location= comes from the general search
+  // opening a search result while already on this page changes the URL without remounting
+  useEffect(() => { const v = urlParams.get('location'); if (v !== null) setLocationFilter(v); }, [urlParams]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [traceRow, setTraceRow] = useState<WarehouseStockItem | null>(null);
 
-  const fetchStock = async () => {
+  const fetchStock = useCallback(async () => {
     setIsLoading(true);
     const cacheKey = `inventory:stock:${locationFilter || 'all'}`;
     try {
@@ -38,11 +46,11 @@ export const WarehouseStock: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [locationFilter]);
 
   useEffect(() => {
     fetchStock();
-  }, [locationFilter]);
+  }, [fetchStock]);
 
   const filteredStock = stock.filter(item => {
     const q = search.toLowerCase().trim();
@@ -75,7 +83,7 @@ export const WarehouseStock: React.FC = () => {
       render: (row) => (
         <div>
           <span className="font-monospace fw-semibold text-dark me-2">{row.Item_SKU}</span>
-          <span className="text-dark">{row.Item_Name}</span>
+          <Link to={entityPath('ITEM', row.Item_ID)} className="text-dark text-decoration-none">{row.Item_Name}</Link>
         </div>
       )
     },
@@ -85,7 +93,7 @@ export const WarehouseStock: React.FC = () => {
       align: 'left',
       minWidth: '140px',
       sortable: true,
-      render: (row) => <span className="small text-muted">{row.Warehouse_Location}{row.Area_ID ? <span className="font-monospace"> · {row.Area_ID}</span> : null}</span>
+      render: (row) => <span className="small"><Link to={entityPath('WAREHOUSE', row.Warehouse_Location)} className="text-decoration-none">{row.Warehouse_Location}</Link>{row.Area_ID ? <> · <Link to={entityPath('AREA', row.Area_ID)} className="font-monospace text-decoration-none">{row.Area_ID}</Link></> : null}</span>
     },
     {
       key: 'Serial_Number',
@@ -187,7 +195,7 @@ export const WarehouseStock: React.FC = () => {
         onRefresh={fetchStock}
         refreshing={isLoading}
         isLoading={isLoading && stock.length === 0}
-        columns={columns}
+        columns={hideCosts(columns, access)}
         data={filteredStock}
         keyField="Inventory_ID"
         searchQuery={search}

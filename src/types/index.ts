@@ -184,6 +184,7 @@ export interface ActivityRecord {
   Site_Supervisor_ID: string;
   Current_Net_Cost: number;
   Status: 'PLANNED' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+  Sub_Department?: string;
 }
 
 export interface ActivityInventoryItem {
@@ -266,6 +267,8 @@ export interface StagedMrlSummary {
   location: string;
   lineCount: number;
   totalQuantity: number;
+  openQty?: number;
+  suggestedSubDepartment?: string;
 }
 
 export interface MrlListResponse {
@@ -575,3 +578,132 @@ export interface ItemTrace {
   holders: { warehouse: ItemTraceHolder[]; custody: ItemTraceHolder[]; activities: ItemTraceHolder[] };
   events: ItemTraceEvent[];
 }
+
+/** An active account from the account directory (accounts:getDirectory). */
+export interface DirectoryAccount {
+  employeeNumber: string;
+  name: string;
+  email: string;
+  roles: string[];
+  departments: string[];
+  subdepartments: string[];
+  positions: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Entity pages (warehouse, area, activity, sub-department, item)
+// ---------------------------------------------------------------------------
+export type EntityScopeType = 'WAREHOUSE' | 'AREA' | 'ACTIVITY' | 'SUBDEPARTMENT' | 'ITEM';
+
+export interface EntityFigure { label: string; value: string | number; kind: 'text' | 'money' | 'qty' }
+export interface EntityParent { type: EntityScopeType; id: string; label: string }
+
+export interface EntityProfile {
+  scopeType: EntityScopeType;
+  scopeRef: string;
+  title: string;
+  subtitle: string;
+  badges: string[];
+  figures: EntityFigure[];
+  parents: EntityParent[];
+  /** the configuration record behind the page (catalog row, warehouse row, storage row, ...) */
+  record: Record<string, any>;
+}
+
+export interface EntityStockRow {
+  inventoryId: string; itemId: string; sku: string; name: string; warehouse: string; areaId: string; areaName: string;
+  serialNumber: string; onHand: number; uom: string; unitCost: number; valuation: number; ropStatus: string;
+  firstReceivedAt: string; lastIssuedAt: string;
+}
+export interface EntityStock { rows: EntityStockRow[]; totals: { lines: number; quantity: number; value: number } }
+
+export interface MixGroup { label: string; qty: number; value: number }
+export interface EntityOverview {
+  scopeType: EntityScopeType; scopeRef: string; totalValue: number; totalQty: number;
+  byType: MixGroup[]; byCategory: MixGroup[];
+  costHandled: { labels: string[]; received: number[]; issued: number[] };
+  stockAge: MixGroup[];
+  meta: { notes: string[] };
+}
+
+export interface EntityTimelineEvent {
+  at: string; kind: 'LEDGER' | 'CONFIG'; type: string; title: string; detail: string; who: string; ref: string;
+  status: string; qty: number | null; value: number | null; from?: string; to?: string;
+}
+export interface EntityTimeline { events: EntityTimelineEvent[]; total: number; nextCursor: number | null; years: number[]; year: number | null }
+
+export interface EntityStorageNode {
+  storageId: string; warehouseLocation: string; storageType: 'AREA' | 'SHELF' | 'LEVEL' | 'CONTAINER' | 'SPACE'; parentStorageId: string;
+  name: string; shelfNumber: string; level: string; ownerSubDepartment: string; description: string; status: string;
+  stockValue: number; items: number;
+}
+
+export interface WarehouseListRow { id: string; name: string; stockValue: number; items: number; areas: number }
+
+export interface ItemOverview {
+  scopeType: 'ITEM'; scopeRef: string; uom: string;
+  suppliers: { supplierId: string; supplierName: string; price: number; preferred: boolean; effectiveDate: string }[];
+  received: { at: string; unitCost: number; qty: number; ref: string }[];
+  corrections: { at: string; oldCost: number; newCost: number; qty: number; reason: string }[];
+  usage: { labels: string[]; issued: number[]; consumed: number[]; avgMonthly: number; daysOfCover: number | null };
+  stock: { onHand: number; status: string; byWarehouse: MixGroup[] };
+  meta: { notes: string[] };
+}
+
+export interface ItemDistribution {
+  scopeType: 'ITEM'; scopeRef: string;
+  destinations: MixGroup[];
+  warehouse: MixGroup[];
+  custody: { label: string; sub: string; qty: number; value: number }[];
+  activities: { label: string; id: string; qty: number; value: number }[];
+  meta: { notes: string[] };
+}
+
+export interface ActivityOverview {
+  scopeType: 'ACTIVITY'; scopeRef: string; totalValue: number; totalQty: number;
+  byType: MixGroup[]; byCategory: MixGroup[];
+  burn: { labels: string[]; cumulative: number[]; targetEnd: string };
+  schedule: { start: string; targetEnd: string; completedAt: string; plannedDays: number | null; actualDays: number | null; overdue: boolean };
+  returns: { issued: number; returned: number; rate: number | null };
+  subDepartments: string[];
+  meta: { notes: string[] };
+}
+
+export interface SubDepartmentOverview {
+  scopeType: 'SUBDEPARTMENT'; scopeRef: string;
+  trend: { labels: string[]; issuedCost: number[]; consumedCost: number[]; receivedCost: number[]; issuedQty: number[]; consumedQty: number[] };
+  topItems: { itemId: string; name: string; qty: number; value: number }[];
+  idleTools: { custodian: string; itemId: string; name: string; qty: number; since: string; neverUsed: boolean; days: number }[];
+  idleCount: number; idleDays: number; pendingLoss: number;
+  meta: { notes: string[] };
+}
+export interface SubDepartmentCustody {
+  tools: { custodyId: string; custodian: string; itemId: string; name: string; serialNumber: string; qty: number; uom: string; assignedAt: string; lastUsedAt: string; status: string; site: string }[];
+  consumed: { consumptionId: string; at: string; itemId: string; name: string; qty: number; uom: string; cost: number; scope: string; reference: string; purpose: string; loggedBy: string }[];
+}
+export interface SubDepartmentLoss {
+  rows: { lossId: string; date: string; type: string; status: string; lines: number; qty: number; cost: number; description: string }[];
+  totalCost: number;
+}
+export interface SubDepartmentListRow { name: string; tools: number; consumedCost: number; activities: number }
+
+// ---------------------------------------------------------------------------
+// MRL assignments (Head assigns, Sub-Department verifies, FMS may be delegated)
+// ---------------------------------------------------------------------------
+export interface TaskLine {
+  Receipt_Line_ID: string; Item_ID: string; Item_Name: string; Requested_Qty: number | string; Released_Qty: number | string; Received_Qty: number | string;
+  Returned_Qty: number | string; Short_Qty: number | string; Short_Resolution: string; Mismatch_Type: string; Mismatch_Details: string; UOM: string; Line_Status: string;
+  Staged_Line_No: number | string;
+}
+export interface MrlTask {
+  Receipt_ID: string; Source_Reference: string; MRQ_Number: string; Project_Name: string; Status: string; Sub_Department: string; Assigned_To_ID: string;
+  Delegated_To_ID: string; Receiver_ID: string; Parent_Receipt_ID: string; Release_Confirmed_By_ID: string; Destination_Type: string; Activity_ID: string;
+  Warehouse_Location: string; Area_ID: string; Transaction_ID: string; MRT_Number: string; items: TaskLine[];
+  canVerify: boolean; canDelegate: boolean; canTakeBack: boolean;
+}
+export interface MrqItemProgress {
+  itemId: string; name: string; uom: string; requested: number; released: number; received: number; returned: number; open: number; waiting: number; notReleased: number; state: string;
+  batches: { mrlNumber: string; batch: string; quantity: number }[];
+}
+export interface MrqProgress { mrqNumber: string; project: string; classificationId: string; requestedBy: string; department: string; complete: boolean; openItems: number; items: MrqItemProgress[] }
+export interface MrtRecord { MRT_Number: string; MRL_Number: string; MRQ_Number: string; Return_Date: string; Return_Reason: string; Status: string; Total_Returned_Items: number; items: { MRT_Line_ID: string; Requested_Item_Name: string; Delivered_Item_Name: string; Quantity_Returned: number; UOM: string; Mismatch_Details: string }[] }

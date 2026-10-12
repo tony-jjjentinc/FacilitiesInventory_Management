@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loading } from './Loading';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -76,10 +77,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               disabled={isLoading}
             >
               {isLoading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                  Processing...
-                </>
+                <Loading variant="button" label="Processing..." />
               ) : (
                 confirmText
               )}

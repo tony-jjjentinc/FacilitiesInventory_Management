@@ -5,8 +5,14 @@
 
 import type { UserClaims } from '../types';
 import { apiRequest } from './api';
+import { invalidateCache } from './cache';
+import { getAccess } from './access';
 
 const TOKEN_KEY = 'jjjei_jwt_token';
+
+function dropCache(): void {
+  try { invalidateCache(); } catch (err) { console.warn('[Auth] Could not clear the cache:', err); }
+}
 
 /**
  * Decodes a base64url string to utf-8 text.
@@ -70,6 +76,7 @@ export function getStoredToken(): string | null {
  * Stores the token according to the user's preference.
  */
 export function setStoredToken(token: string, rememberMe: boolean): void {
+  dropCache(); // a new login never starts from the previous person's cached data
   try {
     if (rememberMe) {
       localStorage.setItem(TOKEN_KEY, token);
@@ -87,6 +94,7 @@ export function setStoredToken(token: string, rememberMe: boolean): void {
  * Purges the JWT from all browser storage mechanisms.
  */
 export function clearStoredToken(): void {
+  dropCache(); // cached API responses belong to the person who signed out
   try {
     sessionStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_KEY);
@@ -160,15 +168,10 @@ export function hasAnyRole(requiredRoles: string[]): boolean {
  */
 /** Super Admin, Head and Sub-Department can add items to the inventory item catalog. */
 export function canAddToCatalog(user: UserClaims | null): boolean {
-  if (!user || !Array.isArray(user.roles)) return false;
-  return user.roles.some(
-    r => typeof r === 'string' && ['super admin', 'head', 'sub-department'].includes(r.trim().toLowerCase())
-  );
+  return getAccess(user).canAddToCatalog;
 }
 
+/** Super Admin or Head of Facilities (the API's ADMIN tier). */
 export function isUserHeadOrAdmin(user: UserClaims | null): boolean {
-  if (!user || !Array.isArray(user.roles)) return false;
-  return user.roles.some(
-    r => typeof r === 'string' && ['super admin', 'head'].includes(r.trim().toLowerCase())
-  );
+  return getAccess(user).isAdmin;
 }

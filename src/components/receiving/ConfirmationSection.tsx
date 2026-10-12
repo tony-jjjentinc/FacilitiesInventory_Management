@@ -2,8 +2,9 @@ import React from 'react';
 import type { OpenActivity, ReceivingLine, ReceivingParty, StorageOptions } from '../../types';
 import { StepCard } from './StepCard';
 import { getCurrentUser } from '../../services/auth';
-import { DUMMY_RECEIVING_PARTIES } from './receivingParties';
+import { useAccountDirectory } from './useAccountDirectory';
 import { activityLabel, nodeLabel } from './receivingUtils';
+import { Loading } from '../Loading';
 
 interface Props {
   title: string;
@@ -22,6 +23,7 @@ const peso = (n: number) => `₱${n.toLocaleString(undefined, { minimumFractionD
 
 /** Overview of what will be enrolled in the system, and the button that sends it to the receiving party. */
 export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, party, storage, activities, busy, onClear, onSubmit }) => {
+  const directory = useAccountDirectory();
   const verified = lines.filter(l => l.lineStatus === 'VERIFIED');
   const returned = lines.filter(l => l.lineStatus === 'REJECTED');
   const amount = (l: ReceivingLine) => (Number(l.receivedQty) || 0) * (Number(l.unitCost) || 0);
@@ -47,7 +49,7 @@ export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, 
       <div className="row g-3 mb-3">
         {fact('Reference', reference)}
         {fact('Destination', destination)}
-        {fact('Receiving party', (() => { const p = DUMMY_RECEIVING_PARTIES.find(x => x.email === party.receiverId.trim().toLowerCase()); return p ? `${p.name} (${p.email})` : party.receiverId.trim().toLowerCase() === (getCurrentUser()?.email || '').toLowerCase() ? `Myself (${party.receiverId.trim()})` : party.receiverId.trim(); })())}
+        {fact('Goods issued to', (() => { const p = directory.options.find(x => x.email.toLowerCase() === party.receiverId.trim().toLowerCase()); return p ? `${p.label} (${p.email})` : party.receiverId.trim().toLowerCase() === (getCurrentUser()?.email || '').toLowerCase() ? `${getCurrentUser()?.name || 'Me'} (${party.receiverId.trim()})` : party.receiverId.trim(); })())}
       </div>
 
       <div className="table-responsive border rounded">
@@ -98,7 +100,7 @@ export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, 
 
       <div className="d-flex justify-content-end gap-2 border-top pt-3 mt-3">
         <button type="button" className="btn btn-secondary btn-sm" onClick={onClear} disabled={busy}>Clear</button>
-        <button type="button" className="btn btn-primary btn-sm" onClick={onSubmit} disabled={busy}>{busy ? 'Submitting…' : party.autoReceive ? 'Submit and receive' : 'Submit for confirmation'}</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onSubmit} disabled={busy}>{busy ? <Loading variant="button" label="Submitting…" /> : party.autoReceive ? 'Submit and receive' : 'Submit for confirmation'}</button>
       </div>
     </StepCard>
   );

@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import { getCurrentUser, isUserHeadOrAdmin } from '../services/auth';
-import type { WarehouseStockItem, LossIncident } from '../types';
+import { getAccess } from '../services/access';
+import type { WarehouseStockItem, LossIncident, InHouseCustodyItem } from '../types';
+import { Loading } from '../components/Loading';
 interface DashboardOverviewProps {
   onNavigate?: (tab: string) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate }) => {
+  const access = getAccess(getCurrentUser());
   const navigate = useNavigate();
   const [isEvaluatingRop, setIsEvaluatingRop] = useState(false);
   const [evaluationFeedback, setEvaluationFeedback] = useState<string | null>(null);
@@ -16,6 +19,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   // Live Data States
   const [warehouseStock, setWarehouseStock] = useState<WarehouseStockItem[]>([]);
   const [pendingIncidents, setPendingIncidents] = useState<LossIncident[]>([]);
+  const [custodyItems, setCustodyItems] = useState<InHouseCustodyItem[]>([]);
 
   useEffect(() => {
     // 1. Fetch live warehouse stock for KPIs and stock alerts
@@ -28,6 +32,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
         }
       }
     ).catch(err => console.warn('Dashboard stock fetch fallback:', err));
+
+    // Tools currently with technicians (same cache entry as the Tool Custody register)
+    fetchWithSwr(
+      'custody:list:ACTIVE',
+      () => apiRequest<InHouseCustodyItem[]>('custody:getList', { status: 'ACTIVE' }),
+      (data) => {
+        if (Array.isArray(data)) setCustodyItems(data);
+      }
+    ).catch(err => console.warn('Dashboard custody fetch fallback:', err));
 
     // 2. Fetch pending incidents for the Pending Loss Approvals count (Head / Super Admin only)
     if (!isUserHeadOrAdmin(getCurrentUser())) return;
@@ -90,17 +103,32 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   };
 
   // Live KPI Calculations
-  const totalValuation = warehouseStock.reduce(
-    (acc, itm) => acc + (Number(itm.Valuation) || (Number(itm.On_Hand_Qty) * Number(itm.Unit_Cost)) || 0),
-    0
-  );
-
   const totalTrackedItems = warehouseStock.length;
   const criticalStockItems = warehouseStock.filter(itm => itm.ROP_Status === 'CRITICAL_DEPLETION');
   const warningStockItems = warehouseStock.filter(itm => itm.ROP_Status === 'REORDER_WARNING');
   const criticalCount = criticalStockItems.length;
   const warningCount = warningStockItems.length;
   const incidentsCount = pendingIncidents.length;
+  const custodyToolCount = custodyItems.reduce((n, c) => n + (Number(c.Quantity) || 1), 0);
+  const reorderCount = criticalCount + warningCount;
+
+  type KpiTone = 'danger' | 'warning' | undefined;
+  const kpis: { label: string; value: string; unit: string; to: string; title: string; alert?: KpiTone; show?: boolean }[] = [
+    { label: 'Tracked inventory', value: String(totalTrackedItems), unit: 'items', to: 'catalog', title: 'View the inventory catalog' },
+    { label: 'Critical stockout', value: String(criticalCount), unit: 'items', to: 'alerts', title: 'View critical stockouts in the reorder alerts', alert: criticalCount > 0 ? 'danger' : undefined },
+    { label: 'Reorder warnings', value: String(warningCount), unit: 'items', to: 'alerts', title: 'View reorder warnings in the reorder alerts', alert: warningCount > 0 ? 'warning' : undefined },
+    { label: 'Incident verification', value: String(incidentsCount), unit: incidentsCount === 1 ? 'incident' : 'incidents', to: 'approvals', title: 'View pending incident approvals', alert: incidentsCount > 0 ? 'warning' : undefined },
+    { label: 'Custody assets', value: String(custodyToolCount), unit: custodyToolCount === 1 ? 'tool' : 'tools', to: 'warehouse', title: 'View in-house custody and assigned assets' }
+  ];
+
+  const actions: { label: string; note: string; onClick: () => void; title?: string; show?: boolean; disabled?: boolean; busy?: boolean }[] = [
+    { label: 'Item masterlist', note: 'Catalog and specs', onClick: () => goTo('catalog') },
+    { label: 'Warehouse stock', note: 'Locations and bins', onClick: () => goTo('warehouse') },
+    { label: 'Stockout alerts', note: reorderCount === 0 ? 'No items to reorder' : `${reorderCount} ${reorderCount === 1 ? 'item' : 'items'} to reorder`, onClick: () => goTo('alerts') },
+    { label: 'Approvals queue', note: 'Incident sign-offs', onClick: () => goTo('approvals') },
+    { label: 'Configuration', note: 'Master references', onClick: () => goTo('config') },
+    { label: 'Check reorder point', note: 'Lead-time calculation', onClick: handleTriggerRop, disabled: isEvaluatingRop, busy: isEvaluatingRop, title: 'Run reorder point algorithms across all warehouses', show: access.isCustodian }
+  ];
 
   return (
     <div className="container py-4 px-3 px-md-4">
@@ -124,331 +152,39 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       )}
 
       {/* ------------------------------------------------------------------- */}
-      {/* 2. Executive KPIs (6 Clickable Cards) */}
+      {/* 2. Key figures: label, one number, a quiet unit. Colour only when something needs attention. */}
       {/* ------------------------------------------------------------------- */}
-      <div className="row g-2 mb-4">
-        {/* Total Stock Valuation -> Navigates to Warehouse */}
-        <div className="col-6 col-lg-4 col-xxl-2">
-          <div
-            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => goTo("warehouse")}
-            role="button"
-            tabIndex={0}
-            title="View Warehouse Stock Valuation"
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span
-                className="text-muted small text-uppercase fw-semibold"
-                style={{ fontSize: "0.7rem", letterSpacing: "0.04em" }}
-              >
-                Total Valuation
-              </span>
-              <i
-                className="bi bi-cash-stack text-muted"
-                style={{ fontSize: "1.25rem" }}
-              ></i>
+      <div className="kpi-grid mb-4">
+        {kpis.filter(k => k.show !== false).map(k => (
+          <div key={k.label}>
+            <div
+              className={`kpi-card h-100${k.alert ? ` kpi-${k.alert}` : ''}`}
+              onClick={() => goTo(k.to)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo(k.to); } }}
+              role="button"
+              tabIndex={0}
+              title={k.title}
+            >
+              <div className="kpi-label">{k.label}</div>
+              <div className="kpi-value">{k.value}<span className="kpi-unit">{k.unit}</span></div>
             </div>
-            <h5 className="fw-bold mb-1 text-dark">
-              PHP {(totalValuation / 1000000).toFixed(2)}M
-            </h5>
           </div>
-        </div>
-
-        {/* Tracked Master SKUs -> Navigates to Catalog */}
-        <div className="col-6 col-lg-4 col-xxl-2">
-          <div
-            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => goTo("catalog")}
-            role="button"
-            tabIndex={0}
-            title="View Inventory Catalog"
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span
-                className="text-muted small text-uppercase fw-semibold"
-                style={{ fontSize: "0.7rem", letterSpacing: "0.04em" }}
-              >
-                Tracked Inventory
-              </span>
-              <i
-                className="bi bi-tags text-muted"
-                style={{ fontSize: "1.25rem" }}
-              ></i>
-            </div>
-            <h5 className="fw-bold mb-1 text-dark">
-              {totalTrackedItems} Items
-            </h5>
-          </div>
-        </div>
-
-        {/* Critical Stockouts -> Navigates to Alerts */}
-        <div className="col-6 col-lg-4 col-xxl-2">
-          <div
-            className="card border shadow-sm p-3 h-100 bg-white border-danger-subtle cursor-pointer hover-shadow transition-all"
-            onClick={() => goTo("alerts")}
-            role="button"
-            tabIndex={0}
-            title="View Critical Stockouts in ROP Alert Center"
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span
-                className="text-danger small text-uppercase fw-semibold"
-                style={{ fontSize: "0.7rem", letterSpacing: "0.04em" }}
-              >
-                Critical Stockout
-              </span>
-              <i
-                className="bi bi-exclamation-triangle-fill text-danger"
-                style={{ fontSize: "1.25rem" }}
-              ></i>
-            </div>
-            <h5 className="fw-bold mb-1 text-danger">{criticalCount} Items</h5>
-          </div>
-        </div>
-
-        {/* Reorder Warnings -> Navigates to Alerts */}
-        <div className="col-6 col-lg-4 col-xxl-2">
-          <div
-            className="card border shadow-sm p-3 h-100 bg-white border-warning-subtle cursor-pointer hover-shadow transition-all"
-            onClick={() => goTo("alerts")}
-            role="button"
-            tabIndex={0}
-            title="View Reorder Warnings in ROP Alert Center"
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span
-                className="text-warning-emphasis small text-uppercase fw-semibold"
-                style={{ fontSize: "0.7rem", letterSpacing: "0.04em" }}
-              >
-                Reorder Warnings
-              </span>
-              <i
-                className="bi bi-exclamation-circle text-warning-emphasis"
-                style={{ fontSize: "1.25rem" }}
-              ></i>
-            </div>
-            <h5 className="fw-bold mb-1 text-warning-emphasis">
-              {warningCount} Items
-            </h5>
-          </div>
-        </div>
-
-        {/* Pending Loss Approvals -> Navigates to Approvals */}
-        <div className="col-6 col-lg-4 col-xxl-2">
-          <div
-            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => goTo("approvals")}
-            role="button"
-            tabIndex={0}
-            title="View Pending Incident Approvals"
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span
-                className="text-muted small text-uppercase fw-semibold"
-                style={{ fontSize: "0.7rem", letterSpacing: "0.04em" }}
-              >
-                Incident Verification
-              </span>
-              <i
-                className="bi bi-shield-exclamation text-warning"
-                style={{ fontSize: "1.25rem" }}
-              ></i>
-            </div>
-            <h5 className="fw-bold mb-1 text-dark">
-              {incidentsCount} Incidents
-            </h5>
-          </div>
-        </div>
-
-        {/* In-House Custody Tools -> Navigates to Warehouse */}
-        <div className="col-6 col-lg-4 col-xxl-2">
-          <div
-            className="card border shadow-sm p-3 h-100 bg-white cursor-pointer hover-shadow transition-all"
-            onClick={() => goTo("warehouse")}
-            role="button"
-            tabIndex={0}
-            title="View In-House Custody and Assigned Assets"
-          >
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              <span
-                className="text-muted small text-uppercase fw-semibold"
-                style={{ fontSize: "0.7rem", letterSpacing: "0.04em" }}
-              >
-                Custody Assets
-              </span>
-              <i
-                className="bi bi-wrench-adjustable text-muted"
-                style={{ fontSize: "1.25rem" }}
-              ></i>
-            </div>
-            <h5 className="fw-bold mb-1 text-dark">42 Tools</h5>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ------------------------------------------------------------------- */}
-      {/* 3. Quick Actions & Deep Navigations */}
+      {/* 3. Quick actions: plain tiles, same look as the KPIs */}
       {/* ------------------------------------------------------------------- */}
-      <div className="card border shadow-sm mb-4 bg-white">
-        <div className="card-header bg-white border-bottom d-flex align-items-center justify-content-between">
-          <div>
-            <span
-              className="fw-semibold small text-uppercase text-muted"
-              style={{ fontSize: "0.72rem", letterSpacing: "0.04em" }}
-            >
-              Quick Actions
-            </span>
+      <div className="kpi-section-title">Quick actions</div>
+      <div className="kpi-grid mb-4">
+        {actions.filter(x => x.show !== false).map(x => (
+          <div key={x.label}>
+            <button type="button" className="kpi-card kpi-action h-100 w-100 text-start" onClick={x.onClick} disabled={x.disabled} title={x.title}>
+              <div className="kpi-action-title">{x.busy ? <Loading variant="text" label="Checking..." /> : x.label}</div>
+              <div className="kpi-action-note">{x.note}</div>
+            </button>
           </div>
-        </div>
-        <div className="card-body p-3">
-          <div className="row g-2">
-            {/* 1. Item Masterlist */}
-            <div className="col-6 col-md-4 col-xl-2">
-              <button
-                type="button"
-                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => goTo("catalog")}
-              >
-                <div className="text-truncate">
-                  <div
-                    className="fw-semibold small text-truncate"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    Item Masterlist
-                  </div>
-                  <div
-                    className="text-muted text-truncate"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    Catalog & Specs
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* 2. Warehouse Stock */}
-            <div className="col-6 col-md-4 col-xl-2">
-              <button
-                type="button"
-                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => goTo("warehouse")}
-              >
-                <div className="text-truncate">
-                  <div
-                    className="fw-semibold small text-truncate"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    Warehouse Stock
-                  </div>
-                  <div
-                    className="text-muted text-truncate"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    Locations & Bins
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* 3. ROP Stockout Alerts */}
-            <div className="col-6 col-md-4 col-xl-2">
-              <button
-                type="button"
-                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => goTo("alerts")}
-              >
-                <div className="text-truncate">
-                  <div
-                    className="fw-semibold small text-truncate"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    Stockout Alerts
-                  </div>
-                  <div
-                    className="text-secondary text-truncate"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    10 items reorder
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* 4. Approvals Queue */}
-            <div className="col-6 col-md-4 col-xl-2">
-              <button
-                type="button"
-                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => goTo("approvals")}
-              >
-                <div className="text-truncate">
-                  <div
-                    className="fw-semibold small text-truncate"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    Approvals Queue
-                  </div>
-                  <div
-                    className="text-muted text-truncate"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    Incident sign-offs
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* 5. Configuration */}
-            <div className="col-6 col-md-4 col-xl-2">
-              <button
-                type="button"
-                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={() => goTo("config")}
-              >
-                <div className="text-truncate">
-                  <div
-                    className="fw-semibold small text-truncate"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    Configuration
-                  </div>
-                  <div
-                    className="text-muted text-truncate"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    Master references
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* 6. Evaluate ROP (Moved from Header) */}
-            <div className="col-6 col-md-4 col-xl-2">
-              <button
-                type="button"
-                className="btn btn-outline-light border text-dark w-100 py-2 px-3 text-start d-flex align-items-center gap-2 h-100 hover-shadow transition-all"
-                onClick={handleTriggerRop}
-                disabled={isEvaluatingRop}
-                title="Run Reorder Point algorithms across all warehouses"
-              >
-                <div className="text-truncate">
-                  <div
-                    className="fw-semibold small text-truncate"
-                    style={{ fontSize: "0.82rem" }}
-                  >
-                    {isEvaluatingRop ? "Checking..." : "Check Reorder Point"}
-                  </div>
-                  <div
-                    className="text-muted text-truncate"
-                    style={{ fontSize: "0.7rem" }}
-                  >
-                    Lead-time calculation
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

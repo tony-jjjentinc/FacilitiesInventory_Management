@@ -4,7 +4,8 @@ import { useToast } from '../../context/ToastContext';
 import { notifySubmit, submitStatusText, type SubmitResult } from './submitFeedback';
 import { getCurrentUser } from '../../services/auth';
 import type { ReceivingLine, ReceivingParty, ReceivingSourceType } from '../../types';
-import { ManualItemModal } from './ManualItemModal';
+import { ManualItemModal, type CatalogRow } from './ManualItemModal';
+import { ManualItemConfigModal } from './ManualItemConfigModal';
 import { ReceivingLinesSection } from './ReceivingLinesSection';
 import { ReceivingPartySection } from './ReceivingPartySection';
 import { StepCard } from './StepCard';
@@ -34,6 +35,8 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
   const [lines, setLines] = useState<ReceivingLine[]>([]);
   const [party, setParty] = useState<ReceivingParty>(EMPTY_PARTY);
   const [addOpen, setAddOpen] = useState(false);
+  const [chosen, setChosen] = useState<CatalogRow[] | null>(null);
+  const [picked, setPicked] = useState<CatalogRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
   const [result, setResult] = useState<SubmitResult | null>(null);
@@ -85,13 +88,19 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
 
       <StepCard title="1. Source" hint="Where the items came from.">
         <div className="row g-3">
-          <div className="col-md-5">
-            <label className="form-label small fw-semibold mb-1">Source type</label>
-            <select className="form-select form-select-sm" value={sourceType} onChange={e => setSourceType(e.target.value as ReceivingSourceType)}>
-              {SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+          <div className="col-12">
+            <div className="form-label small fw-semibold mb-1" id="source-type-label">Source type</div>
+            <div className="btn-group flex-wrap" role="radiogroup" aria-labelledby="source-type-label">
+              {SOURCES.map(s => (
+                <button key={s.value} type="button" role="radio" aria-checked={sourceType === s.value}
+                  className={`btn btn-sm ${sourceType === s.value ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setSourceType(s.value)}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="col-md-7">
+          <div className="col-md-6">
             <label className="form-label small fw-semibold mb-1">Reference number</label>
             <input className="form-control form-control-sm font-monospace" value={reference} onChange={e => setReference(e.target.value)} />
             <div className="form-text">{source.hint}</div>
@@ -107,7 +116,11 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
           <ConfirmationSection title="4. Confirmation" reference={`${source.label} ${reference}`} lines={lines} party={party} storage={lookups.storage} activities={lookups.activities}
             busy={submitting} onClear={() => { setLines([]); setReference(''); }} onSubmit={review} />
 
-      <ManualItemModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={line => setLines(prev => [...prev, line])} />
+      <ManualItemModal open={addOpen} initial={picked} onClose={() => { setAddOpen(false); setPicked([]); }}
+        onNext={items => { setPicked(items); setAddOpen(false); setChosen(items); }} />
+      <ManualItemConfigModal selected={chosen} onClose={() => { setChosen(null); setPicked([]); }}
+        onBack={remaining => { setPicked(remaining); setChosen(null); setAddOpen(true); }}
+        onAdd={added => { setLines(prev => [...prev, ...added]); setChosen(null); setPicked([]); }} />
     </div>
   );
 };

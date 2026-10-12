@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { invalidateCache } from '../../services/cache';
+import { Loading } from '../Loading';
 
 interface Lookups {
   categories: { id: string; name: string }[];
@@ -138,7 +139,7 @@ export const AddCatalogItemModal: React.FC<Props> = ({ open, procurementName, de
           </div>
           <div className="modal-footer py-2 px-4 bg-light border-top">
             <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={!ready || saving}>{saving ? 'Adding…' : 'Add to catalog'}</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={!ready || saving}>{saving ? <Loading variant="button" label="Adding…" /> : 'Add to catalog'}</button>
           </div>
         </div>
       </div>

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { StepCard } from './StepCard';
 import { getCurrentUser } from '../../services/auth';
-import { DUMMY_RECEIVING_PARTIES } from './receivingParties';
+import { useAccountDirectory } from './useAccountDirectory';
 import { activityLabel } from './receivingUtils';
 import type { MrlDetails, OpenActivity, ReceivingParty, StorageOptions, SuggestedActivity } from '../../types';
+import { Select } from '../Select';
+import { Loading } from '../Loading';
 
 interface Props {
   party: ReceivingParty;
@@ -23,6 +25,7 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
   const set = (patch: Partial<ReceivingParty>) => onChange({ ...party, ...patch });
   const areas = storage.storage.filter(s => s.storageType === 'AREA' && s.warehouseLocation === party.warehouseLocation);
   const area = areas.find(a => a.storageId === party.areaId);
+  const directory = useAccountDirectory();
   const meEmail = (getCurrentUser()?.email || '').trim().toLowerCase();
   const isSelf = !!meEmail && party.receiverId.trim().toLowerCase() === meEmail;
 
@@ -47,19 +50,17 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
           <>
             <div className="col-md-6">
               <label className="form-label small fw-semibold mb-1">Warehouse</label>
-              <select className="form-select form-select-sm" value={party.warehouseLocation}
+              <Select className="form-select form-select-sm" value={party.warehouseLocation}
                 onChange={e => set({ warehouseLocation: e.target.value, areaId: '' })}>
-                <option value="">Select a warehouse</option>
                 {storage.warehouses.map(w => <option key={w.id} value={w.id}>{w.name} ({w.id})</option>)}
-              </select>
+              </Select>
             </div>
             <div className="col-md-6">
               <label className="form-label small fw-semibold mb-1">Area</label>
-              <select className="form-select form-select-sm" value={party.areaId} disabled={areas.length === 0}
+              <Select optional noneLabel={areas.length === 0 ? 'No areas in this warehouse' : 'None (whole warehouse)'} className="form-select form-select-sm" value={party.areaId} disabled={areas.length === 0}
                 onChange={e => set({ areaId: e.target.value })}>
-                <option value="">{areas.length === 0 ? 'No areas in this warehouse' : 'Whole warehouse'}</option>
                 {areas.map(a => <option key={a.storageId} value={a.storageId}>{a.name}{a.ownerSubDepartment ? ` — ${a.ownerSubDepartment}` : ''}</option>)}
-              </select>
+              </Select>
               {area && <div className="form-text">Owner: {area.ownerSubDepartment || 'common area'}</div>}
             </div>
           </>
@@ -79,12 +80,11 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
               </div>
             )}
             <div className="d-flex gap-2">
-              <select className="form-select form-select-sm" value={party.activityId} onChange={e => set({ activityId: e.target.value })}>
-                <option value="">Select an open activity</option>
+              <Select className="form-select form-select-sm" value={party.activityId} onChange={e => set({ activityId: e.target.value })}>
                 {activities.map(a => (
                   <option key={a.Activity_ID} value={a.Activity_ID}>{activityLabel(a)}</option>
                 ))}
-              </select>
+              </Select>
               {!details && <button type="button" className="btn btn-outline-secondary btn-sm text-nowrap" onClick={() => setShowCreate(true)}>New activity</button>}
             </div>
             <div className="form-text">Billed at the received price. The warehouse balance is not touched.</div>
@@ -92,16 +92,15 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
         )}
 
         <div className="col-md-6">
-          <label className="form-label small fw-semibold mb-1" htmlFor="receiving-party">Receiving party</label>
+          <label className="form-label small fw-semibold mb-1" htmlFor="receiving-party">Goods Issued to</label>
           <div className="d-flex align-items-center gap-3">
-            <select id="receiving-party" className="form-select form-select-sm" value={party.receiverId}
+            <Select id="receiving-party" className="form-select form-select-sm" value={party.receiverId}
               onChange={e => set({ receiverId: e.target.value, autoReceive: e.target.value === meEmail ? party.autoReceive : false })}>
-              <option value="">Select the receiving party</option>
-              {meEmail && <option value={meEmail}>Myself ({meEmail})</option>}
-              {DUMMY_RECEIVING_PARTIES.filter(p => p.email !== meEmail).map(p => (
-                <option key={p.email} value={p.email}>{p.name} — {p.role}</option>
+              {meEmail && <option value={meEmail}>{getCurrentUser()?.name || meEmail} (me)</option>}
+              {directory.options.filter(p => p.email.toLowerCase() !== meEmail).map(p => (
+                <option key={p.email} value={p.email}>{p.label}</option>
               ))}
-            </select>
+            </Select>
             <div className="form-check mb-0 text-nowrap" title={isSelf ? 'Post the items to the inventory as soon as you submit' : 'Choose your own account to receive the items straight away'}>
               <input id="auto-receive" type="checkbox" className="form-check-input" checked={party.autoReceive} disabled={!isSelf}
                 onChange={e => set({ autoReceive: e.target.checked })} />
@@ -111,7 +110,7 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
           <div className="form-text">
             {party.autoReceive
               ? 'The items are received into the inventory as soon as you submit.'
-              : 'This person confirms receipt with their own login. Nothing is posted until they do. Sample accounts for now.'}
+              : 'This person confirms receipt with their own login. Nothing is posted until they do.' + (directory.sample ? ' Sample accounts until the account import has data.' : '')}
           </div>
         </div>
         <div className="col-md-6">
@@ -186,10 +185,9 @@ const CreateActivityModal: React.FC<CreateProps> = ({ details, subDepartments, o
             </div>
             <div className="mb-1">
               <label className="form-label small fw-semibold mb-1">Sub-department</label>
-              <select className="form-select form-select-sm" value={subDepartment} onChange={e => setSubDepartment(e.target.value)}>
-                <option value="">Not assigned</option>
+              <Select optional noneLabel="None (not assigned)" className="form-select form-select-sm" value={subDepartment} onChange={e => setSubDepartment(e.target.value)}>
                 {options.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
+              </Select>
               <div className="form-text">Defaults to yours. The list is the Sub_Departments column on the CONFIG tab.</div>
             </div>
             <div className="form-text">Created as PLANNED.</div>
@@ -197,7 +195,7 @@ const CreateActivityModal: React.FC<CreateProps> = ({ details, subDepartments, o
           <div className="modal-footer py-2 px-4 bg-light border-top">
             <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose} disabled={busy}>Cancel</button>
             <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={busy || !name.trim() || !classRef.trim()}>
-              {busy ? 'Creating…' : 'Create activity'}
+              {busy ? <Loading variant="button" label="Creating…" /> : 'Create activity'}
             </button>
           </div>
         </div>

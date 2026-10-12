@@ -5,7 +5,7 @@ import type { OpenActivity, StorageOptions } from '../../types';
 const OPEN = ['PLANNED', 'ACTIVE', 'ON_HOLD'];
 
 /** Warehouses/storage tree and open activities used by the receiving forms. */
-export function useReceivingLookups() {
+export function useReceivingLookups(enabled = true) {
   const [storage, setStorage] = useState<StorageOptions>({ warehouses: [], storage: [] });
   const [activities, setActivities] = useState<OpenActivity[]>([]);
   const [error, setError] = useState('');
@@ -16,6 +16,7 @@ export function useReceivingLookups() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return; // the receiving forms are for custodians; other roles never call these
     let cancelled = false;
     (async () => {
       try {
@@ -26,7 +27,7 @@ export function useReceivingLookups() {
       }
     })();
     return () => { cancelled = true; };
-  }, [loadActivities]);
+  }, [loadActivities, enabled]);
 
   return { storage, activities, reloadActivities: loadActivities, error };
 }

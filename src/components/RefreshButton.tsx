@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loading } from './Loading';
 
 interface Props {
   onClick: () => void;
@@ -18,7 +19,7 @@ export const RefreshButton: React.FC<Props> = ({ onClick, loading = false, title
     aria-label={title}
   >
     {loading
-      ? <span className="spinner-border spinner-border-sm text-light" role="status" aria-hidden="true"></span>
+      ? <Loading variant="button" showLabel={false} />
       : <i className="bi bi-arrow-clockwise text-light"></i>}
   </button>
 );
