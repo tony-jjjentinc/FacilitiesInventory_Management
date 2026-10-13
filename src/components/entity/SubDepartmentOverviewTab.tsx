@@ -48,7 +48,7 @@ export const SubDepartmentOverviewTab: React.FC<{ name: string; onOpenTab: (key:
         </ChartCard>
         <div className="col-12 col-xl-6">
           <div className="card border shadow-sm h-100 bg-white">
-            <div className="card-header bg-white border-bottom fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>Items drawn most</div>
+            <div className="card-header bg-white border-bottom fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>Items drawn most <button type="button" className="btn btn-link btn-sm p-0 ms-2 align-baseline text-lowercase" onClick={() => onOpenTab('custody')}>view custody</button></div>
             {data.topItems.length === 0 ? <div className="text-muted small p-3">No Data</div> : (
               <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
                 <thead className="table-light"><tr><th className="ps-3">Item</th><th className={`text-end${costs ? '' : ' pe-3'}`}>Quantity</th>{costs && <th className="text-end pe-3">Cost</th>}</tr></thead>
@@ -60,13 +60,13 @@ export const SubDepartmentOverviewTab: React.FC<{ name: string; onOpenTab: (key:
         <div className="col-12 col-xl-6">
           <div className="card border shadow-sm h-100 bg-white">
             <div className="card-header bg-white border-bottom">
-              <div className="fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>Tools not used for {data.idleDays} days</div>
+              <div className="fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>Tools not used for {data.idleDays} days <button type="button" className="btn btn-link btn-sm p-0 ms-2 align-baseline text-lowercase" onClick={() => onOpenTab('custody')}>view tools</button></div>
               <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{data.idleCount} tool(s)</div>
             </div>
             {data.idleTools.length === 0 ? <div className="text-muted small p-3">None.</div> : (
               <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
                 <thead className="table-light"><tr><th className="ps-3">Tool</th><th>Custodian</th><th className="text-end pe-3">Idle</th></tr></thead>
-                <tbody>{data.idleTools.map((x, i) => <tr key={i}><td className="ps-3"><Link to={entityPath('ITEM', x.itemId)} className="text-decoration-none">{x.name || x.itemId}</Link></td><td>{x.custodian || 'No Data'}</td><td className="text-end pe-3">{x.days} days{x.neverUsed ? ' (never used)' : ''}</td></tr>)}</tbody>
+                <tbody>{data.idleTools.map((x, i) => <tr key={i}><td className="ps-3"><Link to={entityPath('ITEM', x.itemId)} className="text-decoration-none">{x.name || x.itemId}</Link></td><td>{x.custodian || '–'}</td><td className="text-end pe-3">{x.days} days{x.neverUsed ? ' (never used)' : ''}</td></tr>)}</tbody>
               </table>
             )}
           </div>

@@ -66,6 +66,14 @@ export const ItemDistributionTab: React.FC<{ itemId: string }> = ({ itemId }) =>
             <tbody>{data.warehouse.map(w => <tr key={w.label}><td className="ps-3">{w.label}</td><td className={`text-end${costs ? '' : ' pe-3'}`}>{qty(w.qty)}</td>{costs && <td className="text-end pe-3">{peso(w.value)}</td>}</tr>)}</tbody>
           </table>
         </Section>
+        {data.spots && data.spots.length > 0 && (
+          <Section title="Where in the warehouse" isEmpty={false} empty="">
+            <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
+              <thead className="table-light"><tr><th className="ps-3">Area</th><th>Shelf · Level</th><th className="text-end pe-3">Quantity</th></tr></thead>
+              <tbody>{data.spots.map((x, i) => <tr key={i}><td className="ps-3">{x.label}</td><td className={x.spotId ? '' : 'text-muted'}>{x.spot}</td><td className="text-end pe-3">{qty(x.qty)}</td></tr>)}</tbody>
+            </table>
+          </Section>
+        )}
         <Section title="Deployed to activities" isEmpty={data.activities.length === 0} empty="Not deployed anywhere.">
           <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
             <thead className="table-light"><tr><th className="ps-3">Activity</th><th className={`text-end${costs ? '' : ' pe-3'}`}>Quantity</th>{costs && <th className="text-end pe-3">Value</th>}</tr></thead>
@@ -75,7 +83,7 @@ export const ItemDistributionTab: React.FC<{ itemId: string }> = ({ itemId }) =>
         <Section title="In custody" isEmpty={data.custody.length === 0} empty="Nobody holds this item.">
           <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
             <thead className="table-light"><tr><th className="ps-3">Custodian</th><th>Sub-Department</th><th className="text-end pe-3">Quantity</th></tr></thead>
-            <tbody>{data.custody.map((c, i) => <tr key={i}><td className="ps-3">{c.label || 'No Data'}</td><td>{c.sub || 'No Data'}</td><td className="text-end pe-3">{qty(c.qty)}</td></tr>)}</tbody>
+            <tbody>{data.custody.map((c, i) => <tr key={i}><td className="ps-3">{c.label || '–'}</td><td>{c.sub || '–'}</td><td className="text-end pe-3">{qty(c.qty)}</td></tr>)}</tbody>
           </table>
         </Section>
       </div>

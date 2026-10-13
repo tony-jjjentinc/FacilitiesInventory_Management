@@ -14,8 +14,6 @@ import { getAccess, hideCosts } from '../../services/access';
 
 interface Props { scopeType: EntityScopeType; scopeRef: string; showArea?: boolean }
 
-const ROP: Record<string, string> = { NORMAL: 'Normal', REORDER_WARNING: 'Reorder soon', CRITICAL_DEPLETION: 'Critical' };
-
 export const StockTab: React.FC<Props> = ({ scopeType, scopeRef, showArea = true }) => {
   const { data, loading, refreshing, error, reload } = useEntityData<EntityStock>('getStock', scopeType, scopeRef);
   const [search, setSearch] = useState('');
@@ -24,29 +22,43 @@ export const StockTab: React.FC<Props> = ({ scopeType, scopeRef, showArea = true
     return (data?.rows || []).filter(r => !q || [r.name, r.itemId, r.sku, r.serialNumber, r.areaName].join(' ').toLowerCase().includes(q));
   }, [data, search]);
 
-  const columns: Column<EntityStockRow>[] = [
-    { key: 'name', label: 'Item Information', sortable: true, minWidth: '240px', render: r => (
-      <div>
-        {scopeType === 'ITEM' ? <span className="fw-semibold text-dark">{r.name}</span> : <Link to={entityPath('ITEM', r.itemId)} className="fw-semibold text-decoration-none">{r.name}</Link>}
-        <div className="small text-muted">{r.itemId}{r.sku ? ` · ${r.sku}` : ''}</div>
-      </div>
-    ) },
-    ...(showArea ? [{ key: 'areaName', label: 'Area', sortable: true, minWidth: '140px', render: (r: EntityStockRow) => r.areaId ? <Link to={entityPath('AREA', r.areaId)} className="text-decoration-none">{r.areaName || r.areaId}</Link> : 'No Data' }] : []),
-    { key: 'serialNumber', label: 'Serial', minWidth: '110px', render: r => r.serialNumber && r.serialNumber !== 'N/A' ? r.serialNumber : 'No Data' },
-    { key: 'onHand', label: 'On hand', align: 'right', sortable: true, minWidth: '100px', render: r => `${qty(r.onHand)} ${r.uom}` },
-    { key: 'unitCost', label: 'Unit cost', align: 'right', sortable: true, minWidth: '100px', render: r => peso(r.unitCost) },
-    { key: 'valuation', label: 'Value', align: 'right', sortable: true, minWidth: '110px', render: r => peso(r.valuation) },
-    { key: 'ropStatus', label: 'Reorder', align: 'center', minWidth: '110px', render: r => ROP[r.ropStatus] || 'No Data' },
-    { key: 'firstReceivedAt', label: 'Arrived', minWidth: '110px', render: r => r.firstReceivedAt ? r.firstReceivedAt.substring(0, 10) : 'No Data' }
-  ];
-
   const access = getAccess(getCurrentUser());
+  const badge = (r: EntityStockRow) => r.ropStatus === 'CRITICAL_DEPLETION' ? <span className="badge bg-danger-subtle text-danger border">Critical</span>
+    : r.ropStatus === 'REORDER_WARNING' ? <span className="badge bg-warning-subtle text-warning-emphasis border">Warning</span> : null;
+  const day = (v?: string) => (v ? v.substring(0, 10) : '–');
+  const itemName = (r: EntityStockRow) => scopeType === 'ITEM' ? <span className="fw-semibold text-dark">{r.name}</span> : <Link to={entityPath('ITEM', r.itemId)} className="fw-semibold text-dark text-decoration-none">{r.name}</Link>;
+  const ids = (r: EntityStockRow) => <div className="small text-muted font-monospace text-break">{r.itemId}{r.sku ? ` · ${r.sku}` : ''}{r.serialNumber && r.serialNumber !== 'N/A' ? ` · S/N ${r.serialNumber}` : ''}</div>;
+  const area = (r: EntityStockRow) => r.areaId ? <Link to={entityPath('AREA', r.areaId)} className="text-decoration-none">{r.areaName || r.areaId}</Link> : <span className="text-muted">–</span>;
+
+  // merged columns: the item, its ids and serial share one cell; reorder status sits under the quantity; unit cost under the value
+  const columns: Column<EntityStockRow>[] = [
+    { key: 'name', label: 'Item', sortable: true, minWidth: '240px', render: r => <div>{itemName(r)}{ids(r)}</div> },
+    ...(showArea ? [{ key: 'areaName', label: 'Area', sortable: true, minWidth: '130px', render: area }] : []),
+    { key: 'onHand', label: 'On hand', align: 'right' as const, sortable: true, minWidth: '100px', render: r => <div><span className="fw-semibold text-dark">{qty(r.onHand)}</span> <span className="small text-muted">{r.uom}</span><div>{badge(r)}</div></div> },
+    { key: 'valuation', label: 'Value', align: 'right' as const, sortable: true, minWidth: '130px', render: r => <div><div className="font-monospace fw-semibold text-dark small">{peso(r.valuation)}</div><div className="small text-muted font-monospace">@ {peso(r.unitCost)}</div></div> },
+    { key: 'firstReceivedAt', label: 'Arrived', sortable: true, minWidth: '100px', render: r => <span className="small text-muted">{day(r.firstReceivedAt)}</span> }
+  ];
+  const card = (r: EntityStockRow) => (
+    <div className="data-card">
+      <div className="min-w-0">{itemName(r)}{ids(r)}</div>
+      <div className="d-flex justify-content-between align-items-end gap-2">
+        <div><span className="fs-5 fw-semibold text-dark">{qty(r.onHand)}</span> <span className="small text-muted">{r.uom}</span></div>
+        {badge(r)}
+      </div>
+      {showArea && <span className="small">{area(r)}</span>}
+      <div className="data-card-foot small text-muted">
+        <div>{access.canSeeCosts && <><div className="font-monospace fw-semibold text-dark">{peso(r.valuation)}</div><div className="font-monospace">@ {peso(r.unitCost)}</div></>}</div>
+        <div className="text-end">Arrived {day(r.firstReceivedAt)}</div>
+      </div>
+    </div>
+  );
+
   if (error && !data) return <div className="alert alert-danger small">{error}</div>;
   return (
     <DataCard
       title="Inventory stock"
       description={data ? `${data.totals.lines} line(s) · ${qty(data.totals.quantity)} units${access.canSeeCosts ? ` · ${peso(data.totals.value)}` : ''}` : undefined}
-      columns={hideCosts(columns, access)} data={rows} keyField="inventoryId" isLoading={loading && !data}
+      columns={hideCosts(columns, access)} data={rows} renderCard={card} defaultView="cards" viewKey={`entity-stock-${scopeType}`} keyField="inventoryId" isLoading={loading && !data}
       searchQuery={search} onSearchChange={setSearch} searchPlaceholder="Search by item, ID, SKU, serial..."
       onRefresh={reload} refreshing={refreshing} emptyMessage="No stock here."
     />

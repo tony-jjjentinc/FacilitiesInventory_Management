@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { login } from '../services/auth';
 import type { UserClaims } from '../types';
 import { Logo } from '../components/Logo';
@@ -13,8 +13,15 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const { systemInfo } = useSystemInfo();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [slow, setSlow] = useState(false); // the Apps Script backend can take 10s+ to wake up
+  useEffect(() => {
+    if (!isLoading) { setSlow(false); return; }
+    const t = window.setTimeout(() => setSlow(true), 5000);
+    return () => window.clearTimeout(t);
+  }, [isLoading]);
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,13 +72,27 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
           <div className="mb-3">
             <label className="form-label small text-muted mb-1">Password</label>
-            <input
-              type="password"
-              className="form-control"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="position-relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-control pe-5"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="btn btn-link text-muted position-absolute top-50 end-0 translate-middle-y py-0 px-3 border-0 shadow-none"
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()} // clicking must not pull focus out of the password field
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </button>
+            </div>
           </div>
 
           <div className="mb-4 d-flex justify-content-between align-items-center">
@@ -94,7 +115,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             className="btn btn-primary w-100 py-2 fw-medium"
             disabled={isLoading}
           >
-            {isLoading ? <Loading variant="button" label="Signing in..." /> : 'Sign In'}
+            {isLoading ? <Loading variant="button" label={slow ? 'Waking up the server...' : 'Signing in...'} typewriter={false} /> : 'Sign In'}
           </button>
         </form>
       </div>

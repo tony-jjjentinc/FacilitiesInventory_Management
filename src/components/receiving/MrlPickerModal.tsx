@@ -26,7 +26,9 @@ type Row = StagedMrlSummary & { rowKey: string; releasedTs: number; classType: s
 export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => {
   const { data, loadingAll, refreshing, error: listError, reload } = useMrlList(open);
   const [search, setSearch] = useState('');
-  const [period, setPeriod] = useState<Period>('WEEK');
+  // opens on every MRL, so older ones are not hidden; the last range chosen is remembered in this browser
+  const [period, setPeriodState] = useState<Period>(() => { try { const v = localStorage.getItem('jjjei_mrl_period'); return v === 'TODAY' || v === 'WEEK' || v === 'MONTH' || v === 'ALL' ? v : 'ALL'; } catch { return 'ALL'; } });
+  const setPeriod = (v: Period) => { setPeriodState(v); try { localStorage.setItem('jjjei_mrl_period', v); } catch { /* not remembered */ } };
   const [classFilter, setClassFilter] = useState('');
   const [batchFilter, setBatchFilter] = useState('');
   const [syncing, setSyncing] = useState(false);

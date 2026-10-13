@@ -17,12 +17,14 @@ interface Props {
   busy: boolean;
   onClear: () => void;
   onSubmit: () => void;
+  /** shown at the left of the button row (the draft controls) */
+  extra?: React.ReactNode;
 }
 
 const peso = (n: number) => `₱${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Overview of what will be enrolled in the system, and the button that sends it to the receiving party. */
-export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, party, storage, activities, busy, onClear, onSubmit }) => {
+export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, party, storage, activities, busy, onClear, onSubmit, extra }) => {
   const directory = useAccountDirectory();
   const verified = lines.filter(l => l.lineStatus === 'VERIFIED');
   const returned = lines.filter(l => l.lineStatus === 'REJECTED');
@@ -89,7 +91,7 @@ export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, 
       )}
       {returned.length > 0 && (
         <div className="small text-secondary mt-2">
-          <strong className="text-dark">{returned.length}</strong> item{returned.length > 1 ? 's' : ''} returned to ProcInv on an MRT:{' '}
+          <strong className="text-dark">{returned.length}</strong> item{returned.length > 1 ? 's' : ''} will be returned to ProcInv on an MRT once confirmed:{' '}
           {returned.map(l => l.itemName).join(', ')}.
         </div>
       )}
@@ -98,7 +100,8 @@ export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, 
         {party.autoReceive ? <>The items are received into the inventory as soon as you submit.</> : <>Nothing changes in the inventory yet.{party.receiverId.trim() ? <> <strong>{party.receiverId.trim()}</strong> must confirm receipt with their own login first.</> : ' The receiving party must confirm receipt with their own login first.'}</>}
       </div>
 
-      <div className="d-flex justify-content-end gap-2 border-top pt-3 mt-3">
+      <div className="d-flex flex-wrap align-items-center justify-content-end gap-2 border-top pt-3 mt-3">
+        {extra}
         <button type="button" className="btn btn-secondary btn-sm" onClick={onClear} disabled={busy}>Clear</button>
         <button type="button" className="btn btn-primary btn-sm" onClick={onSubmit} disabled={busy}>{busy ? <Loading variant="button" label="Submitting…" /> : party.autoReceive ? 'Submit and receive' : 'Submit for confirmation'}</button>
       </div>

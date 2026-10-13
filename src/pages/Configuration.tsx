@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useToast } from '../context/ToastContext';
 import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { getCachedData, fetchWithSwr, invalidateCache } from '../services/cache';
@@ -79,6 +80,7 @@ const CONFIG_GROUPS: { id: string; label: string; tables: ConfigTableKey[] }[] =
 ];
 
 export const Configuration: React.FC = () => {
+  const toast = useToast();
   // The table being edited is `?table=`
   const [searchParams, setSearchParams] = useSearchParams();
   const subTab = searchParams.get('table') || undefined;
@@ -406,7 +408,7 @@ export const Configuration: React.FC = () => {
           setIsEditing(false);
           await loadTableData(activeTab);
         } catch (err: any) {
-          alert(`Save failed: ${err.message}`);
+          toast.error(`Save failed: ${err.message}`);
         } finally {
           setIsActionPending(false);
           setConfirmModal(prev => ({ ...prev, isOpen: false }));
@@ -435,7 +437,7 @@ export const Configuration: React.FC = () => {
           invalidateCache('catalog:items');
           await loadTableData(activeTab);
         } catch (err: any) {
-          alert(`Archive failed: ${err.message}`);
+          toast.error(`Archive failed: ${err.message}`);
         } finally {
           setIsActionPending(false);
           setConfirmModal(prev => ({ ...prev, isOpen: false }));

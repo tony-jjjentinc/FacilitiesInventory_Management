@@ -16,7 +16,7 @@ import { getAccess } from '../../services/access';
 
 const days = (n: number | null) => (n === null ? 'TBD' : `${n} day${n === 1 ? '' : 's'}`);
 
-export const ActivityOverviewTab: React.FC<{ activityId: string }> = ({ activityId }) => {
+export const ActivityOverviewTab: React.FC<{ activityId: string; onOpenTab?: (key: string) => void }> = ({ activityId, onOpenTab }) => {
   const { data, loading, refreshing, error, reload } = useEntityData<ActivityOverview>('getOverview', 'ACTIVITY', activityId);
   const costs = getAccess(getCurrentUser()).canSeeCosts;
   if (loading && !data) return <Loading label="Loading the overview…" />;
@@ -29,10 +29,10 @@ export const ActivityOverviewTab: React.FC<{ activityId: string }> = ({ activity
         <div className="small text-muted">
           Planned <strong className="text-dark">{days(s.plannedDays)}</strong>
           {' · '}{s.completedAt ? 'Took' : 'Running'} <strong className={s.overdue ? 'text-danger' : 'text-dark'}>{days(s.actualDays)}</strong>{s.overdue && <span className="text-danger"> (past the target end)</span>}
-          {' · '}Surplus returned <strong className="text-dark">{data.returns.rate === null ? 'No Data' : `${data.returns.rate}%`}</strong>
+          {' · '}Surplus returned <strong className="text-dark">{data.returns.rate === null ? '–' : `${data.returns.rate}%`}</strong>
           {data.subDepartments.length > 0 && <> {' · '}Sub-Departments {data.subDepartments.map((d, i) => <span key={d}>{i > 0 && ', '}<Link to={entityPath('SUBDEPARTMENT', d)} className="text-decoration-none">{d}</Link></span>)}</>}
         </div>
-        <RefreshButton onClick={reload} loading={refreshing} />
+        <div className="d-flex align-items-center gap-3">{onOpenTab && <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => onOpenTab('usage')}>View stock usage <i className="bi bi-arrow-right"></i></button>}<RefreshButton onClick={reload} loading={refreshing} /></div>
       </div>
       <div className="row g-3">
         {costs && <ChartCard wide title="Cost over time" subtitle={`Cumulative net cost of the items issued${s.targetEnd ? `, target end ${s.targetEnd}` : ''}`} empty={data.burn.cumulative.length === 0}>

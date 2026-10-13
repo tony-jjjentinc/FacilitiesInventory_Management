@@ -18,12 +18,12 @@ export const ChartCard: React.FC<{ title: string; subtitle: string; empty: boole
   <div className={`col-12 ${wide ? '' : 'col-xl-6'}`}>
     <div className="card border shadow-sm h-100 bg-white">
       <div className="card-header bg-white border-bottom">
-        <div className="fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>{title}</div>
-        <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{subtitle}</div>
+        <div className="fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.8rem', letterSpacing: '0.04em' }}>{title}</div>
+        <div className="small text-muted" style={{ fontSize: '0.8rem' }}>{subtitle}</div>
       </div>
       <div className="card-body">
         <div style={{ height: '260px' }} className={empty ? 'd-flex align-items-center justify-content-center text-muted small' : ''}>
-          {empty ? 'No Data' : children}
+          {empty ? '–' : children}
         </div>
       </div>
     </div>

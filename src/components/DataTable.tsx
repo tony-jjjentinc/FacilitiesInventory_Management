@@ -27,7 +27,21 @@ export interface DataTableProps<T> {
   refreshing?: boolean;
   /** extra full-width row under a row (return nothing to skip), e.g. item details */
   renderExpanded?: (row: T) => React.ReactNode;
+  /** Draws one row as a card. With it the toolbar gets a table/cards toggle (and a Compact toggle for the table). */
+  renderCard?: (row: T, index: number) => React.ReactNode;
+  /** Which view opens first when the user has not chosen one yet. */
+  defaultView?: 'table' | 'cards';
+  /** Remembers the chosen view and density in this browser under this name (needs renderCard). */
+  viewKey?: string;
 }
+
+const pref = (kind: string, key?: string) => `jjjei_${kind}|${key || ''}`;
+const readPref = (kind: string, key?: string): string | null => {
+  try { return key ? localStorage.getItem(pref(kind, key)) : null; } catch { return null; }
+};
+const writePref = (kind: string, key: string | undefined, v: string) => {
+  try { if (key) localStorage.setItem(pref(kind, key), v); } catch { /* private mode: the choice just isn't remembered */ }
+};
 
 export function DataTable<T extends Record<string, any>>({
   columns,
@@ -42,8 +56,19 @@ export function DataTable<T extends Record<string, any>>({
   initialPageSize = 10,
   isLoading = false,
   refreshing = false,
-  renderExpanded
+  renderExpanded,
+  renderCard,
+  defaultView = 'table',
+  viewKey
 }: DataTableProps<T>) {
+  const [view, setView] = useState<'table' | 'cards'>(() => {
+    const saved = readPref('view', viewKey);
+    return renderCard && (saved === 'table' || saved === 'cards') ? saved : defaultView;
+  });
+  const [compact, setCompact] = useState(() => readPref('compact', viewKey) === '1');
+  const showCards = !!renderCard && view === 'cards';
+  const pickView = (v: 'table' | 'cards') => { setView(v); writePref('view', viewKey, v); };
+  const toggleCompact = () => { writePref('compact', viewKey, compact ? '0' : '1'); setCompact(!compact); };
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -103,7 +128,7 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className="data-table-container">
       {/* Table Toolbar */}
-      {(onSearchChange !== undefined || filters || actions) && (
+      {(onSearchChange !== undefined || filters || actions || renderCard) && (
         <div className="p-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div className="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
             {onSearchChange !== undefined && (
@@ -126,13 +151,53 @@ export function DataTable<T extends Record<string, any>>({
             {filters}
           </div>
 
-          {actions && <div>{actions}</div>}
+          <div className="d-flex align-items-center gap-2">
+            {actions}
+            {renderCard && (
+              <>
+                {showCards ? (
+                  <div className="d-flex align-items-center gap-1">
+                    <select className="form-select form-select-sm" style={{ width: '150px' }} aria-label="Sort cards by" value={sortKey || ''}
+                      onChange={(e) => { setSortKey(e.target.value || null); setSortDirection('asc'); setCurrentPage(1); }}>
+                      <option value="">Sort: default</option>
+                      {columns.filter(c => c.sortable).map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    </select>
+                    <button type="button" className="btn btn-outline-secondary btn-sm" disabled={!sortKey} title="Reverse order" aria-label="Reverse order"
+                      onClick={() => setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'))}>
+                      <i className={`bi ${sortDirection === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-up'}`}></i>
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className={`btn btn-sm ${compact ? 'btn-secondary' : 'btn-outline-secondary'}`} aria-pressed={compact} onClick={toggleCompact} title="Smaller text and tighter rows">
+                    <i className="bi bi-arrows-collapse me-1"></i>Compact
+                  </button>
+                )}
+                <div className="btn-group btn-group-sm" role="group" aria-label="View">
+                  <button type="button" className={`btn ${showCards ? 'btn-outline-secondary' : 'btn-secondary'}`} aria-pressed={!showCards} onClick={() => pickView('table')} title="Table view"><i className="bi bi-table"></i></button>
+                  <button type="button" className={`btn ${showCards ? 'btn-secondary' : 'btn-outline-secondary'}`} aria-pressed={showCards} onClick={() => pickView('cards')} title="Card view"><i className="bi bi-grid-3x2-gap"></i></button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showCards && (
+        <div className="p-3">
+          {refreshRow && <div className="text-center pb-2"><Loading variant="text" showLabel={false} /></div>}
+          {blank ? (
+            <div className="text-center py-5 text-muted"><Loading variant="text" showLabel={false} /> <span className="small">Loading data, please wait...</span></div>
+          ) : pageData.length === 0 ? (refreshRow ? null : <div className="text-center py-4 text-muted">{emptyMessage}</div>) : (
+            <div className="data-card-grid">
+              {pageData.map((row, idx) => <React.Fragment key={`${String(row[keyField] ?? 'row')}-${startIndex + idx}`}>{renderCard!(row, startIndex + idx)}</React.Fragment>)}
+            </div>
+          )}
         </div>
       )}
 
       {/* Table Body */}
-      <div className="table-responsive">
-        <table className="table table-hover align-middle mb-0">
+      <div className={`table-responsive${showCards ? ' d-none' : ''}`}>
+        <table className={`table table-hover align-middle mb-0${compact ? ' table-compact' : ''}`}>
           <thead>
             <tr>
               {columns.map((col) => {

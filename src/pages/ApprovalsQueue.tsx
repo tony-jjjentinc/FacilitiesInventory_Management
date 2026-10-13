@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { LossIncident } from '../types';
@@ -15,6 +17,8 @@ const isOwnIncident = (liablePartyId?: string) => {
 };
 
 export const ApprovalsQueue: React.FC = () => {
+  const toast = useToast();
+  const dialog = useDialog();
   const [incidents, setIncidents] = useState<LossIncident[]>([]);
   const [statusFilter, setStatusFilter] = useState<'PENDING_APPROVAL' | 'APPROVED' | 'ALL'>('PENDING_APPROVAL');
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -47,45 +51,43 @@ export const ApprovalsQueue: React.FC = () => {
   }, [fetchIncidents]);
 
   const handleApprove = async (lossId: string) => {
-    const remarks = window.prompt('Enter approval remarks (optional):', 'Approved by Department Head');
-    if (remarks === null) return; // User cancelled prompt
+    const remarks = await dialog.prompt({ title: `Approve ${lossId}`, label: 'Approval remarks (optional)', defaultValue: 'Approved by Department Head', required: false, confirmText: 'Approve' });
+    if (remarks === null) return;
 
     setProcessingId(lossId);
     try {
       await apiRequest('incident:approve', {
         lossId,
-        remarks: remarks.trim() || 'Approved by Department Head'
+        remarks: remarks || 'Approved by Department Head'
       });
       invalidateCache('incident:queue');
       invalidateCache('inventory:stock');
       invalidateCache('transaction:history');
       invalidateCache('custody:list');
       setIncidents(prev => prev.filter(i => i.lossId !== lossId));
+      toast.success(`${lossId} was approved.`);
     } catch (err: any) {
-      alert(`Approval failed: ${err.message}`);
+      toast.error(`Approval failed: ${err.message}`);
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleReject = async (lossId: string) => {
-    const reason = window.prompt('Enter reason for rejecting this loss incident:');
-    if (reason === null) return; // User cancelled prompt
-    if (!reason.trim()) {
-      alert('A rejection reason is required.');
-      return;
-    }
+    const reason = await dialog.prompt({ title: `Reject ${lossId}`, label: 'Why is this loss incident rejected?', confirmText: 'Reject', danger: true });
+    if (reason === null) return;
 
     setProcessingId(lossId);
     try {
       await apiRequest('incident:reject', {
         lossId,
-        remarks: reason.trim()
+        remarks: reason
       });
       invalidateCache('incident:queue');
       setIncidents(prev => prev.filter(i => i.lossId !== lossId));
+      toast.success(`${lossId} was rejected.`);
     } catch (err: any) {
-      alert(`Rejection failed: ${err.message}`);
+      toast.error(`Rejection failed: ${err.message}`);
     } finally {
       setProcessingId(null);
     }

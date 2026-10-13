@@ -27,11 +27,14 @@ function friendlyError(error: string | null | undefined, code: string | null | u
     const detail = text.replace(/^Access denied\.\s*/i, '');
     return /sub-department|department|your role/i.test(detail) && !/Insufficient role/i.test(detail) ? detail : "You don't have access to this. Ask an administrator if you need it.";
   }
-  return text || code || 'Unknown API error occurred.';
+  // the server prefixes its messages with a code (BAD_REQUEST:, NOT_FOUND:, INVALID_STATE:...): people should read the sentence only
+  return text.replace(/^[A-Z][A-Z_]+(?::[A-Z_]+)*:\s*/, '') || code || 'Unknown API error occurred.';
 }
 
 /** Fired after any call that can change data, so the notification bell refreshes right away instead of at its next poll. */
 export const DATA_CHANGED_EVENT = 'jjjei:data-changed';
+/** Fired by the Confirmation list with the exact number of receipts waiting for this person, so the nav badge updates at once. */
+export const RECEIPTS_COUNT_EVENT = 'jjjei:receipts-count';
 const READS = /:(get|list|check|info)[A-Za-z]*$/;
 
 export const SESSION_EXPIRED_EVENT = 'jjjei:session-expired';

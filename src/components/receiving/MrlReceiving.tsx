@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { notifySubmit, submitStatusText, type SubmitResult } from './submitFeedback';
-import { canAddToCatalog, getCurrentUser } from '../../services/auth';
+import { canAddToCatalog, getCurrentUser, isUserHeadOrAdmin } from '../../services/auth';
 import type { MrlDetails, ReceivingLine, ReceivingParty, StagedMrlSummary } from '../../types';
 import { ConfirmModal } from '../ConfirmModal';
 import { MrlPickerModal } from './MrlPickerModal';
@@ -14,6 +14,10 @@ import { ConfirmationSection } from './ConfirmationSection';
 import { buildPayload, newLineKey, priceFields, simpleDate, spotsInArea, validateReceiving } from './receivingUtils';
 import type { useReceivingLookups } from './useReceivingLookups';
 import { Loading } from '../Loading';
+import { useDraft } from '../drafts/useDraft';
+import { sameProject } from './projectGuard';
+import { useResumeParam } from '../drafts/useResumeParam';
+import { DraftActions, DraftResume } from '../drafts/DraftBar';
 
 interface Props {
   lookups: ReturnType<typeof useReceivingLookups>;
@@ -37,6 +41,30 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
   const [result, setResult] = useState<SubmitResult | null>(null);
+
+  // saved progress: one draft per MRL, kept on the server for 24 hours
+  const draftState = useMemo(() => ({ lines, party, mrqNumber }), [lines, party, mrqNumber]);
+  const draft = useDraft({
+    formType: 'MRL_RECEIVE', identifier: details?.mrl.mrlNumber || '', enabled: !!details && !loading && !!party.warehouseLocation, state: draftState,
+    restore: saved => { setLines(saved.lines); setParty(saved.party); }
+  });
+
+  // `?resume=<MRL>` (from the dashboard's Drafts list): fetch that MRL, then put the saved draft on the form
+  const resumeParam = useResumeParam('receive-mrl');
+  const [autoResume, setAutoResume] = useState('');
+  useEffect(() => {
+    if (!resumeParam.value) return;
+    setAutoResume(resumeParam.value);
+    loadDetails(resumeParam.value);
+    resumeParam.done();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeParam.value]);
+  useEffect(() => {
+    if (!autoResume || !draft.looked || details?.mrl.mrlNumber !== autoResume) return;
+    if (draft.existing) draft.resume(); else toast.info('That draft is no longer saved (drafts are kept for 24 hours).');
+    setAutoResume('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoResume, draft.looked, draft.existing, details]);
 
   // default warehouse once the lookups have loaded
   useEffect(() => {
@@ -91,6 +119,12 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
     const problem = validateReceiving('MRL', mrlNumber, lines, party, me);
     if (!details) { toast.error('Fetch the MRL first.'); return; }
     if (problem) { toast.error(problem); return; }
+    // an activity of another project: only a Head or Super Admin, with a written reason (the server checks too)
+    const act = lookups.activities.find(a => a.Activity_ID === party.activityId);
+    if (party.destinationType === 'ACTIVITY' && act && !sameProject(act.ProcInv_Class_Ref, details.mrq.classificationId)) {
+      if (!isUserHeadOrAdmin(getCurrentUser())) { toast.error('That activity belongs to another project. Choose the matching activity, or ask a Head or Super Admin.'); return; }
+      if ((party.mismatchReason || '').trim().length < 5) { toast.error('Give a reason (at least 5 characters) for charging another project.'); return; }
+    }
     submit();
   };
 
@@ -98,8 +132,9 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
     setSubmitting(true);
     try {
       const res = await apiRequest<SubmitResult>(
-        'receiving:submit', buildPayload('MRL', mrlNumber, details, lines, party));
+        'receiving:submit', { ...buildPayload('MRL', mrlNumber, details, lines, party), draftId: draft.draftId });
       setResult(res);
+      draft.clear();
       notifySubmit(res, toast);
       resetForm();
       onSubmitted();
@@ -123,7 +158,7 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
     <div>
       {result && (
         <div className="alert alert-success py-2 small" role="status">
-          Receipt <strong>{result.receiptId}</strong> submitted: {result.verifiedCount} item(s) to receive, {result.rejectedCount} invalid.
+          Receipt <strong>{result.receiptId}</strong> submitted: {result.verifiedCount} item{result.verifiedCount === 1 ? '' : 's'} to receive{result.rejectedCount ? `, ${result.rejectedCount} to return` : ''}.
           {submitStatusText(result)}{' '}
           <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={onViewPending}>View pending receipts</button>
         </div>
@@ -156,6 +191,7 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
 
       {!loading && details && q && m && (
         <>
+          <DraftResume draft={draft} what={`MRL ${m.mrlNumber}`} />
           <StepCard title="1. Delivery" hint="From the staged MRQ and MRL.">
             <div className="row g-3">
               {fact('MRL', <span className="font-monospace">{m.mrlNumber}</span>)}
@@ -181,7 +217,7 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
           <ReceivingPartySection title="3. Receiving" party={party} onChange={setParty} storage={lookups.storage} activities={lookups.activities}
             details={details} suggested={details.suggestedActivity} onActivityCreated={lookups.reloadActivities} />
           <ConfirmationSection title="4. Confirmation" reference={`MRL ${mrlNumber}`} lines={lines} party={party} storage={lookups.storage} activities={lookups.activities}
-            busy={submitting} onClear={resetForm} onSubmit={review} />
+            busy={submitting} extra={<DraftActions draft={draft} />} onClear={resetForm} onSubmit={review} />
         </>
       )}
 

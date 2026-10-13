@@ -12,6 +12,9 @@ import { StepCard } from './StepCard';
 import { ConfirmationSection } from './ConfirmationSection';
 import { buildPayload, spotsInArea, validateReceiving } from './receivingUtils';
 import type { useReceivingLookups } from './useReceivingLookups';
+import { useDraft } from '../drafts/useDraft';
+import { useResumeParam } from '../drafts/useResumeParam';
+import { DraftActions, DraftResume } from '../drafts/DraftBar';
 
 interface Props {
   lookups: ReturnType<typeof useReceivingLookups>;
@@ -41,6 +44,29 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
   const toast = useToast();
   const [result, setResult] = useState<SubmitResult | null>(null);
 
+  // saved progress: one unnamed draft of this form per person, kept on the server for 24 hours
+  const draftState = useMemo(() => ({ sourceType, reference, lines, party }), [sourceType, reference, lines, party]);
+  const draft = useDraft({
+    formType: 'MANUAL_RECEIVE', identifier: '', enabled: !!party.warehouseLocation, state: draftState, // enabled once the default warehouse is filled in, so that is not counted as an edit
+    restore: saved => { setSourceType(saved.sourceType); setReference(saved.reference); setLines(saved.lines); setParty(saved.party); }
+  });
+
+  // `?resume=1` (from the dashboard's Drafts list): put the saved draft on the form
+  const resumeParam = useResumeParam('receive-manual');
+  const [autoResume, setAutoResume] = useState(false);
+  useEffect(() => {
+    if (!resumeParam.value) return;
+    setAutoResume(true);
+    resumeParam.done();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeParam.value]);
+  useEffect(() => {
+    if (!autoResume || !draft.looked) return;
+    if (draft.existing) draft.resume(); else toast.info('That draft is no longer saved (drafts are kept for 24 hours).');
+    setAutoResume(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoResume, draft.looked, draft.existing]);
+
   useEffect(() => {
     if (!party.warehouseLocation && lookups.storage.warehouses.length > 0) {
       setParty(p => ({ ...p, warehouseLocation: lookups.storage.warehouses[0].id }));
@@ -63,8 +89,9 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
     setSubmitting(true);
     try {
       const res = await apiRequest<SubmitResult>(
-        'receiving:submit', buildPayload(sourceType, reference, null, lines, party));
+        'receiving:submit', { ...buildPayload(sourceType, reference, null, lines, party), draftId: draft.draftId });
       setResult(res);
+      draft.clear();
       notifySubmit(res, toast);
       setLines([]);
       setReference('');
@@ -86,6 +113,7 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
         </div>
       )}
 
+      <DraftResume draft={draft} what="a manual receipt" />
       <StepCard title="1. Source" hint="Where the items came from.">
         <div className="row g-3">
           <div className="col-12">
@@ -114,7 +142,7 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
       <ReceivingPartySection title="3. Receiving" party={party} onChange={setParty} storage={lookups.storage} activities={lookups.activities}
         details={null} suggested={null} onActivityCreated={lookups.reloadActivities} />
           <ConfirmationSection title="4. Confirmation" reference={`${source.label} ${reference}`} lines={lines} party={party} storage={lookups.storage} activities={lookups.activities}
-            busy={submitting} onClear={() => { setLines([]); setReference(''); }} onSubmit={review} />
+            busy={submitting} extra={<DraftActions draft={draft} />} onClear={() => { setLines([]); setReference(''); }} onSubmit={review} />
 
       <ManualItemModal open={addOpen} initial={picked} onClose={() => { setAddOpen(false); setPicked([]); }}
         onNext={items => { setPicked(items); setAddOpen(false); setChosen(items); }} />

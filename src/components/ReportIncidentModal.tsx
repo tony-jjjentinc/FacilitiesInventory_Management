@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import { apiRequest } from '../services/api';
 import { Loading } from './Loading';
 import { getCurrentUser } from '../services/auth';
@@ -15,6 +16,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  const toast = useToast();
   const [lossType, setLossType] = useState('DAMAGE');
   const [originType, setOriginType] = useState('INVENTORY');
   const [originRefId, setOriginRefId] = useState('FACILITIES_WAREHOUSE_MAIN');
@@ -93,7 +95,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         ]
       });
 
-      alert('Loss Incident Report submitted successfully to Department Head review queue.');
+      toast.success('The loss incident was sent to the Head for review.');
       onClose();
       if (onSuccess) onSuccess();
     } catch (err: any) {

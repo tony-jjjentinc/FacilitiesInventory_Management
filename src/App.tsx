@@ -17,15 +17,12 @@ const page = <K extends string>(load: () => Promise<Record<K, React.ComponentTyp
 const AnalyticsHub = page(() => import('./pages/hubs/AnalyticsHub'), 'AnalyticsHub');
 const InventoryStockHub = page(() => import('./pages/hubs/InventoryStockHub'), 'InventoryStockHub');
 const ActivitiesHub = page(() => import('./pages/hubs/ActivitiesHub'), 'ActivitiesHub');
-const TransactionsHub = page(() => import('./pages/hubs/TransactionsHub'), 'TransactionsHub');
 const AdminHub = page(() => import('./pages/hubs/AdminHub'), 'AdminHub');
 const Configuration = page(() => import('./pages/Configuration'), 'Configuration');
-const WarehousesIndex = page(() => import('./pages/entity/WarehousesIndex'), 'WarehousesIndex');
 const WarehousePage = page(() => import('./pages/entity/WarehousePage'), 'WarehousePage');
 const AreaPage = page(() => import('./pages/entity/AreaPage'), 'AreaPage');
 const ItemPage = page(() => import('./pages/entity/ItemPage'), 'ItemPage');
 const ActivityPage = page(() => import('./pages/entity/ActivityPage'), 'ActivityPage');
-const SubDepartmentsIndex = page(() => import('./pages/entity/SubDepartmentsIndex'), 'SubDepartmentsIndex');
 const SubDepartmentPage = page(() => import('./pages/entity/SubDepartmentPage'), 'SubDepartmentPage');
 const ComponentTest = page(() => import('./pages/ComponentTest'), 'ComponentTest');
 
@@ -118,18 +115,18 @@ export const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<DashboardOverview />} />
-            <Route path="/warehouses" element={<WarehousesIndex />} />
+            <Route path="/warehouses" element={<Navigate to="/inventory?tab=warehouses" replace />} />
             <Route path="/warehouses/:id" element={<WarehousePage />} />
             <Route path="/areas/:id" element={<AreaPage />} />
             <Route path="/items/:id" element={<ItemPage />} />
             <Route path="/activities/:id" element={<ActivityPage />} />
-            <Route path="/sub-departments" element={<SubDepartmentsIndex />} />
+            <Route path="/sub-departments" element={<Navigate to="/activities?tab=sub-departments" replace />} />
             <Route path="/sub-departments/:id" element={<SubDepartmentPage />} />
             <Route path="/test" element={<ComponentTest />} />
             <Route path="/analytics" element={canSeeAnalytics ? <AnalyticsHub /> : <Navigate to="/overview" replace />} />
             <Route path="/inventory" element={<InventoryStockHub />} />
             <Route path="/activities" element={<ActivitiesHub />} />
-            <Route path="/transactions" element={<TransactionsHub />} />
+            <Route path="/transactions" element={<LegacyRedirect to={(q) => { const t = q.get('tab'); return t === 'ledger' ? '/analytics?tab=ledger' : t ? `/inventory?tab=${encodeURIComponent(t)}` : '/inventory'; }} />} />
             <Route path="/configuration" element={isHeadOrAdmin ? <Configuration /> : <Navigate to="/overview" replace />} />
             <Route path="/admin" element={isHeadOrAdmin ? <AdminHub pendingApprovals={pendingApprovals} /> : <Navigate to="/overview" replace />} />
 
@@ -141,7 +138,7 @@ export const App: React.FC = () => {
             <Route path="/allocation" element={<Navigate to="/activities" replace />} />
             <Route
               path="/receiving"
-              element={<LegacyRedirect to={(q) => { const t = q.get('tab'); return t === 'manual' ? '/transactions?tab=receive-manual' : t === 'pending' ? '/transactions?tab=pending' : '/transactions'; }} />}
+              element={<LegacyRedirect to={(q) => { const t = q.get('tab'); return t === 'manual' ? '/inventory?tab=receive-manual' : t === 'pending' ? '/inventory?tab=pending' : '/inventory'; }} />}
             />
             <Route
               path="/costs"

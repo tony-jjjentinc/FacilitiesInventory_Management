@@ -31,7 +31,7 @@ const Card: React.FC<{ title: string; subtitle?: string; children: React.ReactNo
 
 const none = <div className="d-flex align-items-center justify-content-center text-muted small" style={{ height: '220px' }}>No Data</div>;
 
-export const ItemOverviewTab: React.FC<{ itemId: string }> = ({ itemId }) => {
+export const ItemOverviewTab: React.FC<{ itemId: string; onOpenTab?: (key: string) => void }> = ({ itemId, onOpenTab }) => {
   const { data, loading, refreshing, error, reload } = useEntityData<ItemOverview>('getOverview', 'ITEM', itemId);
   const costs = getAccess(getCurrentUser()).canSeeCosts;
   if (loading && !data) return <Loading label="Loading the overview…" />;
@@ -42,11 +42,11 @@ export const ItemOverviewTab: React.FC<{ itemId: string }> = ({ itemId }) => {
     <>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div className="small text-muted">
-          Reorder status <strong className="text-dark">{ROP[stock.status] || 'No Data'}</strong>
+          Reorder status <strong className="text-dark">{ROP[stock.status] || '–'}</strong>
           {' · '}Average use <strong className="text-dark">{qty(usage.avgMonthly)} {data.uom}/month</strong>
-          {' · '}Cover <strong className="text-dark">{usage.daysOfCover === null ? 'No Data' : `${usage.daysOfCover} days`}</strong>
+          {' · '}Cover <strong className="text-dark">{usage.daysOfCover === null ? '–' : `${usage.daysOfCover} days`}</strong>
         </div>
-        <RefreshButton onClick={reload} loading={refreshing} />
+        <div className="d-flex align-items-center gap-3">{onOpenTab && <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => onOpenTab('distribution')}>Where is it? <i className="bi bi-arrow-right"></i></button>}<RefreshButton onClick={reload} loading={refreshing} /></div>
       </div>
       <div className="row g-3">
         {costs && <Card title="Price paid per unit" subtitle="Each purchase of this item, oldest first">
@@ -81,7 +81,7 @@ export const ItemOverviewTab: React.FC<{ itemId: string }> = ({ itemId }) => {
                   <tr key={s.supplierId}>
                     <td>{s.supplierName}{s.preferred && <span className="badge text-bg-light border fw-normal ms-2">Preferred</span>}</td>
                     <td className="text-end">{peso(s.price)}</td>
-                    <td>{s.effectiveDate || 'No Data'}</td>
+                    <td>{s.effectiveDate || '–'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -100,7 +100,7 @@ export const ItemOverviewTab: React.FC<{ itemId: string }> = ({ itemId }) => {
           <Card title="Price corrections" className="col-12">
             <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
               <thead className="table-light"><tr><th>Date</th><th className="text-end">From</th><th className="text-end">To</th><th className="text-end">Units</th><th>Reason</th></tr></thead>
-              <tbody>{data.corrections.map((c, i) => <tr key={i}><td>{c.at}</td><td className="text-end">{peso(c.oldCost)}</td><td className="text-end">{peso(c.newCost)}</td><td className="text-end">{qty(c.qty)}</td><td>{c.reason || 'No Data'}</td></tr>)}</tbody>
+              <tbody>{data.corrections.map((c, i) => <tr key={i}><td>{c.at}</td><td className="text-end">{peso(c.oldCost)}</td><td className="text-end">{peso(c.newCost)}</td><td className="text-end">{qty(c.qty)}</td><td>{c.reason || '–'}</td></tr>)}</tbody>
             </table>
           </Card>
         )}

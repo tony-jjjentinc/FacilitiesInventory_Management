@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { StepCard } from './StepCard';
-import { getCurrentUser } from '../../services/auth';
+import { PersonSelect } from '../form/PersonSelect';
+import { sameProject, mismatchText } from './projectGuard';
+import { getCurrentUser, isUserHeadOrAdmin } from '../../services/auth';
 import { useAccountDirectory } from './useAccountDirectory';
 import { activityLabel } from './receivingUtils';
 import type { MrlDetails, OpenActivity, ReceivingParty, StorageOptions, SuggestedActivity } from '../../types';
@@ -26,6 +28,9 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
   const areas = storage.storage.filter(s => s.storageType === 'AREA' && s.warehouseLocation === party.warehouseLocation);
   const area = areas.find(a => a.storageId === party.areaId);
   const directory = useAccountDirectory();
+  const chosen = activities.find(a => a.Activity_ID === party.activityId);
+  const admin = isUserHeadOrAdmin(getCurrentUser());
+  const otherProject = party.destinationType === 'ACTIVITY' && !!chosen && !sameProject(chosen.ProcInv_Class_Ref, details?.mrq.classificationId);
   const meEmail = (getCurrentUser()?.email || '').trim().toLowerCase();
   const isSelf = !!meEmail && party.receiverId.trim().toLowerCase() === meEmail;
 
@@ -88,19 +93,28 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
               {!details && <button type="button" className="btn btn-outline-secondary btn-sm text-nowrap" onClick={() => setShowCreate(true)}>New activity</button>}
             </div>
             <div className="form-text">Billed at the received price. The warehouse balance is not touched.</div>
+            {otherProject && (
+              <div className="alert alert-danger small py-2 mt-2 mb-0">
+                <i className="bi bi-exclamation-triangle-fill me-2"></i>{mismatchText(details?.mrq.classificationId || '', chosen?.ProcInv_Class_Ref || '')}
+                {admin ? (
+                  <div className="mt-2">
+                    <label className="form-label small fw-semibold mb-1" htmlFor="mismatch-reason">Why is this activity right? (required, saved with the receipt)</label>
+                    <input id="mismatch-reason" className="form-control form-control-sm" value={party.mismatchReason || ''} onChange={e => set({ mismatchReason: e.target.value })} />
+                  </div>
+                ) : <div className="mt-1">Choose the matching activity, or ask a Head or Super Admin to submit this.</div>}
+              </div>
+            )}
           </div>
         )}
 
         <div className="col-md-6">
           <label className="form-label small fw-semibold mb-1" htmlFor="receiving-party">Goods Issued to</label>
           <div className="d-flex align-items-center gap-3">
-            <Select id="receiving-party" className="form-select form-select-sm" value={party.receiverId}
-              onChange={e => set({ receiverId: e.target.value, autoReceive: e.target.value === meEmail ? party.autoReceive : false })}>
-              {meEmail && <option value={meEmail}>{getCurrentUser()?.name || meEmail} (me)</option>}
-              {directory.options.filter(p => p.email.toLowerCase() !== meEmail).map(p => (
-                <option key={p.email} value={p.email}>{p.label}</option>
-              ))}
-            </Select>
+            <div className="flex-grow-1">
+              <PersonSelect id="receiving-party" value={party.receiverId}
+                onChange={v => set({ receiverId: v, autoReceive: v.trim().toLowerCase() === meEmail ? party.autoReceive : false })}
+                options={[...(meEmail ? [{ email: meEmail, label: `${getCurrentUser()?.name || meEmail} (me)` }] : []), ...directory.options.filter(p => p.email.toLowerCase() !== meEmail)]} />
+            </div>
             <div className="form-check mb-0 text-nowrap" title={isSelf ? 'Post the items to the inventory as soon as you submit' : 'Choose your own account to receive the items straight away'}>
               <input id="auto-receive" type="checkbox" className="form-check-input" checked={party.autoReceive} disabled={!isSelf}
                 onChange={e => set({ autoReceive: e.target.checked })} />

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserClaims } from '../types';
 import { isUserHeadOrAdmin } from '../services/auth';
+import { RECEIPTS_COUNT_EVENT } from '../services/api';
 import { getAccess } from '../services/access';
 import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
@@ -54,15 +55,21 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
 
   const navItems: { id: string; path: string; label: string; badge?: number }[] = [
     { id: 'overview', path: '/overview', label: 'Dashboard' },
+    { id: 'inventory', path: '/inventory', label: 'Inventory', badge: counts.receipts },
+    { id: 'activities', path: '/activities', label: 'Projects & Activities' },
     ...(canSeeAnalytics ? [{ id: 'analytics', path: '/analytics', label: 'Analytics' }] : []),
-    { id: 'inventory', path: '/inventory', label: 'Inventory' },
-    { id: 'activities', path: '/activities', label: 'Activities' },
-    { id: 'transactions', path: '/transactions', label: 'Transactions', badge: counts.receipts },
     ...(isHeadOrAdmin ? [{ id: 'admin', path: '/admin', label: 'Admin', badge: counts.approvals }, { id: 'configuration', path: '/configuration', label: 'Configuration' }] : [])
   ];
 
   const isItemActive = (item: { id: string; path: string }) =>
     location.pathname === item.path || location.pathname.startsWith(item.path + '/') || (item.id === 'overview' && location.pathname === '/');
+
+  // the confirmation list knows the exact count the moment it changes; the bell feed catches up later
+  useEffect(() => {
+    const on = (e: Event) => setCounts(c => ({ ...c, receipts: Number((e as CustomEvent).detail) || 0 }));
+    window.addEventListener(RECEIPTS_COUNT_EVENT, on);
+    return () => window.removeEventListener(RECEIPTS_COUNT_EVENT, on);
+  }, []);
 
   const handleFeed = (items: { id: string; count?: number }[]) => {
     const next = {
@@ -79,8 +86,11 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
     setAccountMenuOpen(false);
   };
 
+  // accounts without a directory name carry their email as the name: show the part before the @
+  const displayName = (user?.name || '').split('@')[0];
+
   // Extract initials for the avatar badge
-  const userInitials = (user?.name || 'U')
+  const userInitials = (displayName || 'U')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -183,7 +193,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
                   onClick={() => setAccountMenuOpen(!accountMenuOpen)}
                   aria-expanded={accountMenuOpen}
                   aria-label="User account menu"
-                  title={`${user.name} (${user.roles?.[0] || "User"})`}
+                  title={`${displayName} (${user.roles?.[0] || "User"})`}
                 >
                   <div className="user-avatar-badge">{userInitials}</div>
                   <div
@@ -194,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
                       className="fw-semibold text-dark text-truncate"
                       style={{ fontSize: "0.78rem" }}
                     >
-                      {user.name}
+                      {displayName}
                     </div>
                     <div
                       className="text-muted text-truncate"
@@ -238,7 +248,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
                             className="fw-bold text-dark text-truncate"
                             style={{ fontSize: "0.85rem" }}
                           >
-                            {user.name}
+                            {displayName}
                           </div>
                           <div
                             className="text-muted small text-truncate"
@@ -341,7 +351,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
                     className="fw-semibold text-dark text-truncate"
                     style={{ fontSize: "0.825rem" }}
                   >
-                    {user.name}
+                    {displayName}
                   </div>
                   <div
                     className="text-muted small text-truncate"

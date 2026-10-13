@@ -12,7 +12,7 @@ export const AreaPage: React.FC = () => {
   const { id = '' } = useParams();
   return (
     <EntityPage scopeType="AREA" scopeRef={id} backTo={{ path: '/warehouses', label: 'All warehouses' }} tabs={[
-      { key: 'overview', label: 'Overview', render: () => <EntityOverviewTab scopeType="AREA" scopeRef={id} /> },
+      { key: 'overview', label: 'Overview', render: (_p, open) => <EntityOverviewTab scopeType="AREA" scopeRef={id} onOpenTab={open} /> },
       { key: 'storage', label: 'Shelves and Containers', render: p => (
         <ManageStorage scopeType="AREA" scopeRef={id} warehouseId={p.parents[0]?.id || String(p.record['Warehouse_Location'] || '')} root={{ storageId: id, name: p.title }} />
       ) },

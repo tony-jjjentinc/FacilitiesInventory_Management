@@ -10,9 +10,12 @@ import { fetchWithSwr, invalidateCache } from '../../services/cache';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
 import { useToast } from '../../context/ToastContext';
+import { useDialog } from '../../context/DialogContext';
 import { DataCard } from '../DataCard';
 import type { Column } from '../DataTable';
+import { sameProject, mismatchText } from './projectGuard';
 import { Select } from '../Select';
+import { PersonSelect } from '../form/PersonSelect';
 import { Loading } from '../Loading';
 import type { DirectoryAccount, MrlListResponse, MrlTask, OpenActivity, StagedMrlSummary, StorageOptions, TaskLine } from '../../types';
 
@@ -49,14 +52,25 @@ interface Dest { destinationType: 'WAREHOUSE' | 'ACTIVITY' | ''; warehouseLocati
 const EMPTY_DEST: Dest = { destinationType: '', warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN', areaId: '', activityId: '' };
 
 /** Where the goods go: a warehouse (and area), or straight to an open activity. */
-const DestinationFields: React.FC<{ value: Dest; onChange: (d: Dest) => void }> = ({ value, onChange }) => {
+const DestinationFields: React.FC<{ value: Dest; onChange: (d: Dest) => void; classification?: string; approvedActivityId?: string; onBlockedChange?: (blocked: boolean) => void }> = ({ value, onChange, classification, approvedActivityId, onBlockedChange }) => {
   const [storage, setStorage] = useState<StorageOptions>({ warehouses: [], storage: [] });
   const [activities, setActivities] = useState<OpenActivity[]>([]);
   useEffect(() => {
     apiRequest<StorageOptions>('receiving:getStorageOptions').then(setStorage).catch(() => undefined);
     apiRequest<OpenActivity[]>('activity:getAll', { status: 'ALL' }).then(r => setActivities((Array.isArray(r) ? r : []).filter(a => OPEN.includes(String(a.Status).toUpperCase())))).catch(() => undefined);
   }, []);
+  // the form starts with a placeholder warehouse code: once the real warehouses are known, use the first one (what the dropdown shows)
+  useEffect(() => {
+    if (storage.warehouses.length > 0 && !storage.warehouses.some(w => w.id === value.warehouseLocation)) onChange({ ...value, warehouseLocation: storage.warehouses[0].id, areaId: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storage.warehouses, value.warehouseLocation]);
   const areas = storage.storage.filter(s => s.storageType === 'AREA' && s.warehouseLocation === value.warehouseLocation);
+  // an activity of another project is blocked unless a Head approved exactly that activity when assigning
+  const chosen = value.destinationType === 'ACTIVITY' ? activities.find(a => a.Activity_ID === value.activityId) : undefined;
+  const otherProject = !!chosen && !sameProject(chosen.ProcInv_Class_Ref, classification);
+  const approved = otherProject && approvedActivityId === chosen!.Activity_ID;
+  const blocked = otherProject && !approved;
+  useEffect(() => { onBlockedChange?.(blocked); }, [blocked, onBlockedChange]);
   return (
     <div className="row g-2">
       <div className="col-12">
@@ -86,8 +100,12 @@ const DestinationFields: React.FC<{ value: Dest; onChange: (d: Dest) => void }> 
         <div className="col-12">
           <label className="form-label small fw-semibold mb-1">Activity</label>
           <Select className="form-select form-select-sm" value={value.activityId} onChange={e => onChange({ ...value, activityId: e.target.value })}>
-            {activities.map(a => <option key={a.Activity_ID} value={a.Activity_ID}>{a.Activity_ID} · {a.Activity_Name}</option>)}
+            {[...activities].sort((a, b) => Number(!sameProject(a.ProcInv_Class_Ref, classification)) - Number(!sameProject(b.ProcInv_Class_Ref, classification))).map(a => (
+              <option key={a.Activity_ID} value={a.Activity_ID}>{a.Activity_ID} · {a.Activity_Name}{!sameProject(a.ProcInv_Class_Ref, classification) && approvedActivityId !== a.Activity_ID ? ' (other project)' : ''}</option>
+            ))}
           </Select>
+          {blocked && <div className="alert alert-danger small py-2 mt-2 mb-0">{mismatchText(classification || '', chosen!.ProcInv_Class_Ref || '')} Choose the matching activity, or ask a Head to approve this one when assigning the MRL.</div>}
+          {approved && <div className="form-text text-success-emphasis">A Head approved this activity for this MRL.</div>}
         </div>
       )}
     </div>
@@ -109,13 +127,22 @@ export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }
   const [pick, setPick] = useState<StagedMrlSummary | null>(null);
   const [sub, setSub] = useState('');
   const [assignee, setAssignee] = useState('');
+  const [approveId, setApproveId] = useState('');
+  const [approveWhy, setApproveWhy] = useState('');
+  const [activities, setActivities] = useState<OpenActivity[]>([]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    apiRequest<OpenActivity[]>('activity:getAll', { status: 'ALL' }).then(r => setActivities((Array.isArray(r) ? r : []).filter(a => OPEN.includes(String(a.Status).toUpperCase())))).catch(() => undefined);
+  }, []);
+  const otherProjects = activities.filter(a => pick && !sameProject(a.ProcInv_Class_Ref, pick.classificationId));
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([apiRequest<MrlListResponse>('receiving:listMrls'), apiRequest<StorageOptions>('receiving:getStorageOptions')])
-      .then(([m, o]) => { setData(m); setSubs(o.subDepartments || []); })
+    // last-known list first (this call takes tens of seconds on a large sheet), then the fresh one
+    fetchWithSwr<MrlListResponse>('receiving:assignQueue', () => apiRequest<MrlListResponse>('receiving:listMrls'), d => { if (d) { setData(d); setLoading(false); } }, { persist: true })
       .catch(e => toast.error(e.message || 'Could not load the MRLs.')).finally(() => setLoading(false));
+    fetchWithSwr<StorageOptions>('receiving:storageOptions', () => apiRequest<StorageOptions>('receiving:getStorageOptions'), o => { if (o) setSubs(o.subDepartments || []); }, { persist: true }).catch(() => undefined);
   }, [toast]);
   useEffect(load, [load]);
 
@@ -129,14 +156,15 @@ export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }
     { key: 'lineCount', label: 'Lines', align: 'right', minWidth: '60px' },
     { key: 'openQty', label: 'To receive', align: 'right', minWidth: '90px', render: r => String(r.openQty ?? r.totalQuantity) },
     { key: 'suggestedSubDepartment', label: 'Suggested sub-department', minWidth: '170px', render: r => r.suggestedSubDepartment || 'TBD' },
-    { key: 'actions', label: '', align: 'right', minWidth: '110px', render: r => <button type="button" className="btn btn-primary btn-sm" onClick={() => { setPick(r); setSub(r.suggestedSubDepartment || ''); setAssignee(''); }}>Confirm &amp; assign</button> }
+    { key: 'actions', label: '', align: 'right', minWidth: '110px', render: r => <button type="button" className="btn btn-primary btn-sm" onClick={() => { setPick(r); setSub(r.suggestedSubDepartment || ''); setAssignee(''); setApproveId(''); setApproveWhy(''); }}>Confirm &amp; assign</button> }
   ];
 
   const submit = async () => {
     if (!pick) return;
     setBusy(true);
     try {
-      await apiRequest('receiving:confirmRelease', { mrlNumber: pick.mrlNumber, mrqNumber: pick.mrqNumber, subDepartment: sub, assigneeId: assignee });
+      await apiRequest('receiving:confirmRelease', { mrlNumber: pick.mrlNumber, mrqNumber: pick.mrqNumber, subDepartment: sub, assigneeId: assignee,
+        ...(approveId ? { approveActivityId: approveId, mismatchReason: approveWhy.trim() } : {}) });
       toast.success(`MRL ${pick.mrlNumber} was assigned to ${assignee}.`);
       setPick(null); invalidateCache('receiving:'); load(); onAssigned();
     } catch (e: any) { toast.error(e.message || 'Could not assign the MRL.'); } finally { setBusy(false); }
@@ -151,7 +179,7 @@ export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }
         <Modal title={`Confirm release and assign MRL ${pick.mrlNumber}`} busy={busy} onClose={() => setPick(null)}
           footer={<>
             <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={() => setPick(null)}>Cancel</button>
-            <button type="button" className="btn btn-sm btn-primary" disabled={busy || !sub || !assignee} onClick={submit}>{busy ? <Loading variant="button" label="Assigning..." /> : 'Confirm & assign'}</button>
+            <button type="button" className="btn btn-sm btn-primary" disabled={busy || !sub || !assignee || (!!approveId && approveWhy.trim().length < 5)} onClick={submit}>{busy ? <Loading variant="button" label="Assigning..." /> : 'Confirm & assign'}</button>
           </>}>
           <div className="small text-muted mb-3">{pick.projectName} · MRQ {pick.mrqNumber} · {pick.lineCount} line(s), {pick.openQty ?? pick.totalQuantity} to receive</div>
           <div className="mb-3">
@@ -162,11 +190,23 @@ export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }
           </div>
           <div className="mb-1">
             <label className="form-label small fw-semibold">Assign to *</label>
-            <Select className="form-select form-select-sm" value={assignee} onChange={e => setAssignee(e.target.value)}>
-              {people.map(a => <option key={a.email} value={a.email}>{a.name || a.email} ({a.email})</option>)}
-            </Select>
+            <PersonSelect value={assignee} onChange={setAssignee} options={people.map(a => ({ email: a.email, label: `${a.name || a.email} (${a.email})` }))} />
             {sub && people.length === 0 && <div className="form-text text-warning-emphasis">No Sub-Department account is listed for {sub}.</div>}
           </div>
+          {otherProjects.length > 0 && (
+            <details className="mt-3">
+              <summary className="small text-muted" role="button">This MRL is for {pick.classificationId || 'its own project'}. Charge it to another project?</summary>
+              <div className="mt-2">
+                <Select optional noneLabel="No, only the matching project" className="form-select form-select-sm" value={approveId} onChange={e => setApproveId(e.target.value)}>
+                  {otherProjects.map(a => <option key={a.Activity_ID} value={a.Activity_ID}>{a.Activity_ID} · {a.Activity_Name} ({a.ProcInv_Class_Ref})</option>)}
+                </Select>
+                {approveId && (
+                  <input className="form-control form-control-sm mt-2" placeholder="Why is this right? (required, saved with the task)" value={approveWhy} onChange={e => setApproveWhy(e.target.value)} />
+                )}
+                <div className="form-text">Only that activity becomes available to the verifier.</div>
+              </div>
+            </details>
+          )}
         </Modal>
       )}
     </>
@@ -183,13 +223,14 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
   const lines = task.items.filter(l => l.Line_Status === 'AWAITING');
   const [form, setForm] = useState<Record<string, LineForm>>(() => Object.fromEntries(lines.map(l => [l.Receipt_Line_ID, { recv: String(l.Released_Qty), ret: '', type: '', details: '', delivered: '', shortRes: 'OPEN' as const }])));
   const [dest, setDest] = useState<Dest>(EMPTY_DEST);
+  const [blocked, setBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const preset = task.Status === 'DELEGATED';
   const set = (id: string, patch: Partial<LineForm>) => setForm(f => ({ ...f, [id]: { ...f[id], ...patch } }));
   const short = (l: TaskLine) => { const f = form[l.Receipt_Line_ID]; return Math.max(0, n(l.Released_Qty) - n(f.recv) - n(f.ret)); };
   const over = (l: TaskLine) => { const f = form[l.Receipt_Line_ID]; return n(f.recv) + n(f.ret) > n(l.Released_Qty); };
   const needsReason = lines.some(l => short(l) > 0 && form[l.Receipt_Line_ID].shortRes === 'CLOSED' && !form[l.Receipt_Line_ID].details.trim());
-  const ready = (preset || destReady(dest)) && !needsReason;
+  const ready = (preset || (destReady(dest) && !blocked)) && !needsReason;
 
   const submit = async () => {
     setBusy(true);
@@ -250,7 +291,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
       <div className="fw-semibold small mb-1">Destination</div>
       {preset
         ? <div className="small">{task.Destination_Type === 'ACTIVITY' ? `Direct to activity ${task.Activity_ID}` : `Warehouse ${task.Warehouse_Location}${task.Area_ID ? ` · ${task.Area_ID}` : ''}`} <span className="text-muted">(set when it was delegated to you)</span></div>
-        : <DestinationFields value={dest} onChange={setDest} />}
+        : <DestinationFields value={dest} onChange={setDest} classification={task.Classification_ID} approvedActivityId={task.projectOverride?.activityId} onBlockedChange={setBlocked} />}
     </Modal>
   );
 };
@@ -263,6 +304,7 @@ const DelegateModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () =
   const accounts = useDirectory();
   const [fms, setFms] = useState('');
   const [dest, setDest] = useState<Dest>(EMPTY_DEST);
+  const [blocked, setBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const people = accounts.filter(a => has(a.roles, 'FMS') && has(a.departments, 'Facilities') && has(a.subdepartments, task.Sub_Department));
   const submit = async () => {
@@ -277,17 +319,15 @@ const DelegateModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () =
     <Modal title={`Delegate MRL ${task.Source_Reference} to an FMS`} busy={busy} onClose={onClose}
       footer={<>
         <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={onClose}>Cancel</button>
-        <button type="button" className="btn btn-sm btn-primary" disabled={busy || !fms || !destReady(dest)} onClick={submit}>{busy ? <Loading variant="button" label="Delegating..." /> : 'Delegate'}</button>
+        <button type="button" className="btn btn-sm btn-primary" disabled={busy || !fms || !destReady(dest) || blocked} onClick={submit}>{busy ? <Loading variant="button" label="Delegating..." /> : 'Delegate'}</button>
       </>}>
       <div className="mb-3">
         <label className="form-label small fw-semibold">FMS of {task.Sub_Department || 'the sub-department'} *</label>
-        <Select className="form-select form-select-sm" value={fms} onChange={e => setFms(e.target.value)}>
-          {people.map(a => <option key={a.email} value={a.email}>{a.name || a.email} ({a.email})</option>)}
-        </Select>
+        <PersonSelect value={fms} onChange={setFms} options={people.map(a => ({ email: a.email, label: `${a.name || a.email} (${a.email})` }))} />
         {people.length === 0 && <div className="form-text text-warning-emphasis">No FMS account is listed for this sub-department.</div>}
       </div>
       <div className="fw-semibold small mb-1">Destination (required) *</div>
-      <DestinationFields value={dest} onChange={setDest} />
+      <DestinationFields value={dest} onChange={setDest} classification={task.Classification_ID} approvedActivityId={task.projectOverride?.activityId} onBlockedChange={setBlocked} />
     </Modal>
   );
 };
@@ -310,9 +350,7 @@ const ReassignModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () =
         <button type="button" className="btn btn-sm btn-primary" disabled={busy || !who} onClick={submit}>{busy ? <Loading variant="button" label="Saving..." /> : 'Reassign'}</button>
       </>}>
       <label className="form-label small fw-semibold">Assign to *</label>
-      <Select className="form-select form-select-sm" value={who} onChange={e => setWho(e.target.value)}>
-        {people.map(a => <option key={a.email} value={a.email}>{a.name || a.email} ({a.email})</option>)}
-      </Select>
+      <PersonSelect value={who} onChange={setWho} options={people.map(a => ({ email: a.email, label: `${a.name || a.email} (${a.email})` }))} />
     </Modal>
   );
 };
@@ -330,6 +368,14 @@ export const Assignments: React.FC<{ refreshKey: number; onChanged: () => void; 
   const [verifying, setVerifying] = useState<MrlTask | null>(null);
   const [delegating, setDelegating] = useState<MrlTask | null>(null);
   const [reassigning, setReassigning] = useState<MrlTask | null>(null);
+  const dialog = useDialog();
+  /** Close a balance or cancel an assignment: both need a reason. */
+  const askReason = async (kind: 'close' | 'cancel', t: MrlTask) => {
+    const reason = await dialog.prompt(kind === 'close'
+      ? { title: `Close the balance of MRL ${t.Source_Reference}`, label: 'Why is the balance closed? (no more is coming)', confirmText: 'Close balance' }
+      : { title: `Cancel the assignment of MRL ${t.Source_Reference}`, label: 'Why is this assignment cancelled?', confirmText: 'Cancel assignment', danger: true });
+    if (reason) await act(kind === 'close' ? 'receiving:closeBalance' : 'receiving:cancel', { receiptId: t.Receipt_ID, reason }, kind === 'close' ? 'Balance closed.' : 'Assignment cancelled.');
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -359,9 +405,9 @@ export const Assignments: React.FC<{ refreshKey: number; onChanged: () => void; 
           {t.canVerify && <button type="button" className="btn btn-primary btn-sm" onClick={() => setVerifying(t)}>Verify</button>}
           {t.canDelegate && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setDelegating(t)}>Delegate to FMS</button>}
           {t.canTakeBack && <button type="button" className="btn btn-secondary btn-sm" onClick={() => act('receiving:reassign', { receiptId: t.Receipt_ID, takeBack: true }, 'Task taken back.')}>Take back</button>}
-          {t.canVerify && t.Parent_Receipt_ID && <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { const r = window.prompt('Why is the balance closed? (no more is coming)'); if (r) act('receiving:closeBalance', { receiptId: t.Receipt_ID, reason: r }, 'Balance closed.'); }}>Close balance</button>}
+          {t.canVerify && t.Parent_Receipt_ID && <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => askReason('close', t)}>Close balance</button>}
           {access.isAdmin && (t.Status === 'ASSIGNED' || t.Status === 'DELEGATED') && <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setReassigning(t)}>Reassign</button>}
-          {access.isAdmin && (t.Status === 'ASSIGNED' || t.Status === 'DELEGATED') && <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => { const r = window.prompt('Why is this assignment cancelled?'); if (r) act('receiving:cancel', { receiptId: t.Receipt_ID, reason: r }, 'Assignment cancelled.'); }}>Cancel</button>}
+          {access.isAdmin && (t.Status === 'ASSIGNED' || t.Status === 'DELEGATED') && <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => askReason('cancel', t)}>Cancel</button>}
         </div>
       )
     }

@@ -11,7 +11,7 @@ export const ItemPage: React.FC = () => {
   const { id = '' } = useParams();
   return (
     <EntityPage scopeType="ITEM" scopeRef={id} backTo={{ path: '/inventory?tab=catalog', label: 'Inventory catalog' }} tabs={[
-      { key: 'overview', label: 'Overview', render: () => <ItemOverviewTab itemId={id} /> },
+      { key: 'overview', label: 'Overview', render: (_p, open) => <ItemOverviewTab itemId={id} onOpenTab={open} /> },
       { key: 'distribution', label: 'Distribution', render: () => <ItemDistributionTab itemId={id} /> },
       { key: 'config', label: 'Configurations', render: p => <ConfigTab profile={p} /> },
       { key: 'timeline', label: 'Timeline', render: () => <TimelineTab scopeType="ITEM" scopeRef={id} /> }

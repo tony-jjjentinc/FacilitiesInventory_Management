@@ -39,26 +39,25 @@ export function searchAccess(user: { roles?: string[]; department?: string[] } |
 
 /** `custodian: true` entries need a custodian role (the API refuses them otherwise). */
 const ACTIONS: (SearchResult & { custodian?: boolean })[] = [
-  { group: 'Actions', id: 'a-mrl', title: 'Receive items (MRL)', subtitle: 'Receive a released MRL', path: '/transactions?tab=receive-mrl', keywords: 'receiving delivery goods', custodian: true },
-  { group: 'Actions', id: 'a-manual', title: 'Receive items (Manual)', subtitle: 'Petty cash, RF, RFP or manual entry', path: '/transactions?tab=receive-manual', keywords: 'receiving add stock petty cash', custodian: true },
-  { group: 'Actions', id: 'a-pending', title: 'Confirm pending receipts', subtitle: 'Receipts waiting for confirmation', path: '/transactions?tab=pending', keywords: 'receiving approve', custodian: true },
+  { group: 'Actions', id: 'a-mrl', title: 'Receive items (MRL)', subtitle: 'Receive a released MRL', path: '/inventory?tab=receive-mrl', keywords: 'receiving delivery goods', custodian: true },
+  { group: 'Actions', id: 'a-manual', title: 'Receive items (Manual)', subtitle: 'Petty cash, RF, RFP or manual entry', path: '/inventory?tab=receive-manual', keywords: 'receiving add stock petty cash', custodian: true },
+  { group: 'Actions', id: 'a-pending', title: 'Confirm pending receipts', subtitle: 'Receipts waiting for confirmation', path: '/inventory?tab=pending', keywords: 'receiving approve', custodian: true },
   { group: 'Actions', id: 'a-catalog', title: 'Register an inventory item', subtitle: 'Open the inventory catalog', path: '/inventory?tab=catalog', keywords: 'new add catalog sku', custodian: true },
   { group: 'Actions', id: 'a-activity', title: 'Work with an activity', subtitle: 'Allocate, consume or return items', path: '/activities', keywords: 'allocation project' }
 ];
 
 const pages = (a: SearchAccess): SearchResult[] => [
   { group: 'Pages', id: 'p-dash', title: 'Dashboard', path: '/overview' },
-  { group: 'Pages', id: 'p-warehouses', title: 'Warehouses', path: '/warehouses' },
-  { group: 'Pages', id: 'p-subdepts', title: 'Sub-Departments', path: '/sub-departments' },
-  ...(a.analytics ? ['overview:Overview', 'performance:Performance', 'breakdown:Breakdown', 'stock:Cost of Stock', 'projects:Cost per Project'].map(t => {
+  { group: 'Pages', id: 'p-warehouses', title: 'Inventory · Warehouses', path: '/inventory?tab=warehouses' },
+  { group: 'Pages', id: 'p-subdepts', title: 'Projects & Activities · Sub-Departments', path: '/activities?tab=sub-departments' },
+  ...(a.analytics ? ['overview:Overview', 'performance:Performance', 'breakdown:Breakdown', 'stock:Cost of Stock', 'projects:Cost per Project', 'ledger:Ledger'].map(t => {
     const [k, l] = t.split(':'); return { group: 'Pages' as const, id: `p-an-${k}`, title: `Analytics · ${l}`, path: `/analytics?tab=${k}` };
   }) : []),
   ...['warehouse:Warehouse Stock', 'catalog:Inventory Catalog', 'custody:Tool Custody', 'alerts:Reorder Alerts'].map(t => {
     const [k, l] = t.split(':'); return { group: 'Pages' as const, id: `p-inv-${k}`, title: `Inventory · ${l}`, path: `/inventory?tab=${k}` };
   }),
-  { group: 'Pages', id: 'p-act-alloc', title: 'Activities · Allocation', path: '/activities?tab=allocation' },
-  { group: 'Pages', id: 'p-act-cons', title: 'Activities · Consumption Log', path: '/activities?tab=consumption' },
-  { group: 'Pages', id: 'p-tx-ledger', title: 'Transactions · Ledger', path: '/transactions?tab=ledger' },
+  { group: 'Pages', id: 'p-act-alloc', title: 'Projects & Activities · Allocation', path: '/activities?tab=allocation' },
+  { group: 'Pages', id: 'p-act-cons', title: 'Projects & Activities · Consumption Log', path: '/activities?tab=consumption' },
   ...(a.admin ? [
     { group: 'Pages' as const, id: 'p-admin', title: 'Admin · Approvals', path: '/admin' },
     { group: 'Pages' as const, id: 'p-admin-price', title: 'Admin · Set Price', path: '/admin?tab=price' },

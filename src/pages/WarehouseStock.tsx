@@ -20,7 +20,7 @@ export const WarehouseStock: React.FC = () => {
   // opening a search result while already on this page changes the URL without remounting
   useEffect(() => { const v = urlParams.get('location'); if (v !== null) setLocationFilter(v); }, [urlParams]);
   const [search, setSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // the first fetch starts on mount: never flash 'No records found'
   const [traceRow, setTraceRow] = useState<WarehouseStockItem | null>(null);
 
   const fetchStock = useCallback(async () => {
@@ -63,129 +63,58 @@ export const WarehouseStock: React.FC = () => {
     );
   });
 
+  const peso = (n: unknown) => `PHP ${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const day = (v?: string) => (v ? String(v).slice(0, 10) : '—');
+  const ropBadge = (row: WarehouseStockItem) => row.ROP_Status === 'CRITICAL_DEPLETION'
+    ? <span className="badge bg-danger-subtle text-danger border">Critical</span>
+    : row.ROP_Status === 'REORDER_WARNING' ? <span className="badge bg-warning-subtle text-warning-emphasis border">Warning</span> : null; // Normal shows nothing
+  const itemName = (row: WarehouseStockItem) => <Link to={entityPath('ITEM', row.Item_ID)} className="text-dark fw-semibold text-decoration-none">{row.Item_Name}</Link>;
+  const skuLine = (row: WarehouseStockItem) => (
+    <div className="small text-muted"><span className="font-monospace">{row.Item_SKU}</span>{row.Classification && <span className="badge bg-light text-muted border ms-1">{row.Classification}</span>}</div>
+  );
+  const idLine = (row: WarehouseStockItem) => <div className="small text-muted font-monospace text-break">{row.Inventory_ID}{row.Serial_Number ? ` · S/N ${row.Serial_Number}` : ''}</div>;
+  const where = (row: WarehouseStockItem) => (
+    <span className="small"><Link to={entityPath('WAREHOUSE', row.Warehouse_Location)} className="text-decoration-none">{row.Warehouse_Location}</Link>{row.Area_ID ? <> · <Link to={entityPath('AREA', row.Area_ID)} className="font-monospace text-decoration-none">{row.Area_ID}</Link></> : null}</span>
+  );
+  const menu = (row: WarehouseStockItem) => <ActionMenu actions={[{ key: 'trace', label: 'View trace', hint: 'Who holds it, where it is, and its recent movements', onClick: () => setTraceRow(row) }]} />;
+
+  // 12 columns became 6 so the table fits a laptop screen; sorting keeps the merged column's main field
   const columns: Column<WarehouseStockItem>[] = [
+    { key: 'Item_Name', label: 'Item', align: 'left', minWidth: '240px', sortable: true, render: (row) => <div>{itemName(row)}{skuLine(row)}{idLine(row)}</div> },
+    { key: 'Warehouse_Location', label: 'Location', align: 'left', minWidth: '130px', sortable: true, render: where },
     {
-      key: 'Inventory_ID',
-      label: 'Inventory ID',
-      align: 'left',
-      minWidth: '160px',
-      sortable: true,
-      render: (row) => (
-        <span className="font-monospace text-muted small">{row.Inventory_ID}</span>
-      )
+      key: 'On_Hand_Qty', label: 'On hand', align: 'right', minWidth: '100px', sortable: true,
+      render: (row) => <div><span className="fw-semibold text-dark">{row.On_Hand_Qty}</span> <span className="small text-muted">{row.UOM}</span><div>{ropBadge(row)}</div></div>
     },
     {
-      key: 'Item_SKU',
-      label: 'SKU & Name',
-      align: 'left',
-      minWidth: '240px',
-      sortable: true,
-      render: (row) => (
-        <div>
-          <span className="font-monospace fw-semibold text-dark me-2">{row.Item_SKU}</span>
-          <Link to={entityPath('ITEM', row.Item_ID)} className="text-dark text-decoration-none">{row.Item_Name}</Link>
-        </div>
-      )
+      key: 'Valuation', label: 'Value', align: 'right', minWidth: '130px', sortable: true,
+      render: (row) => <div><div className="font-monospace fw-semibold text-dark small">{peso(row.Valuation)}</div><div className="small text-muted font-monospace">@ {peso(row.Unit_Cost)}</div></div>
     },
     {
-      key: 'Warehouse_Location',
-      label: 'Location',
-      align: 'left',
-      minWidth: '140px',
-      sortable: true,
-      render: (row) => <span className="small"><Link to={entityPath('WAREHOUSE', row.Warehouse_Location)} className="text-decoration-none">{row.Warehouse_Location}</Link>{row.Area_ID ? <> · <Link to={entityPath('AREA', row.Area_ID)} className="font-monospace text-decoration-none">{row.Area_ID}</Link></> : null}</span>
+      key: 'First_Received_At', label: 'Dates', align: 'left', minWidth: '120px', sortable: true,
+      render: (row) => <div className="small text-muted"><div>In {day(row.First_Received_At)}</div><div>Out {day(row.Last_Issued_At)}</div></div>
     },
-    {
-      key: 'Serial_Number',
-      label: 'Serial Number',
-      align: 'left',
-      minWidth: '120px',
-      render: (row) => <span className="font-monospace small text-muted">{row.Serial_Number || '—'}</span>
-    },
-    {
-      key: 'Classification',
-      label: 'Type',
-      align: 'left',
-      minWidth: '80px',
-      sortable: true,
-      render: (row) => <span className="small text-muted fw-medium">{row.Classification}</span>
-    },
-    {
-      key: 'On_Hand_Qty',
-      label: 'On-Hand Qty',
-      align: 'right',
-      minWidth: '110px',
-      sortable: true,
-      render: (row) => (
-        <span className="fw-semibold text-dark">
-          {row.On_Hand_Qty} <span className="fw-normal small text-muted">{row.UOM}</span>
-        </span>
-      )
-    },
-    {
-      key: 'Unit_Cost',
-      label: 'AVCO Unit Cost',
-      align: 'right',
-      minWidth: '120px',
-      sortable: true,
-      render: (row) => (
-        <span className="font-monospace small">
-          PHP {Number(row.Unit_Cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-      )
-    },
-    {
-      key: 'Valuation',
-      label: 'Valuation',
-      align: 'right',
-      minWidth: '130px',
-      sortable: true,
-      render: (row) => (
-        <span className="font-monospace fw-semibold text-dark small">
-          PHP {Number(row.Valuation || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-      )
-    },
-    {
-      key: 'ROP_Status',
-      label: 'ROP Status',
-      align: 'center',
-      minWidth: '110px',
-      sortable: true,
-      render: (row) => {
-        if (row.ROP_Status === 'CRITICAL_DEPLETION') {
-          return <span className="badge bg-danger-subtle text-danger border">Critical</span>;
-        }
-        if (row.ROP_Status === 'REORDER_WARNING') {
-          return <span className="badge bg-warning-subtle text-warning-emphasis border">Warning</span>;
-        }
-        return <span className="badge bg-light text-muted border">Normal</span>;
-      }
-    },
-    {
-      key: 'First_Received_At',
-      label: 'Arrived',
-      align: 'center',
-      minWidth: '110px',
-      sortable: true,
-      render: (row) => <span className="small text-muted">{row.First_Received_At ? String(row.First_Received_At).slice(0, 10) : '—'}</span>
-    },
-    {
-      key: 'Last_Issued_At',
-      label: 'Last issued',
-      align: 'center',
-      minWidth: '110px',
-      sortable: true,
-      render: (row) => <span className="small text-muted">{row.Last_Issued_At ? String(row.Last_Issued_At).slice(0, 10) : '—'}</span>
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      align: 'center',
-      minWidth: '80px',
-      render: (row) => <div className="d-flex justify-content-center"><ActionMenu actions={[{ key: 'trace', label: 'View trace', hint: 'Who holds it, where it is, and its recent movements', onClick: () => setTraceRow(row) }]} /></div>
-    }
+    { key: 'actions', label: '', align: 'center', minWidth: '50px', render: (row) => <div className="d-flex justify-content-center">{menu(row)}</div> }
   ];
+
+  const card = (row: WarehouseStockItem) => (
+    <div className="data-card">
+      <div className="d-flex justify-content-between align-items-start gap-2">
+        <div className="min-w-0">{itemName(row)}{skuLine(row)}</div>
+        {menu(row)}
+      </div>
+      <div className="d-flex justify-content-between align-items-end gap-2">
+        <div><span className="fs-5 fw-semibold text-dark">{row.On_Hand_Qty}</span> <span className="small text-muted">{row.UOM}</span></div>
+        {ropBadge(row)}
+      </div>
+      {where(row)}
+      {idLine(row)}
+      <div className="data-card-foot small text-muted">
+        <div>{access.canSeeCosts && <><div className="font-monospace fw-semibold text-dark">{peso(row.Valuation)}</div><div className="font-monospace">@ {peso(row.Unit_Cost)}</div></>}</div>
+        <div className="text-end"><div>In {day(row.First_Received_At)}</div><div>Out {day(row.Last_Issued_At)}</div></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="container py-4 px-3 px-md-4">
@@ -198,6 +127,9 @@ export const WarehouseStock: React.FC = () => {
         columns={hideCosts(columns, access)}
         data={filteredStock}
         keyField="Inventory_ID"
+        renderCard={card}
+        defaultView="cards"
+        viewKey="warehouse-stock"
         searchQuery={search}
         onSearchChange={setSearch}
         searchPlaceholder="Filter by SKU, name, inventory ID, or serial..."

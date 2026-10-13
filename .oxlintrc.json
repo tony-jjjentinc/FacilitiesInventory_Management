@@ -13,6 +13,7 @@
         "allowConstantExport": true
       }
     ],
-    "react/set-state-in-effect": "off"
+    "react/set-state-in-effect": "off",
+    "no-alert": "error"
   }
 }

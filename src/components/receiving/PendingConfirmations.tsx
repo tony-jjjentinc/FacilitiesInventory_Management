@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiRequest } from '../../services/api';
+import { apiRequest, RECEIPTS_COUNT_EVENT } from '../../services/api';
 import { invalidateCache } from '../../services/cache';
 import { ConfirmModal } from '../ConfirmModal';
 import type { ReceiptLineRecord, ReceiptRecord } from '../../types';
@@ -38,7 +38,9 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
       const rows = await apiRequest<ReceiptRecord[]>('receiving:getPending', { status: 'ALL' });
       const list = Array.isArray(rows) ? rows : [];
       setReceipts(list);
-      onCountChange(list.filter(r => r.canConfirm).length);
+      const awaiting = list.filter(r => r.canConfirm).length;
+      onCountChange(awaiting);
+      window.dispatchEvent(new CustomEvent(RECEIPTS_COUNT_EVENT, { detail: awaiting })); // the nav badge follows at once, not at its next poll
     } catch (err: any) {
       toast.error(err.message || 'Failed to load receipts.');
     } finally {

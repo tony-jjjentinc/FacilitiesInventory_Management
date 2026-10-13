@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
@@ -48,6 +49,7 @@ const INVENTORY_TYPES: { code: InventoryTypeCode; name: string }[] = [
 ];
 
 export const MasterCatalog: React.FC = () => {
+  const toast = useToast();
   const isAdmin = isUserHeadOrAdmin(getCurrentUser()); // this form saves through the admin-only config API
   const [items, setItems] = useState<RawCatalogItem[]>([]);
   const [urlParams] = useSearchParams();
@@ -124,7 +126,7 @@ export const MasterCatalog: React.FC = () => {
 
   const handleSaveItem = async () => {
     if (!formData.name.trim()) {
-      alert('Item Name is required.');
+      toast.error('Enter the item name.');
       return;
     }
 
@@ -179,7 +181,7 @@ export const MasterCatalog: React.FC = () => {
         propertiesJson: '{}'
       });
     } catch (err: any) {
-      alert(`Failed to save item to catalog: ${err.message}`);
+      toast.error(`Could not save the item: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -263,11 +265,11 @@ export const MasterCatalog: React.FC = () => {
       render: (row) => (
         <div className="small">
           {!row.System && !row.Component ? (
-            <div className="text-muted">No Data</div>
+            <div className="text-muted">–</div>
           ) : (
             <>
-              <div className={row.System ? 'text-dark' : 'text-muted'}>{row.System || 'No Data'}</div>
-              <div className="text-muted">{row.Component || 'No Data'}</div>
+              <div className={row.System ? 'text-dark' : 'text-muted'}>{row.System || '–'}</div>
+              <div className="text-muted">{row.Component || '–'}</div>
             </>
           )}
         </div>

@@ -38,13 +38,13 @@ export const SubDepartmentLossTab: React.FC<{ name: string }> = ({ name }) => {
   const [search, setSearch] = useState('');
   const rows = useMemo(() => (data?.rows || []).filter(r => !search.trim() || `${r.lossId} ${r.type} ${r.description}`.toLowerCase().includes(search.trim().toLowerCase())), [data, search]);
   const columns: Column<LossRow>[] = [
-    { key: 'date', label: 'Date', sortable: true, minWidth: '100px', render: r => r.date || 'No Data' },
+    { key: 'date', label: 'Date', sortable: true, minWidth: '100px', render: r => r.date || '–' },
     { key: 'lossId', label: 'Incident', sortable: true, minWidth: '120px' },
     { key: 'type', label: 'Type', sortable: true, minWidth: '130px' },
     { key: 'qty', label: 'Quantity', align: 'right', minWidth: '90px', render: r => qty(r.qty) },
     { key: 'cost', label: 'Cost', align: 'right', sortable: true, minWidth: '100px', render: r => peso(r.cost) },
     { key: 'status', label: 'Status', align: 'center', minWidth: '150px', render: r => STATUS[r.status] || r.status },
-    { key: 'description', label: 'What happened', minWidth: '220px', render: r => r.description || 'No Data' }
+    { key: 'description', label: 'What happened', minWidth: '220px', render: r => r.description || '–' }
   ];
   const access = getAccess(getCurrentUser());
   if (error && !data) return <div className="alert alert-danger small">{error}</div>;
@@ -68,8 +68,8 @@ export const SubDepartmentPeopleTab: React.FC<{ name: string }> = ({ name }) => 
     .filter(a => !search.trim() || `${a.name} ${a.email} ${a.positions.join(' ')}`.toLowerCase().includes(search.trim().toLowerCase())), [accounts, name, search]);
   const columns: Column<DirectoryAccount>[] = [
     { key: 'name', label: 'Name', sortable: true, minWidth: '200px', render: a => <div><span className="fw-semibold text-dark">{a.name || a.email}</span><div className="small text-muted">{a.email}</div></div> },
-    { key: 'positions', label: 'Position', minWidth: '160px', render: a => a.positions.join(', ') || 'No Data' },
-    { key: 'roles', label: 'Role', minWidth: '140px', render: a => a.roles.join(', ') || 'No Data' }
+    { key: 'positions', label: 'Position', minWidth: '160px', render: a => a.positions.join(', ') || '–' },
+    { key: 'roles', label: 'Role', minWidth: '140px', render: a => a.roles.join(', ') || '–' }
   ];
   if (error && accounts.length === 0) return <div className="alert alert-danger small">{error}</div>;
   return (

@@ -10,7 +10,7 @@ export const ActivityPage: React.FC = () => {
   const { id = '' } = useParams();
   return (
     <EntityPage scopeType="ACTIVITY" scopeRef={id} backTo={{ path: '/activities', label: 'All activities' }} tabs={[
-      { key: 'overview', label: 'Overview', render: () => <ActivityOverviewTab activityId={id} /> },
+      { key: 'overview', label: 'Overview', render: (_p, open) => <ActivityOverviewTab activityId={id} onOpenTab={open} /> },
       { key: 'usage', label: 'Inventory Stock Usage', render: () => <ActivityUsageTab activityId={id} /> },
       { key: 'timeline', label: 'Timeline', render: () => <TimelineTab scopeType="ACTIVITY" scopeRef={id} /> }
     ]} />

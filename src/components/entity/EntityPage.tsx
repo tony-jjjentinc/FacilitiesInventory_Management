@@ -9,6 +9,7 @@
  *
  * - The first tab is the default; the active tab lives in the URL (`?tab=`), like the other pages.
  * - Only the open tab is mounted, so each tab loads its data when first opened.
+ * - The key figures sit at the top of the Overview tab only.
  * - Loading, "not found" and "no access" are handled here; tabs only render once the profile loaded.
  */
 import React from 'react';
@@ -22,7 +23,7 @@ import { entityErrorText, useEntityData } from './useEntity';
 export interface EntityTab {
   key: string;
   label: string;
-  render: (profile: EntityProfile) => React.ReactNode;
+  render: (profile: EntityProfile, openTab: (key: string) => void, reload: () => void) => React.ReactNode;
 }
 
 interface Props {
@@ -36,7 +37,7 @@ interface Props {
 const show = (f: EntityFigure) => (f.kind === 'money' ? peso(Number(f.value)) : f.kind === 'qty' ? qty(Number(f.value)) : String(f.value));
 
 export const EntityPage: React.FC<Props> = ({ scopeType, scopeRef, tabs, backTo }) => {
-  const { data: profile, loading, error } = useEntityData<EntityProfile>('getProfile', scopeType, scopeRef);
+  const { data: profile, loading, error, reload } = useEntityData<EntityProfile>('getProfile', scopeType, scopeRef);
   const [tab, setTab] = useTabParam(tabs.map(t => t.key));
   const active = tabs.find(t => t.key === tab) || tabs[0];
 
@@ -66,8 +67,12 @@ export const EntityPage: React.FC<Props> = ({ scopeType, scopeRef, tabs, backTo 
           <h4 className="fw-bold mb-0">{profile.title}</h4>
           {profile.badges.map(b => <span key={b} className="badge text-bg-light border fw-normal">{b}</span>)}
         </div>
-        <div className="small text-muted mb-3">{profile.subtitle}</div>
-        <div className="row g-2 mb-1">
+        <div className="small text-muted mb-2">{profile.subtitle}</div>
+      </div>
+      <TabBar label={profile.title} active={active.key} onChange={setTab} tabs={tabs.map(t => ({ key: t.key, label: t.label }))} />
+      <div className="container pb-4 px-3 px-md-4 pt-3" key={active.key}>
+        {active.key === 'overview' && (
+        <div className="row g-2 mb-3">
           {profile.figures.map(f => (
             <div key={f.label} className="col-6 col-lg-3">
               <div className="card border shadow-sm h-100 bg-white p-3">
@@ -77,9 +82,9 @@ export const EntityPage: React.FC<Props> = ({ scopeType, scopeRef, tabs, backTo 
             </div>
           ))}
         </div>
+        )}
+        {active.render(profile, setTab, reload)}
       </div>
-      <TabBar label={profile.title} active={active.key} onChange={setTab} tabs={tabs.map(t => ({ key: t.key, label: t.label }))} />
-      <div className="container pb-4 px-3 px-md-4 pt-3" key={active.key}>{active.render(profile)}</div>
     </>
   );
 };

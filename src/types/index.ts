@@ -340,6 +340,8 @@ export interface StorageNode {
   shelfNumber: string;
   level: string;
   ownerSubDepartment: string;
+  capacity?: number | null;
+  capacityUnit?: string;
 }
 
 export interface StorageOptions {
@@ -380,6 +382,8 @@ export interface ReceivingParty {
   warehouseLocation: string;
   areaId: string;
   receiverId: string;
+  /** why an activity of another project is chosen (a Head or Super Admin only; at least 5 characters) */
+  mismatchReason?: string;
   /** receive the items straight away (only when the receiving party is the signed-in user) */
   autoReceive: boolean;
   remarks: string;
@@ -635,8 +639,17 @@ export interface EntityTimeline { events: EntityTimelineEvent[]; total: number; 
 export interface EntityStorageNode {
   storageId: string; warehouseLocation: string; storageType: 'AREA' | 'SHELF' | 'LEVEL' | 'CONTAINER' | 'SPACE'; parentStorageId: string;
   name: string; shelfNumber: string; level: string; ownerSubDepartment: string; description: string; status: string;
-  stockValue: number; items: number;
+  stockValue: number; items: number; lines: number; capacity: number | null; capacityUnit: string;
+  /** units on this spot itself, and on it plus everything below it (shelf = its levels); only meaningful when the workbook tracks spots */
+  qty: number; totalQty: number; spotItems: number;
 }
+
+export interface StorageNodesResponse { nodes: EntityStorageNode[]; tracked: boolean; unassigned?: { qty: number; lines: number } }
+
+export interface SpotStockLine {
+  spotId: string; spotName: string; itemId: string; sku: string; name: string; serialNumber: string; uom: string; qty: number; unitCost: number; value: number;
+}
+export interface SpotStock { lines: SpotStockLine[]; totals: { lines: number; quantity: number }; tracked: boolean }
 
 export interface WarehouseListRow { id: string; name: string; stockValue: number; items: number; areas: number }
 
@@ -656,6 +669,8 @@ export interface ItemDistribution {
   warehouse: MixGroup[];
   custody: { label: string; sub: string; qty: number; value: number }[];
   activities: { label: string; id: string; qty: number; value: number }[];
+  /** where in the warehouse: per area, the shelf/level it sits on ("Whole area" when not on a spot) */
+  spots?: { label: string; areaId: string; spotId: string; spot: string; qty: number }[];
   meta: { notes: string[] };
 }
 
@@ -700,6 +715,9 @@ export interface MrlTask {
   Delegated_To_ID: string; Receiver_ID: string; Parent_Receipt_ID: string; Release_Confirmed_By_ID: string; Destination_Type: string; Activity_ID: string;
   Warehouse_Location: string; Area_ID: string; Transaction_ID: string; MRT_Number: string; items: TaskLine[];
   canVerify: boolean; canDelegate: boolean; canTakeBack: boolean;
+  Classification_ID?: string;
+  /** a Head's approval to charge one activity of another project */
+  projectOverride?: { activityId: string; reason: string; by: string } | null;
 }
 export interface MrqItemProgress {
   itemId: string; name: string; uom: string; requested: number; released: number; received: number; returned: number; open: number; waiting: number; notReleased: number; state: string;

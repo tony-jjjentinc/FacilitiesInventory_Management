@@ -110,6 +110,7 @@ export function buildPayload(
     receiverId: party.receiverId.trim().toLowerCase(),
     autoReceive: party.autoReceive,
     remarks: party.remarks.trim(),
+    ...(party.mismatchReason?.trim() ? { mismatchReason: party.mismatchReason.trim() } : {}),
     items: lines.map(l => ({
       lineNo: l.lineNo,
       itemId: l.itemId,

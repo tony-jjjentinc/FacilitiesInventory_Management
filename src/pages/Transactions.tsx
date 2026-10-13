@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { TransactionEntry, TransactionLineItem } from '../types';
@@ -7,8 +9,13 @@ import { DataCard } from '../components/DataCard';
 import { Loading } from '../components/Loading';
 import { getCurrentUser } from '../services/auth';
 import { getAccess } from '../services/access';
+import { useDraft } from '../components/drafts/useDraft';
+import { useResumeParam } from '../components/drafts/useResumeParam';
+import { DraftActions, DraftResume } from '../components/drafts/DraftBar';
 
 export const Transactions: React.FC = () => {
+  const toast = useToast();
+  const dialog = useDialog();
   const access = getAccess(getCurrentUser());
   const [transactions, setTransactions] = useState<TransactionEntry[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'POSTED' | 'VOIDED'>('ALL');
@@ -33,6 +40,34 @@ export const Transactions: React.FC = () => {
   const [newSerial, setNewSerial] = useState('');
   const [createError, setCreateError] = useState('');
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
+
+  // saved progress on the staging form: one draft per transaction type, kept on the server for 24 hours
+  const draftState = useMemo(() => ({
+    transactionType: newTxType, newTxType, newSourceType, newSourceRefId, newDestType, newDestRefId, newAccountableParty, newRemarks, newItemId, newQty, newSerial
+  }), [newTxType, newSourceType, newSourceRefId, newDestType, newDestRefId, newAccountableParty, newRemarks, newItemId, newQty, newSerial]);
+  const draft = useDraft({
+    formType: 'STAGED_TX', identifier: newTxType, enabled: isCreateOpen, state: draftState,
+    restore: s => {
+      setNewSourceType(s.newSourceType); setNewSourceRefId(s.newSourceRefId); setNewDestType(s.newDestType); setNewDestRefId(s.newDestRefId);
+      setNewAccountableParty(s.newAccountableParty); setNewRemarks(s.newRemarks); setNewItemId(s.newItemId); setNewQty(s.newQty); setNewSerial(s.newSerial);
+    }
+  });
+
+  // `?resume=<transaction type>` (from the dashboard's Drafts list): open the staging form with that type's saved draft
+  const resumeParam = useResumeParam('ledger');
+  const [autoResume, setAutoResume] = useState('');
+  useEffect(() => {
+    if (!resumeParam.value) return;
+    setNewTxType(resumeParam.value); setIsCreateOpen(true); setAutoResume(resumeParam.value);
+    resumeParam.done();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeParam.value]);
+  useEffect(() => {
+    if (!autoResume || !draft.looked || newTxType !== autoResume) return;
+    if (draft.existing) draft.resume(); else setCreateError('That draft is no longer saved (drafts are kept for 24 hours).');
+    setAutoResume('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoResume, draft.looked, draft.existing, newTxType]);
 
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -70,9 +105,7 @@ export const Transactions: React.FC = () => {
   }, [isCreateOpen]);
 
   const handleCommit = async (txId: string) => {
-    if (!window.confirm(`Are you sure you want to commit and execute transaction ${txId}? This will mutate warehouse stock.`)) {
-      return;
-    }
+    if (!await dialog.confirm({ title: `Commit ${txId}`, message: 'This posts the transaction and changes the warehouse stock. It cannot be undone here.', confirmText: 'Commit' })) return;
     setProcessingId(txId);
     try {
       await apiRequest('transaction:commit', { transactionId: txId });
@@ -81,30 +114,26 @@ export const Transactions: React.FC = () => {
       invalidateCache('custody:list');
       invalidateCache('activity');
       fetchTransactions();
-      alert(`Transaction ${txId} successfully committed to POSTED.`);
+      toast.success(`Transaction ${txId} was committed.`);
     } catch (err: any) {
-      alert(`Commit failed: ${err.message}`);
+      toast.error(`Commit failed: ${err.message}`);
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleCancel = async (txId: string) => {
-    const reason = window.prompt(`Please enter cancellation reason for ${txId}:`);
-    if (reason === null) return; // User pressed Cancel
-    if (!reason.trim()) {
-      alert('Cancellation reason is required.');
-      return;
-    }
+    const reason = await dialog.prompt({ title: `Cancel ${txId}`, label: 'Why is it cancelled?', confirmText: 'Cancel transaction', danger: true });
+    if (reason === null) return;
 
     setProcessingId(txId);
     try {
-      await apiRequest('transaction:cancel', { transactionId: txId, reason: reason.trim() });
+      await apiRequest('transaction:cancel', { transactionId: txId, reason });
       invalidateCache('transaction:history');
       fetchTransactions();
-      alert(`Transaction ${txId} successfully marked as VOIDED.`);
+      toast.success(`Transaction ${txId} was cancelled.`);
     } catch (err: any) {
-      alert(`Cancel failed: ${err.message}`);
+      toast.error(`Cancel failed: ${err.message}`);
     } finally {
       setProcessingId(null);
     }
@@ -125,6 +154,7 @@ export const Transactions: React.FC = () => {
     setCreateError('');
     try {
       await apiRequest('transaction:prepare', {
+        draftId: draft.draftId,
         transactionType: newTxType,
         sourceType: newSourceType,
         sourceRefId: newSourceRefId.trim(),
@@ -141,7 +171,8 @@ export const Transactions: React.FC = () => {
         ]
       });
 
-      alert('Staged transaction drafted in PENDING status.');
+      toast.success('Staged transaction saved as pending.');
+      draft.clear();
       setIsCreateOpen(false);
       invalidateCache('transaction:history');
       fetchTransactions();
@@ -440,6 +471,7 @@ export const Transactions: React.FC = () => {
 
               <form onSubmit={handleCreateStaged}>
                 <div className="modal-body p-4">
+                  <DraftResume draft={draft} what={`${newTxType} transactions`} />
                   {createError && (
                     <div className="alert alert-danger py-2 small mb-3">
                       <i className="bi bi-exclamation-triangle-fill me-2"></i>
@@ -570,6 +602,7 @@ export const Transactions: React.FC = () => {
                 </div>
 
                 <div className="modal-footer bg-light border-top">
+                  <DraftActions draft={draft} />
                   <button type="button" className="btn btn-sm btn-secondary" disabled={isSubmittingNew} onClick={() => setIsCreateOpen(false)}>
                     Cancel
                   </button>

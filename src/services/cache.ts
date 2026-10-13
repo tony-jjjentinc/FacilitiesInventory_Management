@@ -9,8 +9,60 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
+import { getCurrentUser } from './auth';
+
 const memoryCache = new Map<string, CacheEntry<any>>();
 const CACHE_PREFIX = 'jjjei_swr_';
+
+/** Persisted (localStorage) entries survive a new tab or login, so a slow API still opens on last-known data. */
+const PERSIST_PREFIX = `${CACHE_PREFIX}p|`;
+const PERSIST_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/** The signed-in person; persisted entries are only ever read or written for them. '' = nobody, so no persistence. */
+function currentUserId(): string {
+  try {
+    const u = getCurrentUser();
+    return String(u?.id || u?.email || '').trim().toLowerCase();
+  } catch { return ''; }
+}
+
+const persistKey = (uid: string, key: string) => `${PERSIST_PREFIX}${uid}|${key}`;
+
+function readPersisted<T>(key: string): CacheEntry<T> | null {
+  const uid = currentUserId();
+  if (!uid) return null;
+  try {
+    const raw = localStorage.getItem(persistKey(uid, key));
+    if (!raw) return null;
+    const entry: CacheEntry<T> & { userId?: string } = JSON.parse(raw);
+    if (entry.userId !== uid || Date.now() - entry.timestamp > PERSIST_MAX_AGE_MS) return null;
+    return entry;
+  } catch { return null; }
+}
+
+function writePersisted<T>(key: string, entry: CacheEntry<T>): void {
+  const uid = currentUserId();
+  if (!uid) return;
+  try {
+    localStorage.setItem(persistKey(uid, key), JSON.stringify({ ...entry, userId: uid }));
+  } catch (err) {
+    console.warn(`[Cache] Error persisting key '${key}':`, err);
+  }
+}
+
+/** Removes persisted entries (every user's) whose key starts with `keyPrefix`; no prefix removes them all. */
+function purgePersisted(keyPrefix = ''): void {
+  try {
+    const remove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(PERSIST_PREFIX)) continue;
+      const key = k.slice(PERSIST_PREFIX.length).split('|').slice(1).join('|');
+      if (key.startsWith(keyPrefix)) remove.push(k);
+    }
+    remove.forEach(k => localStorage.removeItem(k));
+  } catch { /* storage unavailable */ }
+}
 
 /**
  * Retrieves cached data from memory or sessionStorage.
@@ -58,6 +110,7 @@ export function setCachedData<T>(key: string, data: T): void {
  * Clears or invalidates cache entries matching a prefix or exact key.
  */
 export function invalidateCache(keyPrefix?: string): void {
+  purgePersisted(keyPrefix);
   if (!keyPrefix) {
     memoryCache.clear();
     const keysToRemove: string[] = [];
@@ -100,20 +153,27 @@ export function invalidateCache(keyPrefix?: string): void {
 export async function fetchWithSwr<T>(
   key: string,
   fetcher: () => Promise<T>,
-  onUpdate: (data: T, isInitialCache: boolean) => void
+  onUpdate: (data: T, isInitialCache: boolean, updatedAt: number) => void,
+  options: { persist?: boolean } = {}
 ): Promise<T> {
-  const cached = getCachedData<T>(key);
+  let cached = getCachedData<T>(key);
+  let cachedAt = memoryCache.get(key)?.timestamp ?? Date.now();
+  if ((cached === null || cached === undefined) && options.persist) {
+    const stored = readPersisted<T>(key);
+    if (stored) { cached = stored.data; cachedAt = stored.timestamp; }
+  }
   let hasServedCached = false;
 
   if (cached !== null && cached !== undefined) {
-    onUpdate(cached, true);
+    onUpdate(cached, true, cachedAt);
     hasServedCached = true;
   }
 
   try {
     const freshData = await fetcher();
     setCachedData(key, freshData);
-    onUpdate(freshData, false);
+    if (options.persist) writePersisted(key, { data: freshData, timestamp: Date.now() });
+    onUpdate(freshData, false, Date.now());
     return freshData;
   } catch (err) {
     if (!hasServedCached) {

@@ -26,10 +26,10 @@ export const SubDepartmentCustodyTab: React.FC<{ name: string }> = ({ name }) =>
 
   const toolCols: Column<Tool>[] = [
     { key: 'name', label: 'Tool', sortable: true, minWidth: '220px', render: t => item(t.itemId, t.name) },
-    { key: 'custodian', label: 'Custodian', sortable: true, minWidth: '150px', render: t => t.custodian || 'No Data' },
-    { key: 'serialNumber', label: 'Serial', minWidth: '100px', render: t => t.serialNumber && t.serialNumber !== 'N/A' ? t.serialNumber : 'No Data' },
+    { key: 'custodian', label: 'Custodian', sortable: true, minWidth: '150px', render: t => t.custodian || '–' },
+    { key: 'serialNumber', label: 'Serial', minWidth: '100px', render: t => t.serialNumber && t.serialNumber !== 'N/A' ? t.serialNumber : '–' },
     { key: 'qty', label: 'Quantity', align: 'right', minWidth: '90px', render: t => `${qty(t.qty)} ${t.uom}` },
-    { key: 'assignedAt', label: 'Assigned', sortable: true, minWidth: '100px', render: t => t.assignedAt || 'No Data' },
+    { key: 'assignedAt', label: 'Assigned', sortable: true, minWidth: '100px', render: t => t.assignedAt || '–' },
     { key: 'lastUsedAt', label: 'Last used', sortable: true, minWidth: '100px', render: t => t.lastUsedAt || 'Never' },
     { key: 'status', label: 'Status', align: 'center', minWidth: '110px' }
   ];
@@ -38,8 +38,8 @@ export const SubDepartmentCustodyTab: React.FC<{ name: string }> = ({ name }) =>
     { key: 'name', label: 'Item', sortable: true, minWidth: '220px', render: c => item(c.itemId, c.name) },
     { key: 'qty', label: 'Quantity', align: 'right', minWidth: '90px', render: c => `${qty(c.qty)} ${c.uom}` },
     { key: 'cost', label: 'Cost', align: 'right', sortable: true, minWidth: '100px', render: c => peso(c.cost) },
-    { key: 'reference', label: 'Used for', minWidth: '160px', render: c => c.reference || 'No Data' },
-    { key: 'purpose', label: 'Purpose', minWidth: '160px', render: c => c.purpose || 'No Data' }
+    { key: 'reference', label: 'Used for', minWidth: '160px', render: c => c.reference || '–' },
+    { key: 'purpose', label: 'Purpose', minWidth: '160px', render: c => c.purpose || '–' }
   ];
   const switcher = (
     <div className="btn-group" role="radiogroup" aria-label="Custody list">

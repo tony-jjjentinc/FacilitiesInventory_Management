@@ -6,7 +6,7 @@ export const Footer: React.FC = () => {
   const { systemInfo } = useSystemInfo();
   return (
     <footer className="mt-auto py-3 text-center small text-muted">
-      Juan Jamora, Jr. Enterprises Inc. · {systemInfo.name} {systemInfo.version}
+      Juan Jamora, Jr. Enterprises Inc.  • {systemInfo.name} {systemInfo.version}
     </footer>
   );
 };

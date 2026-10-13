@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 import { apiRequest } from '../services/api';
 import { invalidateCache } from '../services/cache';
 import { getCurrentUser } from '../services/auth';
@@ -10,6 +12,8 @@ interface RolloverWizardProps {
 }
 
 export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal = false }) => {
+  const toast = useToast();
+  const dialog = useDialog();
   const [step, setStep] = useState(1);
   const [targetYear, setTargetYear] = useState('2027');
   const [isChecking, setIsChecking] = useState(false);
@@ -23,7 +27,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
 
   const handleRunChecks = async () => {
     if (!isHeadAdmin) {
-      alert('Unauthorized: Only Head Admin / Super Admin can perform fiscal rollover audits.');
+      toast.error('Only a Head or Super Admin can run the fiscal rollover checks.');
       return;
     }
     setIsChecking(true);
@@ -32,10 +36,10 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
       if (res && res.ready) {
         setStep(2);
       } else {
-        alert(`Rollover Blocked:\n${res.issues?.join('\n') || 'Unresolved issues detected.'}`);
+        await dialog.alert({ title: 'Rollover is blocked', message: res.issues?.join('\n') || 'Unresolved issues were found.' });
       }
     } catch (err: any) {
-      alert(`Validation error: ${err.message}`);
+      toast.error(`The checks failed: ${err.message}`);
     } finally {
       setIsChecking(false);
     }
@@ -43,12 +47,12 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
 
   const handleExecute = async () => {
     if (!isHeadAdmin) {
-      alert('Unauthorized: Only Head Admin / Super Admin can execute annual fiscal rollover.');
+      toast.error('Only a Head or Super Admin can run the fiscal rollover.');
       return;
     }
     const year = parseInt(targetYear, 10);
     if (!Number.isInteger(year)) {
-      alert('Enter a valid target year, e.g. 2027.');
+      toast.error('Enter a valid target year, for example 2027.');
       return;
     }
     setIsExecuting(true);
@@ -58,7 +62,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
       setRolloverResult(res);
       setStep(3);
     } catch (err: any) {
-      alert(`Rollover execution failed: ${err.message}`);
+      toast.error(`The rollover failed: ${err.message}`);
     } finally {
       setIsExecuting(false);
     }

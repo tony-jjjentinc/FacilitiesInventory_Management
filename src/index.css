@@ -64,7 +64,7 @@ body {
 
 .table th {
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #475569;
@@ -83,6 +83,18 @@ body {
 .table-hover tbody tr:hover {
   background-color: #f8fafc;
 }
+
+/* Compact table: the user's own choice, so it may go below the 0.8rem floor used elsewhere */
+.table-compact, .table-compact td { font-size: 0.75rem; }
+.table-compact th { font-size: 0.72rem; padding: 6px 10px; }
+.table-compact td { padding: 5px 10px; }
+.table-compact .badge { padding: 2px 6px; font-size: 0.68rem; }
+
+/* Card view */
+.data-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 0.75rem; }
+.data-card { border: 1px solid var(--border-color); border-radius: 6px; background: #fff; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.data-card:hover { background: #f8fafc; }
+.data-card-foot { border-top: 1px solid #f1f5f9; padding-top: 0.4rem; margin-top: auto; display: flex; justify-content: space-between; gap: 0.5rem; }
 
 /* Form controls minimal */
 .form-control, .form-select {
@@ -250,7 +262,7 @@ body.modal-open {
 .page-tab-badge {
   min-width: 1.25rem;
   padding: 0.05rem 0.4rem;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -294,12 +306,11 @@ body.modal-open {
   padding-bottom: 0.75rem;
 }
 
-/* Global toasts: bottom center on every screen size */
+/* Global toasts: top right, just below the sticky navbar (about 3.5rem tall), on every screen size */
 .toast-stack {
   position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 4.25rem;
+  right: 1rem;
   z-index: 2000;
   width: 380px;
   max-width: calc(100vw - 2rem);
@@ -325,7 +336,7 @@ body.modal-open {
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -471,8 +482,10 @@ body.modal-open {
 }
 .kpi-card:hover { border-color: #adb5bd; background: #fcfcfd; }
 .kpi-card:focus-visible { outline: 2px solid var(--bs-primary, #0d6efd); outline-offset: 2px; }
-.kpi-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6c757d; }
+.kpi-label { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6c757d; }
 .kpi-value { margin-top: 0.35rem; font-size: 1.65rem; font-weight: 600; line-height: 1.1; color: #212529; font-variant-numeric: tabular-nums; }
+.kpi-skeleton { display: inline-block; width: 3rem; height: 1.65rem; border-radius: 0.3rem; background: #e9ecef; animation: kpi-pulse 1.2s ease-in-out infinite; }
+@keyframes kpi-pulse { 50% { opacity: 0.45; } }
 .kpi-unit { margin-left: 0.35rem; font-size: 0.8rem; font-weight: 500; color: #6c757d; }
 .kpi-danger { box-shadow: inset 3px 0 0 #dc3545; }
 .kpi-danger .kpi-value { color: #b02a37; }
@@ -480,12 +493,20 @@ body.modal-open {
 .kpi-warning .kpi-value { color: #8a5d00; }
 
 /* Dashboard quick actions: same tile, title and one quiet line */
-.kpi-section-title { margin: 0 0 0.6rem; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6c757d; }
+.kpi-section-title { margin: 0 0 0.6rem; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #6c757d; }
 .kpi-action { display: block; font: inherit; }
 .kpi-action:disabled { opacity: 0.6; cursor: wait; }
 .kpi-action-title { font-size: 0.9rem; font-weight: 600; color: #212529; }
-.kpi-action-note { margin-top: 0.15rem; font-size: 0.75rem; color: #6c757d; }
+.kpi-action-note { margin-top: 0.15rem; font-size: 0.8rem; color: #6c757d; }
 
 /* Tiles share the full width of the container: every row stretches to fill it, however many tiles wrap */
 .kpi-grid { display: flex; flex-wrap: wrap; gap: 1rem; }
 .kpi-grid > * { flex: 1 1 10rem; min-width: 0; }
+
+/* Readability: secondary text stays at least AA-contrast on the page background, and wide screens use more of the width */
+.text-muted, .text-secondary { color: #4b5563 !important; }
+.kpi-label, .kpi-unit, .kpi-section-title, .kpi-action-note { color: #4b5563; }
+@media (min-width: 1400px) { .container { max-width: 1440px; } }
+
+/* quick actions: a divider between the two columns on wide screens */
+@media (min-width: 992px) { .border-lg-start { border-left: 1px solid var(--border-color); } }
