@@ -318,7 +318,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
         </div>
       )}
       <div className="table-responsive mb-3">
-        <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+        <table className="table table-sm align-middle mb-0 table-stack" style={{ fontSize: '0.82rem' }}>
           <thead><tr><th>Item</th><th className="text-end">Released</th><th style={{ width: 90 }}>Received</th><th style={{ width: 90 }}>Return</th><th>Mismatch</th><th>Details / delivered item</th>{pricing && <th>Price</th>}<th>Shortage</th></tr></thead>
           <tbody>
             {lines.map(l => {
@@ -326,17 +326,17 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
               const s = short(l);
               return (
                 <tr key={l.Receipt_Line_ID}>
-                  <td>{l.Item_Name}<div className="text-muted small">{l.UOM}</div>{(!l.Item_ID || l.Item_ID === 'UNMAPPED') && <div className="small text-warning-emphasis">May not be in the catalog yet. If posting fails, return this line, or ask a Head to add the item to the catalog.</div>}</td>
-                  <td className="text-end">{l.Released_Qty}</td>
-                  <td><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Received" value={f.recv} onChange={e => set(l.Receipt_Line_ID, { recv: e.target.value })} /></td>
-                  <td><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Return" value={f.ret} onChange={e => set(l.Receipt_Line_ID, { ret: e.target.value })} /></td>
-                  <td><Select optional noneLabel="None" className="form-select form-select-sm" value={f.type} onChange={e => set(l.Receipt_Line_ID, { type: e.target.value })}>{TYPES.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</Select></td>
-                  <td>
+                  <td data-label="Item">{l.Item_Name}<div className="text-muted small">{l.UOM}</div>{(!l.Item_ID || l.Item_ID === 'UNMAPPED') && <div className="small text-warning-emphasis">May not be in the catalog yet. If posting fails, return this line, or ask a Head to add the item to the catalog.</div>}</td>
+                  <td className="text-end" data-label="Released">{l.Released_Qty}</td>
+                  <td data-label="Received"><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Received" value={f.recv} onChange={e => set(l.Receipt_Line_ID, { recv: e.target.value })} /></td>
+                  <td data-label="Return"><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Return" value={f.ret} onChange={e => set(l.Receipt_Line_ID, { ret: e.target.value })} /></td>
+                  <td data-label="Mismatch"><Select optional noneLabel="None" className="form-select form-select-sm" value={f.type} onChange={e => set(l.Receipt_Line_ID, { type: e.target.value })}>{TYPES.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</Select></td>
+                  <td data-label="Details">
                     <input type="text" className="form-control form-control-sm mb-1" placeholder="What is different" value={f.details} onChange={e => set(l.Receipt_Line_ID, { details: e.target.value })} />
                     {n(f.ret) > 0 && <input type="text" className="form-control form-control-sm" placeholder="Item that actually arrived" value={f.delivered} onChange={e => set(l.Receipt_Line_ID, { delivered: e.target.value })} />}
                   </td>
                   {pricing && (
-                    <td style={{ minWidth: 150 }}>
+                    <td style={{ minWidth: 150 }} data-label="Price">
                       {n(f.recv) <= 0 ? <span className="text-muted">-</span> : catalogPrice(l) > 0
                         ? <span>{fmtMoney(catalogPrice(l))}<div className="text-muted small">{l.price?.supplierName || (l.price?.source === 'BASE' ? 'Base price' : 'Catalog')}</div></span>
                         : (
@@ -347,7 +347,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
                         )}
                     </td>
                   )}
-                  <td>
+                  <td data-label="Shortage">
                     {s > 0 ? (
                       <>
                         <div className="text-warning-emphasis">{s} short</div>

@@ -197,7 +197,7 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Table Body */}
       <div className={`table-responsive${showCards ? ' d-none' : ''}`}>
-        <table className={`table table-hover align-middle mb-0${compact ? ' table-compact' : ''}`}>
+        <table className={`table table-hover align-middle mb-0 table-stack${compact ? ' table-compact' : ''}`}>
           <thead>
             <tr>
               {columns.map((col) => {
@@ -264,6 +264,7 @@ export function DataTable<T extends Record<string, any>>({
                     return (
                       <td
                         key={col.key}
+                        data-label={col.label}
                         className={alignClass}
                         style={{
                           width: col.width,
