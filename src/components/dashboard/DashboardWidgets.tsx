@@ -201,6 +201,15 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
 
   return (
     <div className="row g-3 mb-4">
+      {/* the pie charts come first, above the lists */}
+      {stockState === 'ready' && stock.length > 0 && (
+        <>
+          <ChartCard pie third title="Stock by type" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.type.length === 0}><MixChart groups={mixes.type} byQty={byQty} /></ChartCard>
+          <ChartCard pie third title="Stock by category" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.category.length === 0}><MixChart groups={mixes.category} byQty={byQty} /></ChartCard>
+          <ChartCard pie third title="Stock by warehouse" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.warehouse.length === 0}><MixChart groups={mixes.warehouse} byQty={byQty} /></ChartCard>
+        </>
+      )}
+
       <Panel title="Stock alerts" to="/inventory?tab=alerts" state={stockState} empty={alerts.length === 0 ? 'No items need reordering.' : undefined}>
         <ul className="list-group list-group-flush">
           {alerts.map(r => <Row key={r.Inventory_ID} to={entityPath('ITEM', r.Item_ID)} main={r.Item_Name} sub={r.Warehouse_Name || r.Warehouse_Location}
@@ -231,14 +240,6 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
               right={access.canSeeCosts ? peso(t.totalCost) : `${t.totalItems} ${t.totalItems === 1 ? 'line' : 'lines'}`} />)}
           </ul>
         </Panel>
-      )}
-
-      {stockState === 'ready' && stock.length > 0 && (
-        <>
-          <ChartCard pie title="Stock by type" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.type.length === 0}><MixChart groups={mixes.type} byQty={byQty} /></ChartCard>
-          <ChartCard pie title="Stock by category" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.category.length === 0}><MixChart groups={mixes.category} byQty={byQty} /></ChartCard>
-          <ChartCard pie title="Stock by warehouse" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.warehouse.length === 0}><MixChart groups={mixes.warehouse} byQty={byQty} /></ChartCard>
-        </>
       )}
 
       {showSpend && <SpendChart refreshKey={refreshKey} />}

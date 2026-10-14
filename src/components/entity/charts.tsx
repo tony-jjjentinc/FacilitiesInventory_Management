@@ -25,8 +25,8 @@ export const GhostDoughnut: React.FC = () => (
 );
 
 /** Card with an uppercase title and a fixed-height chart area; `empty` shows "No Data" instead of the chart. */
-export const ChartCard: React.FC<{ title: string; subtitle: string; empty: boolean; children: React.ReactNode; wide?: boolean; pie?: boolean }> = ({ title, subtitle, empty, children, wide, pie }) => (
-  <div className={`col-12 ${wide ? '' : 'col-xl-6'}`}>
+export const ChartCard: React.FC<{ title: string; subtitle: string; empty: boolean; children: React.ReactNode; wide?: boolean; pie?: boolean; /** three across on extra-large screens (the dashboard's pie row) instead of two */ third?: boolean }> = ({ title, subtitle, empty, children, wide, pie, third }) => (
+  <div className={`col-12 ${wide ? '' : third ? 'col-xl-4' : 'col-xl-6'}`}>
     <div className="card border shadow-sm h-100 bg-white">
       <div className="card-header bg-white border-bottom">
         <div className="fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.8rem', letterSpacing: '0.04em' }}>{title}</div>
