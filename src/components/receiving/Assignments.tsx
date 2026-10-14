@@ -20,6 +20,7 @@ import type { Column } from '../DataTable';
 import { sameProject, mismatchText } from './projectGuard';
 import { Select } from '../Select';
 import { PersonSelect } from '../form/PersonSelect';
+import { spotPath, spotsInArea } from './receivingUtils';
 import { Loading } from '../Loading';
 import type { DirectoryAccount, MrlListResponse, MrlTask, OpenActivity, StagedMrlSummary, StorageOptions, TaskLine } from '../../types';
 
@@ -47,7 +48,9 @@ function useStorageNames() {
   }, []);
   return {
     warehouse: (id: string) => opts?.warehouses.find(w => w.id === id)?.name || id,
-    area: (id: string) => opts?.storage.find(x => x.storageId === id)?.name || id
+    area: (id: string) => opts?.storage.find(x => x.storageId === id)?.name || id,
+    /** the shelves, levels, containers and spaces inside an area, with their path as the label */
+    spots: (areaId: string) => (opts && areaId ? spotsInArea(opts.storage, areaId).map(n => ({ id: n.storageId, label: spotPath(opts.storage, n.storageId) || n.storageId })) : [])
   };
 }
 
@@ -251,7 +254,7 @@ export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }
 // ---------------------------------------------------------------------------
 // Verification dialog
 // ---------------------------------------------------------------------------
-interface LineForm { recv: string; ret: string; type: string; details: string; delivered: string; shortRes: 'OPEN' | 'CLOSED'; cost?: string; base?: boolean }
+interface LineForm { recv: string; ret: string; type: string; details: string; delivered: string; shortRes: 'OPEN' | 'CLOSED'; cost?: string; base?: boolean; spot?: string }
 
 const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => void }> = ({ task, onClose, onDone }) => {
   const dialog = useDialog();
@@ -274,7 +277,11 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
   const [blocked, setBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  useEffect(() => { setError(''); }, [form, dest]); // a red message about the last attempt goes away as soon as something is changed
   const preset = task.Status === 'DELEGATED';
+  // where each line sits inside the area: only when the delivery goes to a warehouse area that has spots
+  const areaId = preset ? (task.Destination_Type === 'WAREHOUSE' ? task.Area_ID || '' : '') : (dest.destinationType === 'WAREHOUSE' ? dest.areaId : '');
+  const spots = names.spots(areaId);
   const set = (id: string, patch: Partial<LineForm>) => setForm(f => ({ ...f, [id]: { ...f[id], ...patch } }));
   const short = (l: TaskLine) => { const f = form[l.Receipt_Line_ID]; return Math.max(0, n(l.Released_Qty) - n(f.recv) - n(f.ret)); };
   const over = (l: TaskLine) => { const f = form[l.Receipt_Line_ID]; return n(f.recv) + n(f.ret) > n(l.Released_Qty); };
@@ -284,7 +291,8 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
   const unpriced = lines.filter(l => n(form[l.Receipt_Line_ID].recv) > 0 && catalogPrice(l) <= 0 && n(form[l.Receipt_Line_ID].cost) <= 0).length;
   const needsReason = lines.some(l => short(l) > 0 && form[l.Receipt_Line_ID].shortRes === 'CLOSED' && !form[l.Receipt_Line_ID].details.trim());
   const nothingReceived = lines.every(l => n(form[l.Receipt_Line_ID].recv) === 0); // a whole return posts nothing, so no destination is needed
-  const ready = (preset || nothingReceived || (destReady(dest) && !blocked)) && !needsReason;
+  const unmappedReceived = lines.some(l => (!l.Item_ID || l.Item_ID === 'UNMAPPED') && n(form[l.Receipt_Line_ID].recv) > 0);
+  const ready = (preset || nothingReceived || (destReady(dest) && !blocked)) && !needsReason && !unmappedReceived;
 
   const submit = async () => {
     setBusy(true); setError('');
@@ -292,7 +300,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
       const res = await apiRequest<{ followUpReceiptId: string | null; short: number; over: number; returned: number; transactionId: string | null; mrtNumber: string | null }>('receiving:verify', {
         receiptId: task.Receipt_ID,
         ...(preset ? {} : { destinationType: dest.destinationType || 'WAREHOUSE', warehouseLocation: dest.warehouseLocation, areaId: dest.areaId, activityId: dest.activityId }),
-        lines: lines.map(l => { const f = form[l.Receipt_Line_ID]; return { receiptLineId: l.Receipt_Line_ID, receivedQty: n(f.recv), returnedQty: n(f.ret), mismatchType: f.type, mismatchDetails: f.details, deliveredItemName: f.delivered, shortResolution: f.shortRes, ...(n(f.cost) > 0 && n(f.recv) > 0 ? { unitCost: n(f.cost), saveAsBasePrice: !!f.base } : {}) }; })
+        lines: lines.map(l => { const f = form[l.Receipt_Line_ID]; return { receiptLineId: l.Receipt_Line_ID, receivedQty: n(f.recv), returnedQty: n(f.ret), mismatchType: f.type, mismatchDetails: f.details, deliveredItemName: f.delivered, shortResolution: f.shortRes, ...(f.spot && spots.some(x => x.id === f.spot) && n(f.recv) > 0 ? { storageId: f.spot } : {}), ...(n(f.cost) > 0 && n(f.recv) > 0 ? { unitCost: n(f.cost), saveAsBasePrice: !!f.base } : {}) }; })
       });
       const where = preset
         ? (task.Destination_Type === 'ACTIVITY' ? `activity ${task.Activity_Name || task.Activity_ID}` : `warehouse ${task.Warehouse_Name || task.Warehouse_Location}${task.Area_ID ? ` · ${task.Area_Name || task.Area_ID}` : ''}`)
@@ -312,7 +320,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
     <Modal wide title={`Verify MRL ${task.Source_Reference}`} busy={busy} error={error} onClose={onClose}
       footer={<>
         <button type="button" className="btn btn-sm btn-outline-secondary" disabled={busy} onClick={onClose}>Cancel</button>
-        <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => (ready ? submit() : setError(!preset && !destReady(dest) ? 'Choose where the delivery goes: the warehouse or an activity.' : blocked ? 'That activity belongs to another project. Choose the matching activity, or ask a Head to approve it.' : 'Say why the shortage is closed (Details).'))}>{busy ? <Loading variant="button" label="Posting..." /> : 'Verify and post'}</button>
+        <button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => (ready ? submit() : setError(unmappedReceived ? 'A line is not in the catalog yet, so it cannot be received. Use "Return this line" on it, or ask a Head to add the item.' : !preset && !destReady(dest) ? 'Choose where the delivery goes: the warehouse or an activity.' : blocked ? 'That activity belongs to another project. Choose the matching activity, or ask a Head to approve it.' : 'Say why the shortage is closed (Details).'))}>{busy ? <Loading variant="button" label="Posting..." /> : 'Verify and post'}</button>
       </>}>
       <div className="small text-muted mb-2">{task.Project_Name} · MRQ {task.MRQ_Number}{task.Sub_Department ? ` · ${task.Sub_Department}` : ''}</div>
       {restored && (
@@ -323,14 +331,19 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
       )}
       <div className="table-responsive mb-3">
         <table className="table table-sm align-middle mb-0 table-stack" style={{ fontSize: '0.82rem' }}>
-          <thead><tr><th>Item</th><th className="text-end">Released</th><th style={{ width: 90 }}>Received</th><th style={{ width: 90 }}>Return</th><th>Mismatch</th><th>Details / delivered item</th>{pricing && <th>Price</th>}<th>Shortage</th></tr></thead>
+          <thead><tr><th>Item</th><th className="text-end">Released</th><th style={{ width: 90 }}>Received</th><th style={{ width: 90 }}>Return</th><th>Mismatch</th><th>Details / delivered item</th>{pricing && <th>Price</th>}{spots.length > 0 && <th>Spot</th>}<th>Shortage</th></tr></thead>
           <tbody>
             {lines.map(l => {
               const f = form[l.Receipt_Line_ID];
               const s = short(l);
               return (
                 <tr key={l.Receipt_Line_ID}>
-                  <td data-label="Item">{l.Item_Name}<div className="text-muted small">{l.UOM}</div>{(!l.Item_ID || l.Item_ID === 'UNMAPPED') && <div className="small text-warning-emphasis">May not be in the catalog yet. If posting fails, return this line, or ask a Head to add the item to the catalog.</div>}</td>
+                  <td data-label="Item">{l.Item_Name}<div className="text-muted small">{l.UOM}</div>{(!l.Item_ID || l.Item_ID === 'UNMAPPED') && (
+                    <div className="small text-warning-emphasis">
+                      Not in the catalog yet, so it cannot be received. Return it, or ask a Head to add the item to the catalog.
+                      {n(f.recv) > 0 && <button type="button" className="btn btn-outline-warning btn-sm ms-2 py-0" onClick={() => set(l.Receipt_Line_ID, { recv: '0', ret: String(l.Released_Qty), type: 'ITEM', details: f.details || 'Not in the catalog' })}>Return this line</button>}
+                    </div>
+                  )}</td>
                   <td className="text-end" data-label="Released">{l.Released_Qty}</td>
                   <td data-label="Received"><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Received" value={f.recv} onChange={e => set(l.Receipt_Line_ID, { recv: e.target.value })} /></td>
                   <td data-label="Return"><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Return" value={f.ret} onChange={e => set(l.Receipt_Line_ID, { ret: e.target.value })} /></td>
@@ -349,6 +362,15 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
                             {n(f.cost) > 0 && <label className="form-check small mt-1 mb-0"><input type="checkbox" className="form-check-input" checked={!!f.base} onChange={e => set(l.Receipt_Line_ID, { base: e.target.checked })} /> Keep as the base price</label>}
                           </>
                         )}
+                    </td>
+                  )}
+                  {spots.length > 0 && (
+                    <td data-label="Spot" style={{ minWidth: 140 }}>
+                      {n(f.recv) <= 0 ? <span className="text-muted">-</span> : (
+                        <Select optional noneLabel="Whole area" className="form-select form-select-sm" value={spots.some(x => x.id === f.spot) ? f.spot : ''} onChange={e => set(l.Receipt_Line_ID, { spot: e.target.value })}>
+                          {spots.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
+                        </Select>
+                      )}
                     </td>
                   )}
                   <td data-label="Shortage">
