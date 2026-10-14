@@ -14,6 +14,8 @@ import { useResumeParam } from '../components/drafts/useResumeParam';
 import { DraftActions, DraftResume } from '../components/drafts/DraftBar';
 import { fmtDateTime } from '../utils/datetime';
 import { ItemSelect } from '../components/form/ItemSelect';
+import { RefSelect, usePeopleOptions } from '../components/form/RefSelect';
+import { PersonSelect } from '../components/form/PersonSelect';
 
 export const Transactions: React.FC = () => {
   const toast = useToast();
@@ -37,6 +39,7 @@ export const Transactions: React.FC = () => {
   const [newDestRefId, setNewDestRefId] = useState(access.fieldOnly ? 'FACILITIES_WAREHOUSE_MAIN' : '');
   const [newAccountableParty, setNewAccountableParty] = useState('');
   const [newRemarks, setNewRemarks] = useState('');
+  const people = usePeopleOptions();
   const [newItemId, setNewItemId] = useState('');
   const [newQty, setNewQty] = useState('1');
   const [newSerial, setNewSerial] = useState('');
@@ -518,36 +521,17 @@ export const Transactions: React.FC = () => {
 
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Accountable Party / Custodian</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        placeholder="e.g. technician.lead@jjjentinc.com"
-                        value={newAccountableParty}
-                        onChange={(e) => setNewAccountableParty(e.target.value)}
-                      />
+                      <PersonSelect value={newAccountableParty} onChange={setNewAccountableParty} options={people} />
                     </div>
 
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Source Location / Ref *</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        value={newSourceRefId}
-                        onChange={(e) => setNewSourceRefId(e.target.value)}
-                        required
-                      />
+                      <RefSelect type={newSourceType} value={newSourceRefId} onChange={setNewSourceRefId} />
                     </div>
 
                     <div className="col-md-6">
                       <label className="form-label small fw-semibold">Destination Reference (e.g. Activity Code) *</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        placeholder="e.g. ACT-2026-0042"
-                        value={newDestRefId}
-                        onChange={(e) => setNewDestRefId(e.target.value)}
-                        required
-                      />
+                      <RefSelect type={newDestType} value={newDestRefId} onChange={setNewDestRefId} />
                     </div>
 
                     <div className="col-12">
@@ -557,7 +541,7 @@ export const Transactions: React.FC = () => {
 
                     <div className="col-md-4">
                       <label className="form-label small fw-semibold">Item ID *</label>
-                      <ItemSelect required value={newItemId} onChange={setNewItemId} />
+                      <ItemSelect required warehouse={newSourceType === 'INVENTORY' ? newSourceRefId : undefined} value={newItemId} onChange={setNewItemId} />
                     </div>
 
                     <div className="col-md-4">

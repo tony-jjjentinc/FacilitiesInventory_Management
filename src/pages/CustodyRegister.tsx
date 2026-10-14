@@ -466,7 +466,7 @@ export const CustodyRegister: React.FC = () => {
                   <div className="row g-2 mb-3">
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Item ID *</label>
-                      <ItemSelect required value={deployForm.itemId} onChange={(id) => setDeployForm(f => ({ ...f, itemId: id }))} />
+                      <ItemSelect required warehouse={deployForm.warehouseLocation} value={deployForm.itemId} onChange={(id) => setDeployForm(f => ({ ...f, itemId: id }))} />
                     </div>
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Serial Number</label>

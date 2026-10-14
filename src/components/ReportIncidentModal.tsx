@@ -4,7 +4,7 @@ import { apiRequest } from '../services/api';
 import { Loading } from './Loading';
 import { getCurrentUser } from '../services/auth';
 import { getAccess } from '../services/access';
-import { WarehouseSelect } from './form/WarehouseSelect';
+import { RefSelect } from './form/RefSelect';
 import { ItemSelect } from './form/ItemSelect';
 
 interface ReportIncidentModalProps {
@@ -168,16 +168,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
                 <div className="col-md-6">
                   <label className="form-label small fw-semibold">Origin Reference / Location *</label>
-                  {originType === 'INVENTORY'
-                    ? <WarehouseSelect value={originRefId} onChange={setOriginRefId} />
-                    : <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      placeholder={originType === 'ACTIVITY' ? 'e.g. ACT-2026-0012' : 'Custody ID or custodian email'}
-                      value={originRefId}
-                      onChange={(e) => setOriginRefId(e.target.value)}
-                      required
-                    />}
+                  <RefSelect type={originType} value={originRefId} onChange={setOriginRefId} />
                 </div>
 
                 <div className="col-md-6">

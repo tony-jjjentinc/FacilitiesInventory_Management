@@ -421,7 +421,7 @@ export const ProjectAllocation: React.FC = () => {
                   {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Item ID *</label>
-                    <ItemSelect required value={dispatchForm.itemId} onChange={(id) => setDispatchForm(f => ({ ...f, itemId: id }))} />
+                    <ItemSelect required warehouse={dispatchForm.warehouseLocation} value={dispatchForm.itemId} onChange={(id) => setDispatchForm(f => ({ ...f, itemId: id }))} />
                   </div>
                   <div className="row g-2 mb-3">
                     <div className="col-6">
