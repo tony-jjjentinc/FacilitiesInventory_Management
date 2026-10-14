@@ -38,6 +38,18 @@ function useDirectory() {
   return accounts;
 }
 
+/** Names for the warehouse and area codes of the storage options (cached), so result dialogs say "Main Warehouse", not "WHSE01". */
+function useStorageNames() {
+  const [opts, setOpts] = useState<StorageOptions | null>(null);
+  useEffect(() => {
+    fetchWithSwr<StorageOptions>('receiving:storageOptions', () => apiRequest<StorageOptions>('receiving:getStorageOptions'), o => { if (o) setOpts(o); }, { persist: true }).catch(() => undefined);
+  }, []);
+  return {
+    warehouse: (id: string) => opts?.warehouses.find(w => w.id === id)?.name || id,
+    area: (id: string) => opts?.storage.find(x => x.storageId === id)?.name || id
+  };
+}
+
 const has = (list: string[], v: string) => list.some(x => x.trim().toLowerCase() === v.toLowerCase());
 
 const Modal: React.FC<{ title: string; busy?: boolean; onClose: () => void; wide?: boolean; error?: string; children: React.ReactNode; footer: React.ReactNode }> = ({ title, busy, onClose, wide, error, children, footer }) => (
@@ -239,6 +251,7 @@ interface LineForm { recv: string; ret: string; type: string; details: string; d
 
 const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => void }> = ({ task, onClose, onDone }) => {
   const dialog = useDialog();
+  const names = useStorageNames();
   const lines = task.items.filter(l => l.Line_Status === 'AWAITING');
   const fresh = (): Record<string, LineForm> => Object.fromEntries(lines.map(l => [l.Receipt_Line_ID, { recv: String(l.Released_Qty), ret: '', type: '', details: '', delivered: '', shortRes: 'OPEN' as const }]));
   // what was typed stays in this browser until the delivery is posted, so closing the window by mistake loses nothing
@@ -279,7 +292,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
       });
       const where = preset
         ? (task.Destination_Type === 'ACTIVITY' ? `activity ${task.Activity_Name || task.Activity_ID}` : `warehouse ${task.Warehouse_Name || task.Warehouse_Location}${task.Area_ID ? ` · ${task.Area_Name || task.Area_ID}` : ''}`)
-        : (dest.destinationType === 'ACTIVITY' ? `activity ${dest.activityId}` : `warehouse ${dest.warehouseLocation}${dest.areaId ? ` · ${dest.areaId}` : ''}`);
+        : (dest.destinationType === 'ACTIVITY' ? `activity ${dest.activityId}` : `warehouse ${names.warehouse(dest.warehouseLocation)}${dest.areaId ? ` · ${names.area(dest.areaId)}` : ''}`);
       try { localStorage.removeItem(savedKey); } catch { /* nothing to clear */ }
       onDone();
       const links = [
@@ -366,6 +379,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
 // ---------------------------------------------------------------------------
 const DelegateModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => void }> = ({ task, onClose, onDone }) => {
   const dialog = useDialog();
+  const names = useStorageNames();
   const accounts = useDirectory();
   const [fms, setFms] = useState('');
   const [error, setError] = useState('');
@@ -378,7 +392,7 @@ const DelegateModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () =
     try {
       await apiRequest('receiving:delegate', { receiptId: task.Receipt_ID, fmsId: fms, destinationType: dest.destinationType, warehouseLocation: dest.warehouseLocation, areaId: dest.areaId, activityId: dest.activityId });
       onDone();
-      await dialog.alert({ title: 'MRL delegated', message: delegateSummary(task.Source_Reference, people.find(a => a.email === fms)?.name || fms, dest.destinationType === 'ACTIVITY' ? `activity ${dest.activityId}` : `warehouse ${dest.warehouseLocation}${dest.areaId ? ` · ${dest.areaId}` : ''}`), confirmText: 'Done' });
+      await dialog.alert({ title: 'MRL delegated', message: delegateSummary(task.Source_Reference, people.find(a => a.email === fms)?.name || fms, dest.destinationType === 'ACTIVITY' ? `activity ${dest.activityId}` : `warehouse ${names.warehouse(dest.warehouseLocation)}${dest.areaId ? ` · ${names.area(dest.areaId)}` : ''}`), confirmText: 'Done' });
     } catch (e: any) { setError(e.message || 'Could not delegate.'); } finally { setBusy(false); }
   };
   return (

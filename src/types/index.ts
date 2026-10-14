@@ -170,6 +170,8 @@ export interface TransactionEntry {
   transactionType: string;
   sourceType: string;
   sourceRefId: string;
+  /** names the API adds beside the references (blank when there is none) */
+  sourceName?: string; destinationName?: string;
   destinationType: string;
   destinationRefId: string;
   loggedById: string;

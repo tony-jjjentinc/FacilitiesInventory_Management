@@ -247,7 +247,7 @@ export const Transactions: React.FC = () => {
       minWidth: '150px',
       render: (row) => (
         <div>
-          <span className="small fw-semibold text-dark">{row.sourceRefId}</span>
+          <span className="small fw-semibold text-dark" title={row.sourceRefId}>{row.sourceName || row.sourceRefId}</span>
           <span className="badge bg-light text-muted border ms-1" style={{ fontSize: '0.65rem' }}>{row.sourceType}</span>
         </div>
       )
@@ -259,7 +259,7 @@ export const Transactions: React.FC = () => {
       minWidth: '150px',
       render: (row) => (
         <div>
-          <span className="small fw-semibold text-dark">{row.destinationRefId || 'N/A'}</span>
+          <span className="small fw-semibold text-dark" title={row.destinationRefId}>{row.destinationName || row.destinationRefId || 'N/A'}</span>
           <span className="badge bg-light text-muted border ms-1" style={{ fontSize: '0.65rem' }}>{row.destinationType}</span>
         </div>
       )
@@ -387,11 +387,11 @@ export const Transactions: React.FC = () => {
                 <div className="row g-3 mb-3">
                   <div className="col-md-4">
                     <span className="text-muted small d-block">Source:</span>
-                    <span className="fw-semibold small">{selectedTx.sourceRefId} ({selectedTx.sourceType})</span>
+                    <span className="fw-semibold small">{selectedTx.sourceName ? `${selectedTx.sourceName} · ${selectedTx.sourceRefId}` : selectedTx.sourceRefId} ({selectedTx.sourceType})</span>
                   </div>
                   <div className="col-md-4">
                     <span className="text-muted small d-block">Destination:</span>
-                    <span className="fw-semibold small">{selectedTx.destinationRefId || 'N/A'} ({selectedTx.destinationType})</span>
+                    <span className="fw-semibold small">{selectedTx.destinationName ? `${selectedTx.destinationName} · ${selectedTx.destinationRefId}` : (selectedTx.destinationRefId || 'N/A')} ({selectedTx.destinationType})</span>
                   </div>
                   <div className="col-md-4">
                     <span className="text-muted small d-block">Accountable Party:</span>
