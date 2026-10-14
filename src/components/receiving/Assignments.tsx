@@ -9,10 +9,11 @@ import { apiRequest } from '../../services/api';
 import { fetchWithSwr, invalidateCache } from '../../services/cache';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { useDialog } from '../../context/DialogContext';
 import { SlowHint } from '../SlowHint';
-import { verifySummary, delegateSummary, assignSummary } from './resultSummary';
+import { verifySummary, delegateSummary } from './resultSummary';
 import { DataCard } from '../DataCard';
 import { ActionMenu } from '../ActionMenu';
 import type { Column } from '../DataTable';
@@ -147,7 +148,7 @@ const destReady = (d: Dest) => d.destinationType === 'WAREHOUSE' || (d.destinati
 // ---------------------------------------------------------------------------
 export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }) => {
   const toast = useToast();
-  const dialog = useDialog();
+  const navigate = useNavigate();
   const accounts = useDirectory();
   const [data, setData] = useState<MrlListResponse | null>(null);
   const [subs, setSubs] = useState<string[]>([]);
@@ -196,8 +197,11 @@ export const AssignQueue: React.FC<{ onAssigned: () => void }> = ({ onAssigned }
       await apiRequest('receiving:confirmRelease', { mrlNumber: pick.mrlNumber, mrqNumber: pick.mrqNumber, subDepartment: sub, assigneeId: assignee,
         ...(approveId ? { approveActivityId: approveId, mismatchReason: approveWhy.trim() } : {}) });
       const mrl = pick.mrlNumber;
+      const who = people.find(a => a.email === assignee)?.name || assignee;
+      // stay in the queue: take the row off the list at once (the full reload takes a while and runs quietly after), and say it in a toast
+      setData(d => (d ? { ...d, mrls: d.mrls.filter(m => m.mrlNumber !== mrl) } : d));
       setPick(null); invalidateCache('receiving:'); load(); onAssigned();
-      await dialog.alert({ title: 'MRL assigned', message: assignSummary(mrl, people.find(a => a.email === assignee)?.name || assignee, sub), links: [{ label: 'Open My tasks', to: '/deliveries?tab=tasks' }], confirmText: 'Done' });
+      toast.success(`MRL ${mrl} assigned to ${who} (${sub}). They were notified.`, { actions: [{ label: 'Open My tasks', onClick: () => navigate('/deliveries?tab=tasks') }] });
     } catch (e: any) { setError(e.message || 'Could not assign the MRL.'); } finally { setBusy(false); }
   };
 
@@ -467,7 +471,11 @@ export const Assignments: React.FC<{ refreshKey: number; onChanged: () => void; 
   useEffect(load, [load, refreshKey]);
   useEffect(() => { onCount?.(tasks.filter(t => t.canVerify).length); }, [tasks, onCount]);
 
-  const done = () => { setVerifying(null); setDelegating(null); setReassigning(null); invalidateCache('receiving:'); invalidateCache('inventory:stock'); load(); onChanged(); };
+  const done = () => {
+    // a verified task leaves the list at once; the reload (which can take a while) runs after and brings any follow-up task
+    if (verifying) { const id = verifying.Receipt_ID; setTasks(ts => ts.filter(x => x.Receipt_ID !== id)); }
+    setVerifying(null); setDelegating(null); setReassigning(null); invalidateCache('receiving:'); invalidateCache('inventory:stock'); load(); onChanged();
+  };
   const act = async (action: string, payload: object, msg: string) => {
     try { await apiRequest(action, payload); toast.success(msg); done(); } catch (e: any) { toast.error(e.message || 'Action failed.'); }
   };
