@@ -13,6 +13,7 @@ import { useDraft } from '../components/drafts/useDraft';
 import { useResumeParam } from '../components/drafts/useResumeParam';
 import { DraftActions, DraftResume } from '../components/drafts/DraftBar';
 import { fmtDateTime } from '../utils/datetime';
+import { ItemSelect } from '../components/form/ItemSelect';
 
 export const Transactions: React.FC = () => {
   const toast = useToast();
@@ -556,14 +557,7 @@ export const Transactions: React.FC = () => {
 
                     <div className="col-md-4">
                       <label className="form-label small fw-semibold">Item ID *</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        placeholder="e.g. ITM-0001"
-                        value={newItemId}
-                        onChange={(e) => setNewItemId(e.target.value)}
-                        required
-                      />
+                      <ItemSelect required value={newItemId} onChange={setNewItemId} />
                     </div>
 
                     <div className="col-md-4">

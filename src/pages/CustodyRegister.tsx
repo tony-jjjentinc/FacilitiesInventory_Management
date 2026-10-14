@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { fetchWithSwr, invalidateCache } from '../services/cache';
 import type { InHouseCustodyItem, StorageOptions } from '../types';
@@ -11,11 +11,22 @@ import { getCurrentUser } from '../services/auth';
 import { getAccess, hideCosts, holdsTool } from '../services/access';
 import { fmtDate } from '../utils/datetime';
 import { WarehouseSelect } from '../components/form/WarehouseSelect';
+import { ItemSelect } from '../components/form/ItemSelect';
+import { PersonSelect } from '../components/form/PersonSelect';
+import type { DirectoryAccount } from '../types';
 
 export const CustodyRegister: React.FC = () => {
   const access = getAccess(getCurrentUser());
   const [custodyItems, setCustodyItems] = useState<InHouseCustodyItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  // people to hand a tool to: the account directory (a person's name fills in from their email)
+  const [directory, setDirectory] = useState<DirectoryAccount[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetchWithSwr<DirectoryAccount[]>('accounts:directory', () => apiRequest<DirectoryAccount[]>('accounts:getDirectory'), d => { if (alive && Array.isArray(d)) setDirectory(d); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+  const people = useMemo(() => directory.map(a => ({ email: a.email, label: `${a.name || a.email} (${a.email})` })), [directory]);
   const [search, setSearch] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -55,6 +66,13 @@ export const CustodyRegister: React.FC = () => {
     warehouseLocation: 'FACILITIES_WAREHOUSE_MAIN',
     remarks: ''
   });
+
+  // Assign Tool: choosing a person fills in their name
+  const deployEmail = deployForm.custodianId;
+  useEffect(() => {
+    const a = directory.find(x => x.email.toLowerCase() === deployEmail.trim().toLowerCase());
+    if (a?.name) setDeployForm(f => (f.custodianName === a.name ? f : { ...f, custodianName: a.name }));
+  }, [deployEmail, directory]);
 
   const fetchCustody = useCallback(async () => {
     setIsLoading(true);
@@ -431,14 +449,7 @@ export const CustodyRegister: React.FC = () => {
                   <div className="row g-2 mb-3">
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Custodian Email / ID *</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        placeholder="technician@jjjentinc.com"
-                        required
-                        value={deployForm.custodianId}
-                        onChange={(e) => setDeployForm({ ...deployForm, custodianId: e.target.value })}
-                      />
+                      <PersonSelect value={deployForm.custodianId} onChange={(email) => setDeployForm(f => ({ ...f, custodianId: email }))} options={people} />
                     </div>
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Custodian Full Name *</label>
@@ -455,14 +466,7 @@ export const CustodyRegister: React.FC = () => {
                   <div className="row g-2 mb-3">
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Item ID *</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm font-monospace"
-                        placeholder="e.g. ITM-0004"
-                        required
-                        value={deployForm.itemId}
-                        onChange={(e) => setDeployForm({ ...deployForm, itemId: e.target.value })}
-                      />
+                      <ItemSelect required value={deployForm.itemId} onChange={(id) => setDeployForm(f => ({ ...f, itemId: id }))} />
                     </div>
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Serial Number</label>
@@ -488,7 +492,7 @@ export const CustodyRegister: React.FC = () => {
                     </div>
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Origin Warehouse</label>
-                      <WarehouseSelect value={deployForm.warehouseLocation} onChange={(code) => setDeployForm({ ...deployForm, warehouseLocation: code })} />
+                      <WarehouseSelect value={deployForm.warehouseLocation} onChange={(code) => setDeployForm(f => ({ ...f, warehouseLocation: code }))} />
                     </div>
                   </div>
                   <div className="row g-3 mb-3">
@@ -556,14 +560,7 @@ export const CustodyRegister: React.FC = () => {
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">New Custodian ID / Email *</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      placeholder="new.technician@jjjentinc.com"
-                      required
-                      value={transferForm.targetCustodianId}
-                      onChange={(e) => setTransferForm({ ...transferForm, targetCustodianId: e.target.value })}
-                    />
+                    <PersonSelect value={transferForm.targetCustodianId} onChange={(email) => setTransferForm(f => ({ ...f, targetCustodianId: email }))} options={people} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Handover Notes</label>
@@ -607,7 +604,7 @@ export const CustodyRegister: React.FC = () => {
                   {feedbackError && <div className="alert alert-danger small py-2">{feedbackError}</div>}
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Destination Warehouse</label>
-                    <WarehouseSelect value={retrieveForm.warehouseLocation} onChange={(code) => setRetrieveForm({ ...retrieveForm, warehouseLocation: code })} />
+                    <WarehouseSelect value={retrieveForm.warehouseLocation} onChange={(code) => setRetrieveForm(f => ({ ...f, warehouseLocation: code }))} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Inspection Remarks</label>

@@ -11,6 +11,7 @@ import { Loading } from '../components/Loading';
 import { getCurrentUser } from '../services/auth';
 import { getAccess, hideCosts } from '../services/access';
 import { WarehouseSelect } from '../components/form/WarehouseSelect';
+import { ItemSelect } from '../components/form/ItemSelect';
 
 export const ProjectAllocation: React.FC = () => {
   const access = getAccess(getCurrentUser());
@@ -420,14 +421,7 @@ export const ProjectAllocation: React.FC = () => {
                   {modalFeedback && <div className="alert alert-danger small py-2">{modalFeedback}</div>}
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Item ID *</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm font-monospace"
-                      placeholder="e.g. ITM-0001"
-                      required
-                      value={dispatchForm.itemId}
-                      onChange={(e) => setDispatchForm({ ...dispatchForm, itemId: e.target.value })}
-                    />
+                    <ItemSelect required value={dispatchForm.itemId} onChange={(id) => setDispatchForm(f => ({ ...f, itemId: id }))} />
                   </div>
                   <div className="row g-2 mb-3">
                     <div className="col-6">
@@ -444,7 +438,7 @@ export const ProjectAllocation: React.FC = () => {
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Warehouse Location</label>
-                    <WarehouseSelect value={dispatchForm.warehouseLocation} onChange={(code) => setDispatchForm({ ...dispatchForm, warehouseLocation: code })} />
+                    <WarehouseSelect value={dispatchForm.warehouseLocation} onChange={(code) => setDispatchForm(f => ({ ...f, warehouseLocation: code }))} />
                   </div>
                   <DispatchPileSection
                     itemId={dispatchForm.itemId}
@@ -598,7 +592,7 @@ export const ProjectAllocation: React.FC = () => {
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Destination Warehouse</label>
-                    <WarehouseSelect value={surplusForm.warehouseLocation} onChange={(code) => setSurplusForm({ ...surplusForm, warehouseLocation: code })} />
+                    <WarehouseSelect value={surplusForm.warehouseLocation} onChange={(code) => setSurplusForm(f => ({ ...f, warehouseLocation: code }))} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Remarks</label>

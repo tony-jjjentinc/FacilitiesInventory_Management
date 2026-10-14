@@ -5,6 +5,7 @@ import { Loading } from './Loading';
 import { getCurrentUser } from '../services/auth';
 import { getAccess } from '../services/access';
 import { WarehouseSelect } from './form/WarehouseSelect';
+import { ItemSelect } from './form/ItemSelect';
 
 interface ReportIncidentModalProps {
   isOpen: boolean;
@@ -198,14 +199,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
                 <div className="col-md-4">
                   <label className="form-label small fw-semibold">Inventory Item ID *</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="e.g. ITM-0001"
-                    value={itemId}
-                    onChange={(e) => setItemId(e.target.value)}
-                    required
-                  />
+                  <ItemSelect required value={itemId} onChange={setItemId} />
                 </div>
 
                 <div className="col-md-4">
