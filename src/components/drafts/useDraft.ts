@@ -54,21 +54,33 @@ export function useDraft<T extends object>({ formType, identifier, enabled, stat
     return () => { alive = false; };
   }, [formType, identifier, enabled]);
 
-  const persist = useCallback(async (force = false) => {
+  // One save at a time: the server can take 10 s or more, and a second save sent meanwhile would carry a version that is already
+  // out of date, which the server reports as "saved somewhere else". A change made during a save is saved right after it.
+  const saving = useRef(false);
+  const again = useRef(false);
+  const persistRef = useRef<(force?: boolean) => Promise<boolean>>(async () => false);
+  const persist = useCallback(async (force = false): Promise<boolean> => {
+    if (saving.current) { again.current = true; return false; }
+    saving.current = true; again.current = false;
     setStatus('saving'); setError('');
+    let okay = false;
     try {
       const saved = await apiRequest<DraftSummary>('draft:save', {
         formType, identifier, payload: JSON.parse(json), ...(force || !version.current ? {} : { expectedUpdatedAt: version.current })
       });
       setDraft(saved); version.current = saved.updatedAt; lastSaved.current = json; setStatus('saved');
-      return true;
+      okay = true;
     } catch (err: any) {
       const msg = String(err?.message || '');
       setStatus(/saved somewhere else/.test(msg) ? 'conflict' : 'error');
       setError(msg.replace(/^[A-Z_:]+:\s*/, '') || 'Could not save the draft.');
-      return false;
+    } finally {
+      saving.current = false;
+      if (okay && again.current) { again.current = false; window.setTimeout(() => { persistRef.current(); }, 0); }
     }
+    return okay;
   }, [formType, identifier, json]);
+  useEffect(() => { persistRef.current = persist; }, [persist]);
 
   // autosave: only once the form has moved on from where it started, and not while a saved draft awaits a decision
   useEffect(() => {
