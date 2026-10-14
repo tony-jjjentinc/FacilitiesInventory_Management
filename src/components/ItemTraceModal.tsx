@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import type { ItemTrace, ItemTraceHolder } from '../types';
+import { fmtDateTime } from '../utils/datetime';
 
 interface Props {
   itemId: string;
@@ -8,7 +9,7 @@ interface Props {
   onClose: () => void;
 }
 
-const day = (v: string) => (v ? v.slice(0, 16) : '—');
+const day = (v: string) => fmtDateTime(v, '—');
 
 const holderRow = (h: ItemTraceHolder, key: string) => {
   const w = h.where;

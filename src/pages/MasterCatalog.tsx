@@ -294,8 +294,8 @@ export const MasterCatalog: React.FC = () => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2">
         <div>
-          <h4 className="fw-bold mb-1 text-dark">Inventory Catalog</h4>
-          <p className="text-muted small mb-0">
+          <h5 className="fw-bold mb-0 text-dark">Inventory Catalog</h5>
+          <p className="small text-muted mb-0">
             Decoupled technical trade categories and physical inventory classifications.
           </p>
         </div>

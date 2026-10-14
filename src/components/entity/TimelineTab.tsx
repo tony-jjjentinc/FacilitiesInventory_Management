@@ -11,11 +11,12 @@ import type { EntityScopeType, EntityTimeline, EntityTimelineEvent } from '../..
 import { peso, qty } from './entityPaths';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
+import { fmtDateTime } from '../../utils/datetime';
 
 const TYPE_LABEL: Record<string, string> = {
   'IN:MRL': 'Received (MRL)', 'IN:MANUAL': 'Received (manual)', 'IN:PETTY_CASH': 'Received (petty cash)', 'IN:RF': 'Received (RF)', 'IN:RFP': 'Received (RFP)',
   'IN:EXCESS': 'Surplus returned', 'IN:RETRIEVE': 'Tool returned', 'OUT:RELEASE': 'Issued to activity', 'OUT:DEPLOY': 'Tool assigned', 'OUT:DISPOSAL': 'Written off',
-  'TRANSFER:INVENTORY': 'Transferred', 'TRANSFER:IN_HOUSE': 'Custody transferred', CREATE: 'Created', UPDATE: 'Changed', DELETE: 'Archived'
+  'AUDIT:ACTIVITY': 'Used on site', 'AUDIT:IN_HOUSE': 'Used by custodian', 'AUDIT:INVENTORY': 'Counted in warehouse', 'TRANSFER:INVENTORY': 'Transferred', 'TRANSFER:IN_HOUSE': 'Custody transferred', CREATE: 'Created', UPDATE: 'Changed', DELETE: 'Archived'
 };
 const label = (t: string) => TYPE_LABEL[t] || t;
 const GROUPS: [string, string][] = [['', 'All events'], ['IN', 'Received'], ['OUT', 'Issued / written off'], ['TRANSFER', 'Transfers'], ['CONFIG', 'Settings']];
@@ -85,13 +86,13 @@ export const TimelineTab: React.FC<Props> = ({ scopeType, scopeRef }) => {
                 {e.status && e.status !== 'POSTED' && <span className="badge text-bg-warning ms-2">{e.status}</span>}
                 {e.kind === 'CONFIG' && <span className="badge text-bg-light border fw-normal ms-2">Setting</span>}
               </div>
-              <div className="small text-muted">{e.at}</div>
+              <div className="small text-muted">{fmtDateTime(e.at)}</div>
             </div>
             {e.detail && <div className="small text-secondary">{e.detail}</div>}
             <div className="small text-muted">
               {e.who || '–'}
               {e.kind === 'LEDGER' && <> · {qty(e.qty || 0)} unit(s) · {access.canSeeCosts && <>{peso(e.value || 0)} · </>}{e.ref}</>}
-              {e.from && e.to && <> · {e.from} → {e.to}</>}
+              {e.from && e.to && e.from !== e.to && <> · {e.from} → {e.to}</>}
             </div>
           </li>
         ))}

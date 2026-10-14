@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserClaims } from '../types';
 import { isUserHeadOrAdmin } from '../services/auth';
-import { RECEIPTS_COUNT_EVENT } from '../services/api';
+import { DELIVERIES_COUNT_EVENT } from '../services/api';
 import { getAccess } from '../services/access';
 import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
@@ -17,6 +17,8 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
   const [counts, setCounts] = useState({ receipts: 0, approvals: 0 });
+  // exact counts from the Deliveries page once it has loaded; until then the bell feed's number is used
+  const [live, setLive] = useState<{ tasks: number; pending: number } | null>(null);
   const { systemInfo } = useSystemInfo();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -51,11 +53,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
 
   const isHeadOrAdmin = isUserHeadOrAdmin(user);
 
-  const canSeeAnalytics = getAccess(user).canSeeAnalytics;
+  const access = getAccess(user);
+  const canSeeAnalytics = access.canSeeAnalytics;
 
   const navItems: { id: string; path: string; label: string; badge?: number }[] = [
     { id: 'overview', path: '/overview', label: 'Dashboard' },
-    { id: 'inventory', path: '/inventory', label: 'Inventory', badge: counts.receipts },
+    { id: 'inventory', path: '/inventory', label: 'Inventory' },
+    ...(access.canField ? [{ id: 'deliveries', path: '/deliveries', label: 'Deliveries', badge: live ? live.tasks + live.pending : counts.receipts }] : []),
     { id: 'activities', path: '/activities', label: 'Projects & Activities' },
     ...(canSeeAnalytics ? [{ id: 'analytics', path: '/analytics', label: 'Analytics' }] : []),
     ...(isHeadOrAdmin ? [{ id: 'admin', path: '/admin', label: 'Admin', badge: counts.approvals }, { id: 'configuration', path: '/configuration', label: 'Configuration' }] : [])
@@ -66,9 +70,9 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
 
   // the confirmation list knows the exact count the moment it changes; the bell feed catches up later
   useEffect(() => {
-    const on = (e: Event) => setCounts(c => ({ ...c, receipts: Number((e as CustomEvent).detail) || 0 }));
-    window.addEventListener(RECEIPTS_COUNT_EVENT, on);
-    return () => window.removeEventListener(RECEIPTS_COUNT_EVENT, on);
+    const on = (e: Event) => { const d = (e as CustomEvent).detail || {}; setLive({ tasks: Number(d.tasks) || 0, pending: Number(d.pending) || 0 }); };
+    window.addEventListener(DELIVERIES_COUNT_EVENT, on);
+    return () => window.removeEventListener(DELIVERIES_COUNT_EVENT, on);
   }, []);
 
   const handleFeed = (items: { id: string; count?: number }[]) => {

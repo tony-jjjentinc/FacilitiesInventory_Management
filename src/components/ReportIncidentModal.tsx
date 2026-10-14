@@ -4,6 +4,7 @@ import { apiRequest } from '../services/api';
 import { Loading } from './Loading';
 import { getCurrentUser } from '../services/auth';
 import { getAccess } from '../services/access';
+import { WarehouseSelect } from './form/WarehouseSelect';
 
 interface ReportIncidentModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   const toast = useToast();
   const [lossType, setLossType] = useState('DAMAGE');
   const [originType, setOriginType] = useState('INVENTORY');
-  const [originRefId, setOriginRefId] = useState('FACILITIES_WAREHOUSE_MAIN');
+  const [originRefId, setOriginRefId] = useState('');
   const [liablePartyId, setLiablePartyId] = useState('');
   const fieldOnly = getAccess(getCurrentUser()).fieldOnly;
   const [description, setDescription] = useState('');
@@ -39,7 +40,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       document.body.classList.add('modal-open');
       setLossType('DAMAGE');
       setOriginType('INVENTORY');
-      setOriginRefId('FACILITIES_WAREHOUSE_MAIN');
+      setOriginRefId('');
       setLiablePartyId('');
       setDescription('');
       setAttachmentUrl('');
@@ -156,7 +157,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <select
                     className="form-select form-select-sm"
                     value={originType}
-                    onChange={(e) => setOriginType(e.target.value)}
+                    onChange={(e) => { setOriginType(e.target.value); setOriginRefId(''); }}
                   >
                     <option value="INVENTORY">Warehouse Storage (INVENTORY)</option>
                     <option value="ACTIVITY">Project Work Order (ACTIVITY)</option>
@@ -166,14 +167,16 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
                 <div className="col-md-6">
                   <label className="form-label small fw-semibold">Origin Reference / Location *</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="e.g. FACILITIES_WAREHOUSE_MAIN or ACT-2026-0012"
-                    value={originRefId}
-                    onChange={(e) => setOriginRefId(e.target.value)}
-                    required
-                  />
+                  {originType === 'INVENTORY'
+                    ? <WarehouseSelect value={originRefId} onChange={setOriginRefId} />
+                    : <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder={originType === 'ACTIVITY' ? 'e.g. ACT-2026-0012' : 'Custody ID or custodian email'}
+                      value={originRefId}
+                      onChange={(e) => setOriginRefId(e.target.value)}
+                      required
+                    />}
                 </div>
 
                 <div className="col-md-6">

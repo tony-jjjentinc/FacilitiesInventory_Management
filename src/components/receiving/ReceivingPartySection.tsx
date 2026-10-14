@@ -108,7 +108,7 @@ export const ReceivingPartySection: React.FC<Props> = ({ title, party, onChange,
         )}
 
         <div className="col-md-6">
-          <label className="form-label small fw-semibold mb-1" htmlFor="receiving-party">Goods Issued to</label>
+          <label className="form-label small fw-semibold mb-1" htmlFor="receiving-party">Verifier</label>
           <div className="d-flex align-items-center gap-3">
             <div className="flex-grow-1">
               <PersonSelect id="receiving-party" value={party.receiverId}

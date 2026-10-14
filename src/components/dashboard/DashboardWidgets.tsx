@@ -16,6 +16,7 @@ import { entityPath, peso } from '../entity/entityPaths';
 import { Loading } from '../Loading';
 import type { DraftSummary } from '../drafts/useDraft';
 import { pushRecent } from '../../services/recent';
+import { fmtDate, fmtDateTime, toTimestamp, todayInputDate } from '../../utils/datetime';
 
 interface CatalogMeta { ID: string; Inventory_Type_Name?: string; Category_Name?: string }
 
@@ -52,12 +53,12 @@ const Row: React.FC<{ main: string; sub?: string; right?: React.ReactNode; to?: 
 };
 
 const DRAFT_LABEL: Record<string, { label: string; to: (id: string) => string; hint: (id: string) => string }> = {
-  MRL_RECEIVE: { label: 'Material Release', to: id => `/inventory?tab=receive-mrl&resume=${encodeURIComponent(id)}`, hint: id => `Opens MRL ${id} with your saved changes` },
-  MANUAL_RECEIVE: { label: 'New Inventory', to: () => '/inventory?tab=receive-manual&resume=1', hint: () => 'Opens the form with your saved changes' },
+  MRL_RECEIVE: { label: 'Material Release', to: id => `/deliveries?tab=receive-mrl&resume=${encodeURIComponent(id)}`, hint: id => `Opens MRL ${id} with your saved changes` },
+  MANUAL_RECEIVE: { label: 'New Inventory', to: () => '/deliveries?tab=receive-manual&resume=1', hint: () => 'Opens the form with your saved changes' },
   STAGED_TX: { label: 'Staged transaction', to: id => `/analytics?tab=ledger&resume=${encodeURIComponent(id)}`, hint: id => `Opens the ${id} form with your saved changes` }
 };
 const expiresIn = (iso: string) => {
-  const h = (Date.parse(iso) - Date.now()) / 3600000;
+  const h = (toTimestamp(iso) - Date.now()) / 3600000;
   return h >= 1 ? `${Math.floor(h)} h left` : `${Math.max(1, Math.round(h * 60))} min left`;
 };
 
@@ -88,10 +89,12 @@ function useWhenVisible(go: () => void) {
   return ref;
 }
 
+/** Most rows any dashboard table shows; "View all" opens the full list. */
+const ROWS = 5;
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 type Span = 'month' | 'quarter' | 'year';
 function range(kind: Span) {
-  const n = new Date();
+  const n = new Date(todayInputDate() + 'T00:00:00'); // today in Manila, not the browser's zone
   if (kind === 'month') return { from: iso(new Date(n.getFullYear(), n.getMonth(), 1)), to: iso(new Date(n.getFullYear(), n.getMonth() + 1, 0)) };
   if (kind === 'quarter') { const q = Math.floor(n.getMonth() / 3) * 3; return { from: iso(new Date(n.getFullYear(), q, 1)), to: iso(new Date(n.getFullYear(), q + 3, 0)) }; }
   return { from: iso(new Date(n.getFullYear(), 0, 1)), to: iso(new Date(n.getFullYear(), 11, 31)) };
@@ -118,7 +121,7 @@ const SpendChart: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seen, span, refreshKey]);
 
-  const rows = (data?.rows || []).filter(r => r.receivedCost || r.issuedCost || r.consumedCost).slice(0, 10);
+  const rows = (data?.rows || []).filter(r => r.receivedCost || r.issuedCost || r.consumedCost).slice(0, ROWS);
   return (
     <div className="col-12" ref={ref}>
       <div className="card border shadow-sm bg-white">
@@ -172,12 +175,12 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
   useEffect(() => {
     const persist = { persist: true };
     if (showTransactions) {
-      fetchWithSwr<TransactionEntry[]>('dash:transactions', () => apiRequest<TransactionEntry[]>('transaction:getHistory', { status: 'POSTED', limit: 10 }),
-        d => { if (Array.isArray(d)) setTxns(d.slice(0, 10)); }, persist).catch(fail('txn')); // slice: an older API ignores `limit`
+      fetchWithSwr<TransactionEntry[]>('dash:transactions', () => apiRequest<TransactionEntry[]>('transaction:getHistory', { status: 'POSTED', limit: ROWS }),
+        d => { if (Array.isArray(d)) setTxns(d.slice(0, ROWS)); }, persist).catch(fail('txn')); // slice: an older API ignores `limit`
     }
     if (access.canField) {
-      fetchWithSwr<ReceiptRecord[]>('dash:receipts', () => apiRequest<ReceiptRecord[]>('receiving:getPending', { limit: 5 }),
-        d => { if (Array.isArray(d)) setReceipts(d.slice(0, 5)); }, persist).catch(fail('rcpt'));
+      fetchWithSwr<ReceiptRecord[]>('dash:receipts', () => apiRequest<ReceiptRecord[]>('receiving:getPending', { limit: ROWS }),
+        d => { if (Array.isArray(d)) setReceipts(d.slice(0, ROWS)); }, persist).catch(fail('rcpt'));
     }
     fetchWithSwr<CatalogMeta[]>('catalog:items', () => apiRequest<CatalogMeta[]>('catalog:getItems'),
       d => { if (Array.isArray(d)) setCatalog(d); }, persist).catch(() => undefined);
@@ -185,13 +188,13 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
   }, [refreshKey]);
 
   const alerts = useMemo(() => stock.filter(r => r.ROP_Status !== 'NORMAL')
-    .sort((a, b) => Number(b.ROP_Status === 'CRITICAL_DEPLETION') - Number(a.ROP_Status === 'CRITICAL_DEPLETION')).slice(0, 8), [stock]);
+    .sort((a, b) => Number(b.ROP_Status === 'CRITICAL_DEPLETION') - Number(a.ROP_Status === 'CRITICAL_DEPLETION')).slice(0, ROWS), [stock]);
   const meta = useMemo(() => new Map(catalog.map(c => [c.ID, c])), [catalog]);
   const byQty = !access.canSeeCosts;
   const mixes = useMemo(() => ({
     type: mix(stock, r => meta.get(r.Item_ID)?.Inventory_Type_Name || r.Classification),
     category: mix(stock, r => meta.get(r.Item_ID)?.Category_Name || ''),
-    warehouse: mix(stock, r => r.Warehouse_Location)
+    warehouse: mix(stock, r => r.Warehouse_Name || r.Warehouse_Location)
   }), [stock, meta]);
 
   const awaiting = (receipts || []).filter(r => r.Status === 'PENDING_CONFIRMATION');
@@ -200,7 +203,7 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
     <div className="row g-3 mb-4">
       <Panel title="Stock alerts" to="/inventory?tab=alerts" state={stockState} empty={alerts.length === 0 ? 'No items need reordering.' : undefined}>
         <ul className="list-group list-group-flush">
-          {alerts.map(r => <Row key={r.Inventory_ID} to={entityPath('ITEM', r.Item_ID)} main={r.Item_Name} sub={r.Warehouse_Location}
+          {alerts.map(r => <Row key={r.Inventory_ID} to={entityPath('ITEM', r.Item_ID)} main={r.Item_Name} sub={r.Warehouse_Name || r.Warehouse_Location}
             right={<><span className={`badge ${r.ROP_Status === 'CRITICAL_DEPLETION' ? 'text-bg-danger' : 'text-bg-warning'} me-2`}>{r.ROP_Status === 'CRITICAL_DEPLETION' ? 'Critical' : 'Reorder'}</span>{r.On_Hand_Qty} {r.UOM}</>} />)}
         </ul>
       </Panel>
@@ -208,15 +211,15 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
       {access.isAdmin && (
         <Panel title="Pending approvals" to="/admin" state="ready" empty={incidents.length === 0 ? 'Nothing waiting for approval.' : undefined}>
           <ul className="list-group list-group-flush">
-            {incidents.slice(0, 5).map(i => <Row key={i.lossId} to="/admin" main={`${i.lossType} · ${i.lossId}`} sub={i.incidentDescription} right={String(i.incidentDate).slice(0, 10)} />)}
+            {incidents.slice(0, ROWS).map(i => <Row key={i.lossId} to="/admin" main={`${i.lossType} · ${i.lossId}`} sub={i.incidentDescription} right={fmtDate(i.incidentDate)} />)}
           </ul>
         </Panel>
       )}
 
       {access.canField && (
-        <Panel title="Receipts awaiting confirmation" to="/inventory?tab=pending" state={st(receipts, 'rcpt')} empty={awaiting.length === 0 ? 'No receipts are waiting.' : undefined}>
+        <Panel title="Receipts awaiting confirmation" to="/deliveries?tab=tasks" state={st(receipts, 'rcpt')} empty={awaiting.length === 0 ? 'No receipts are waiting.' : undefined}>
           <ul className="list-group list-group-flush">
-            {awaiting.map(r => <Row key={r.Receipt_ID} to="/inventory?tab=pending" main={`${r.Source_Reference || r.Receipt_ID}`} sub={r.Project_Name || r.Warehouse_Location} right={`${r.items.length} ${r.items.length === 1 ? 'line' : 'lines'}`} />)}
+            {awaiting.map(r => <Row key={r.Receipt_ID} to="/deliveries?tab=tasks" main={`${r.Source_Reference || r.Receipt_ID}`} sub={r.Project_Name || r.Warehouse_Location} right={`${r.items.length} ${r.items.length === 1 ? 'line' : 'lines'}`} />)}
           </ul>
         </Panel>
       )}
@@ -224,7 +227,7 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
       {showTransactions && (
         <Panel title="Recent transactions" to="/analytics?tab=ledger" state={st(txns, 'txn')} empty={txns && txns.length === 0 ? 'No transactions yet.' : undefined}>
           <ul className="list-group list-group-flush">
-            {(txns || []).map(t => <Row key={t.transactionId} to="/analytics?tab=ledger" main={`${t.transactionType} · ${t.transactionId}`} sub={String(t.timestamp).slice(0, 16)}
+            {(txns || []).map(t => <Row key={t.transactionId} to="/analytics?tab=ledger" main={`${t.transactionType} · ${t.transactionId}`} sub={fmtDateTime(t.timestamp)}
               right={access.canSeeCosts ? peso(t.totalCost) : `${t.totalItems} ${t.totalItems === 1 ? 'line' : 'lines'}`} />)}
           </ul>
         </Panel>
@@ -232,9 +235,9 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
 
       {stockState === 'ready' && stock.length > 0 && (
         <>
-          <ChartCard title="Stock by type" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.type.length === 0}><MixChart groups={mixes.type} byQty={byQty} /></ChartCard>
-          <ChartCard title="Stock by category" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.category.length === 0}><MixChart groups={mixes.category} byQty={byQty} /></ChartCard>
-          <ChartCard title="Stock by warehouse" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.warehouse.length === 0}><MixChart groups={mixes.warehouse} byQty={byQty} /></ChartCard>
+          <ChartCard pie title="Stock by type" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.type.length === 0}><MixChart groups={mixes.type} byQty={byQty} /></ChartCard>
+          <ChartCard pie title="Stock by category" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.category.length === 0}><MixChart groups={mixes.category} byQty={byQty} /></ChartCard>
+          <ChartCard pie title="Stock by warehouse" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.warehouse.length === 0}><MixChart groups={mixes.warehouse} byQty={byQty} /></ChartCard>
         </>
       )}
 
@@ -258,7 +261,7 @@ export const DraftsList: React.FC<{ refreshKey: number }> = ({ refreshKey }) => 
   if (drafts.length === 0) return <div className="small text-muted">No saved drafts.</div>;
   return (
     <ul className="list-unstyled mb-0 small">
-      {drafts.slice(0, 4).map(d => {
+      {drafts.slice(0, ROWS).map(d => {
         const info = DRAFT_LABEL[d.formType];
         return (
           <li key={d.draftId} className="d-flex justify-content-between align-items-center gap-2 py-1">

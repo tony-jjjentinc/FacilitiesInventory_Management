@@ -39,15 +39,16 @@ export function searchAccess(user: { roles?: string[]; department?: string[] } |
 
 /** `custodian: true` entries need a custodian role (the API refuses them otherwise). */
 const ACTIONS: (SearchResult & { custodian?: boolean })[] = [
-  { group: 'Actions', id: 'a-mrl', title: 'Receive items (MRL)', subtitle: 'Receive a released MRL', path: '/inventory?tab=receive-mrl', keywords: 'receiving delivery goods', custodian: true },
-  { group: 'Actions', id: 'a-manual', title: 'Receive items (Manual)', subtitle: 'Petty cash, RF, RFP or manual entry', path: '/inventory?tab=receive-manual', keywords: 'receiving add stock petty cash', custodian: true },
-  { group: 'Actions', id: 'a-pending', title: 'Confirm pending receipts', subtitle: 'Receipts waiting for confirmation', path: '/inventory?tab=pending', keywords: 'receiving approve', custodian: true },
+  { group: 'Actions', id: 'a-mrl', title: 'Receive items (MRL)', subtitle: 'Receive a released MRL', path: '/deliveries?tab=receive-mrl', keywords: 'receiving delivery goods', custodian: true },
+  { group: 'Actions', id: 'a-manual', title: 'Receive items (Manual)', subtitle: 'Petty cash, RF, RFP or manual entry', path: '/deliveries?tab=receive-manual', keywords: 'receiving add stock petty cash', custodian: true },
+  { group: 'Actions', id: 'a-pending', title: 'My delivery tasks', subtitle: 'Assignments and receipts waiting for you', path: '/deliveries?tab=tasks', keywords: 'receiving approve', custodian: true },
   { group: 'Actions', id: 'a-catalog', title: 'Register an inventory item', subtitle: 'Open the inventory catalog', path: '/inventory?tab=catalog', keywords: 'new add catalog sku', custodian: true },
   { group: 'Actions', id: 'a-activity', title: 'Work with an activity', subtitle: 'Allocate, consume or return items', path: '/activities', keywords: 'allocation project' }
 ];
 
 const pages = (a: SearchAccess): SearchResult[] => [
   { group: 'Pages', id: 'p-dash', title: 'Dashboard', path: '/overview' },
+  { group: 'Pages', id: 'p-deliveries', title: 'Deliveries · My tasks', path: '/deliveries' },
   { group: 'Pages', id: 'p-warehouses', title: 'Inventory · Warehouses', path: '/inventory?tab=warehouses' },
   { group: 'Pages', id: 'p-subdepts', title: 'Projects & Activities · Sub-Departments', path: '/activities?tab=sub-departments' },
   ...(a.analytics ? ['overview:Overview', 'performance:Performance', 'breakdown:Breakdown', 'stock:Cost of Stock', 'projects:Cost per Project', 'ledger:Ledger'].map(t => {

@@ -19,7 +19,11 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 interface Base { title?: string; confirmText?: string; danger?: boolean }
 export interface ConfirmOptions extends Base { message: React.ReactNode; cancelText?: string }
-export interface AlertOptions extends Base { message: React.ReactNode }
+export interface AlertOptions extends Base {
+  message: React.ReactNode;
+  /** pages to open from the dialog (the dialog closes when one is followed) */
+  links?: { label: string; to: string }[];
+}
 export interface PromptOptions extends Base {
   label: string;
   message?: React.ReactNode;
@@ -104,6 +108,9 @@ const DialogView: React.FC<{ pending: Pending }> = ({ pending }) => {
           </div>
           <div className="modal-body p-4">
             {'message' in o && o.message && <div className="text-secondary small mb-2" style={{ whiteSpace: 'pre-line' }}>{o.message}</div>}
+            {pending.kind === 'alert' && pending.o.links && pending.o.links.length > 0 && (
+              <div className="d-flex flex-wrap gap-3 small mt-2">{pending.o.links.map(l => <a key={l.to} href={`#${l.to}`} onClick={accept}>{l.label}</a>)}</div>
+            )}
             {pending.kind === 'prompt' && (
               <>
                 <label className="form-label small fw-semibold" htmlFor="dialog-text">{pending.o.label}{required ? ' *' : ''}</label>

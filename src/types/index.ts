@@ -65,6 +65,10 @@ export interface WarehouseStockItem {
   Last_Transaction_ID: string;
   Last_Updated: string;
   Area_ID?: string;
+  Warehouse_Name?: string;
+  Area_Name?: string;
+  System?: string;
+  Component?: string;
   First_Received_At?: string;
   Last_Issued_At?: string;
 }
@@ -126,6 +130,10 @@ export interface ApiResponse<T = any> {
   data: T | null;
   error: string | null;
   errorCode: string | null;
+  /** short reference of an unexpected error (also in the server log) */
+  errorRef?: string;
+  /** only when the script property DEBUG_ERRORS is true: the real message and the top of the stack */
+  detail?: string;
   durationMs?: number;
   timestamp: string;
 }
@@ -412,6 +420,8 @@ export interface ReceiptRecord {
   Remarks: string;
   canConfirm: boolean;
   items: ReceiptLineRecord[];
+  /** names the API adds beside the ids (api/NameService.gs); blank or the id itself when unknown */
+  Receiver_Name?: string; Submitted_By_Name?: string; Assigned_To_Name?: string; Delegated_To_Name?: string; Warehouse_Name?: string; Area_Name?: string; Activity_Name?: string;
 }
 
 export interface ReceiptLineRecord {
@@ -709,15 +719,21 @@ export interface TaskLine {
   Receipt_Line_ID: string; Item_ID: string; Item_Name: string; Requested_Qty: number | string; Released_Qty: number | string; Received_Qty: number | string;
   Returned_Qty: number | string; Short_Qty: number | string; Short_Resolution: string; Mismatch_Type: string; Mismatch_Details: string; UOM: string; Line_Status: string;
   Staged_Line_No: number | string;
+  /** the catalog price this line would get (getTask); the cost keys are missing for roles that cannot see costs */
+  price?: { unitCost?: number | null; source?: string; supplierName?: string } | null;
 }
 export interface MrlTask {
   Receipt_ID: string; Source_Reference: string; MRQ_Number: string; Project_Name: string; Status: string; Sub_Department: string; Assigned_To_ID: string;
   Delegated_To_ID: string; Receiver_ID: string; Parent_Receipt_ID: string; Release_Confirmed_By_ID: string; Destination_Type: string; Activity_ID: string;
   Warehouse_Location: string; Area_ID: string; Transaction_ID: string; MRT_Number: string; items: TaskLine[];
   canVerify: boolean; canDelegate: boolean; canTakeBack: boolean;
+  /** names the API adds beside the ids (api/NameService.gs); blank or the id itself when unknown */
+  Receiver_Name?: string; Submitted_By_Name?: string; Assigned_To_Name?: string; Delegated_To_Name?: string; Warehouse_Name?: string; Area_Name?: string; Activity_Name?: string;
   Classification_ID?: string;
   /** a Head's approval to charge one activity of another project */
   projectOverride?: { activityId: string; reason: string; by: string } | null;
+  /** that activity's details, so the assignee can pick it even when it belongs to another sub-department */
+  approvedActivity?: { id: string; name: string; status: string; classificationRef: string; subDepartment: string } | null;
 }
 export interface MrqItemProgress {
   itemId: string; name: string; uom: string; requested: number; released: number; received: number; returned: number; open: number; waiting: number; notReleased: number; state: string;

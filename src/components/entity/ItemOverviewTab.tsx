@@ -12,6 +12,7 @@ import { peso, qty } from './entityPaths';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
 import { useEntityData } from './useEntity';
+import { fmtDate, fmtDateTime } from '../../utils/datetime';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
 
@@ -81,7 +82,7 @@ export const ItemOverviewTab: React.FC<{ itemId: string; onOpenTab?: (key: strin
                   <tr key={s.supplierId}>
                     <td>{s.supplierName}{s.preferred && <span className="badge text-bg-light border fw-normal ms-2">Preferred</span>}</td>
                     <td className="text-end">{peso(s.price)}</td>
-                    <td>{s.effectiveDate || '–'}</td>
+                    <td>{fmtDate(s.effectiveDate)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -100,7 +101,7 @@ export const ItemOverviewTab: React.FC<{ itemId: string; onOpenTab?: (key: strin
           <Card title="Price corrections" className="col-12">
             <table className="table table-sm align-middle mb-0" style={{ fontSize: '0.85rem' }}>
               <thead className="table-light"><tr><th>Date</th><th className="text-end">From</th><th className="text-end">To</th><th className="text-end">Units</th><th>Reason</th></tr></thead>
-              <tbody>{data.corrections.map((c, i) => <tr key={i}><td>{c.at}</td><td className="text-end">{peso(c.oldCost)}</td><td className="text-end">{peso(c.newCost)}</td><td className="text-end">{qty(c.qty)}</td><td>{c.reason || '–'}</td></tr>)}</tbody>
+              <tbody>{data.corrections.map((c, i) => <tr key={i}><td>{fmtDateTime(c.at)}</td><td className="text-end">{peso(c.oldCost)}</td><td className="text-end">{peso(c.newCost)}</td><td className="text-end">{qty(c.qty)}</td><td>{c.reason || '–'}</td></tr>)}</tbody>
             </table>
           </Card>
         )}

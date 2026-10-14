@@ -12,6 +12,7 @@ import { RolloverWizard } from './RolloverWizard';
 import type { ConfigTableKey } from '../types';
 import { slugToConfigKey, configKeyToSlug } from '../utils/configRoutes';
 import { Select } from '../components/Select';
+import { fmtDateTime } from '../utils/datetime';
 
 interface ConfigTabDef {
   key: ConfigTableKey;
@@ -855,7 +856,7 @@ export const Configuration: React.FC = () => {
             }
           },
           { key: 'Status', label: 'Status', align: 'center', minWidth: '95px', sortable: true, render: (r) => <span className={`badge ${r.Status === 'ACTIVE' ? 'bg-success-subtle text-success border' : 'bg-secondary-subtle text-secondary border'}`}>{r.Status || 'ACTIVE'}</span> },
-          { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{r.Created_At || '—'}</span> }
+          { key: 'Created_At', label: 'Registered Date', align: 'left', minWidth: '140px', render: (r) => <span className="small text-muted">{fmtDateTime(r.Created_At, '—')}</span> }
         ];
 
       case 'Rollover':

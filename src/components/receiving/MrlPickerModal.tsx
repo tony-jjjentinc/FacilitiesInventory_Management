@@ -5,6 +5,7 @@ import type { StagedMrlSummary } from '../../types';
 import { useMrlList } from './useMrlList';
 import { simpleDate } from './receivingUtils';
 import { Loading } from '../Loading';
+import { toTimestamp, todayInputDate } from '../../utils/datetime';
 
 interface Props {
   open: boolean;
@@ -50,8 +51,7 @@ export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => 
   };
 
   const rows: Row[] = useMemo(() => (data?.mrls || []).map(m => {
-    const ts = Date.parse(m.releasedAt);
-    return { ...m, rowKey: `${m.mrlNumber}|${m.mrqNumber}`, releasedTs: isNaN(ts) ? 0 : ts, classType: (m.classificationId.match(/^[A-Za-z]+/) || [''])[0].toUpperCase() };
+    return { ...m, rowKey: `${m.mrlNumber}|${m.mrqNumber}`, releasedTs: toTimestamp(m.releasedAt), classType: (m.classificationId.match(/^[A-Za-z]+/) || [''])[0].toUpperCase() };
   }), [data]);
 
   const classTypes = useMemo(() => Array.from(new Set(rows.map(r => r.classType).filter(Boolean))).sort(), [rows]);
@@ -61,9 +61,7 @@ export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => 
     const q = search.trim().toLowerCase();
     // a period of N days covers today and the N-1 days before it; MRLs with no readable release date only show under "All"
     const days = PERIODS.find(p => p.value === period)!.days;
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const cutoff = days > 0 ? start.getTime() - (days - 1) * 86400000 : 0;
+    const cutoff = days > 0 ? toTimestamp(todayInputDate()) - (days - 1) * 86400000 : 0; // midnight today in Manila
     return rows.filter(r =>
       (days === 0 || (r.releasedTs > 0 && r.releasedTs >= cutoff)) &&
       (!classFilter || r.classType === classFilter) &&

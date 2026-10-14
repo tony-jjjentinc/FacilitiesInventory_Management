@@ -16,6 +16,7 @@ import { getAccess } from '../../services/access';
 import { useEntityData } from './useEntity';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
+import { GhostDoughnut } from './charts';
 const PALETTE = ['#184421', '#5c9a6a', '#93bf9d', '#64748b', '#cbd5e1'];
 
 const Section: React.FC<{ title: string; empty: string; isEmpty: boolean; children: React.ReactNode }> = ({ title, empty, isEmpty, children }) => (
@@ -43,7 +44,7 @@ export const ItemDistributionTab: React.FC<{ itemId: string }> = ({ itemId }) =>
             <div className="card-body">
               <div className="row align-items-center g-3">
                 <div className="col-md-5" style={{ height: '220px' }}>
-                  {total === 0 ? <div className="h-100 d-flex align-items-center justify-content-center text-muted small">No Data</div> : (
+                  {total === 0 ? <GhostDoughnut /> : (
                     <Doughnut
                       data={{ labels: data.destinations.map(d => d.label), datasets: [{ data: data.destinations.map(d => d.qty), backgroundColor: PALETTE, borderWidth: 1 }] }}
                       options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }}

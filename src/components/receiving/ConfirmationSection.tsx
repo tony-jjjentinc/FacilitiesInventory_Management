@@ -1,3 +1,4 @@
+import { SlowHint } from '../SlowHint';
 import React from 'react';
 import type { OpenActivity, ReceivingLine, ReceivingParty, StorageOptions } from '../../types';
 import { StepCard } from './StepCard';
@@ -51,7 +52,7 @@ export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, 
       <div className="row g-3 mb-3">
         {fact('Reference', reference)}
         {fact('Destination', destination)}
-        {fact('Goods issued to', (() => { const p = directory.options.find(x => x.email.toLowerCase() === party.receiverId.trim().toLowerCase()); return p ? `${p.label} (${p.email})` : party.receiverId.trim().toLowerCase() === (getCurrentUser()?.email || '').toLowerCase() ? `${getCurrentUser()?.name || 'Me'} (${party.receiverId.trim()})` : party.receiverId.trim(); })())}
+        {fact('Verifier', (() => { const p = directory.options.find(x => x.email.toLowerCase() === party.receiverId.trim().toLowerCase()); return p ? `${p.label} (${p.email})` : party.receiverId.trim().toLowerCase() === (getCurrentUser()?.email || '').toLowerCase() ? `${getCurrentUser()?.name || 'Me'} (${party.receiverId.trim()})` : party.receiverId.trim(); })())}
       </div>
 
       <div className="table-responsive border rounded">
@@ -102,6 +103,7 @@ export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, 
 
       <div className="d-flex flex-wrap align-items-center justify-content-end gap-2 border-top pt-3 mt-3">
         {extra}
+        <SlowHint busy={!!busy} />
         <button type="button" className="btn btn-secondary btn-sm" onClick={onClear} disabled={busy}>Clear</button>
         <button type="button" className="btn btn-primary btn-sm" onClick={onSubmit} disabled={busy}>{busy ? <Loading variant="button" label="Submitting…" /> : party.autoReceive ? 'Submit and receive' : 'Submit for confirmation'}</button>
       </div>

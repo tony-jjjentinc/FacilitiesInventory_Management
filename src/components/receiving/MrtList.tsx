@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import { DataCard } from '../DataCard';
 import type { Column } from '../DataTable';
 import type { MrtRecord } from '../../types';
+import { fmtDateTime } from '../../utils/datetime';
 
 
 const STATUSES: [string, string][] = [['PENDING_PICKUP', 'Waiting for pickup'], ['RETURNED_TO_PROCINV', 'Returned to ProcInv'], ['ACKNOWLEDGED_BY_PROCINV', 'Acknowledged by ProcInv']];
@@ -31,7 +32,7 @@ export const MrtList: React.FC = () => {
   const columns: Column<MrtRecord>[] = [
     { key: 'MRT_Number', label: 'MRT', sortable: true, minWidth: '120px' },
     { key: 'MRL_Number', label: 'MRL', sortable: true, minWidth: '80px' },
-    { key: 'Return_Date', label: 'Date', sortable: true, minWidth: '130px', render: r => String(r.Return_Date).substring(0, 16) },
+    { key: 'Return_Date', label: 'Date', sortable: true, minWidth: '130px', render: r => fmtDateTime(r.Return_Date) },
     { key: 'Return_Reason', label: 'Reason', minWidth: '180px', render: r => String(r.Return_Reason).replace(/_/g, ' ').toLowerCase() },
     { key: 'Total_Returned_Items', label: 'Lines', align: 'right', minWidth: '60px' },
     { key: 'Status', label: 'Status', minWidth: '200px', render: r => access.isCustodian

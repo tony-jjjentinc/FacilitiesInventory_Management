@@ -11,6 +11,7 @@ import { entityPath, peso, qty } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess, hideCosts } from '../../services/access';
+import { fmtDateTime } from '../../utils/datetime';
 
 type Tool = SubDepartmentCustody['tools'][number];
 type Used = SubDepartmentCustody['consumed'][number];
@@ -34,7 +35,7 @@ export const SubDepartmentCustodyTab: React.FC<{ name: string }> = ({ name }) =>
     { key: 'status', label: 'Status', align: 'center', minWidth: '110px' }
   ];
   const usedCols: Column<Used>[] = [
-    { key: 'at', label: 'When', sortable: true, minWidth: '140px', render: c => c.at.substring(0, 16) },
+    { key: 'at', label: 'When', sortable: true, minWidth: '140px', render: c => fmtDateTime(c.at) },
     { key: 'name', label: 'Item', sortable: true, minWidth: '220px', render: c => item(c.itemId, c.name) },
     { key: 'qty', label: 'Quantity', align: 'right', minWidth: '90px', render: c => `${qty(c.qty)} ${c.uom}` },
     { key: 'cost', label: 'Cost', align: 'right', sortable: true, minWidth: '100px', render: c => peso(c.cost) },

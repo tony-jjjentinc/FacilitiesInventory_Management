@@ -3,6 +3,7 @@ import { apiRequest } from '../../services/api';
 import { getCurrentUser, isUserHeadOrAdmin } from '../../services/auth';
 import type { CostPile, StorageOptions } from '../../types';
 import { Select } from '../Select';
+import { fmtDateTime } from '../../utils/datetime';
 
 export interface PileChoice {
   areaId: string;
@@ -94,7 +95,7 @@ export const DispatchPileSection: React.FC<Props> = ({ itemId, location, quantit
               <tbody>
                 {piles.map((p, i) => (
                   <tr key={p.layerId} className={p.unitCost <= 0 ? 'table-warning' : ''}>
-                    <td>{p.receivedAt}<div className="text-muted font-monospace" style={{ fontSize: '0.7rem' }}>{p.layerId}{p.areaId ? ` · ${p.areaId}` : ''}</div></td>
+                    <td>{fmtDateTime(p.receivedAt)}<div className="text-muted font-monospace" style={{ fontSize: '0.7rem' }}>{p.layerId}{p.areaId ? ` · ${p.areaId}` : ''}</div></td>
                     <td className="text-end">{p.quantityRemaining}</td>
                     <td className="text-end">{p.unitCost > 0 ? `₱${p.unitCost.toFixed(2)}` : <span className="badge bg-warning text-dark">no price</span>}</td>
                     <td className="text-end">

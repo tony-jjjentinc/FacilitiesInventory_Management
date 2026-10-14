@@ -2,6 +2,7 @@
  * @file receivingUtils.ts
  * @description Shared helpers for the guided receiving tabs: storage paths, payload building and validation.
  */
+import { fmtDate } from '../../utils/datetime';
 import type {
   MrlDetails,
   ReceivingLine,
@@ -45,15 +46,8 @@ export function spotsInArea(nodes: StorageNode[], areaId: string): StorageNode[]
   });
 }
 
-/** A plain date (yyyy-MM-dd). Also tidies a JavaScript date string such as "Mon Jun 29 2026 00:00:00 GMT+0800 (...)". */
-export function simpleDate(v: string | undefined | null): string {
-  const t = String(v || '').trim();
-  if (!/^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{2} \d{4} \d{2}:\d{2}:\d{2}/.test(t)) return t;
-  const d = new Date(t.replace(/\s*\(.*\)$/, ''));
-  if (isNaN(d.getTime())) return t;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+/** A date for display (Oct 13, 2026); blank when there is none. */
+export const simpleDate = (v: string | undefined | null): string => fmtDate(v, '');
 
 /** Activity as shown in dropdowns: "[Classification No.] Project Name". */
 export function activityLabel(a: { Activity_ID: string; Activity_Name: string; ProcInv_Class_Ref?: string }): string {

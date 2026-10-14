@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiRequest, RECEIPTS_COUNT_EVENT } from '../../services/api';
+import { apiRequest } from '../../services/api';
 import { invalidateCache } from '../../services/cache';
 import { ConfirmModal } from '../ConfirmModal';
 import type { ReceiptLineRecord, ReceiptRecord } from '../../types';
@@ -9,6 +9,7 @@ import { DataCard } from '../DataCard';
 import type { Column } from '../DataTable';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
+import { fmtDateTime } from '../../utils/datetime';
 
 interface Props {
   active: boolean;
@@ -40,7 +41,6 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
       setReceipts(list);
       const awaiting = list.filter(r => r.canConfirm).length;
       onCountChange(awaiting);
-      window.dispatchEvent(new CustomEvent(RECEIPTS_COUNT_EVENT, { detail: awaiting })); // the nav badge follows at once, not at its next poll
     } catch (err: any) {
       toast.error(err.message || 'Failed to load receipts.');
     } finally {
@@ -118,12 +118,12 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return visible;
-    return visible.filter(r => [r.Receipt_ID, r.Source_Reference, r.MRQ_Number, r.Project_Name, r.Receiver_ID, r.Submitted_By_ID, r.Activity_ID, r.Warehouse_Location].join(' ').toLowerCase().includes(q));
+    return visible.filter(r => [r.Receipt_ID, r.Source_Reference, r.MRQ_Number, r.Project_Name, r.Receiver_ID, r.Receiver_Name, r.Submitted_By_ID, r.Submitted_By_Name, r.Activity_ID, r.Activity_Name, r.Warehouse_Location, r.Warehouse_Name].join(' ').toLowerCase().includes(q));
   }, [visible, search]);
 
   const columns: Column<ReceiptRecord>[] = [
     { key: 'Receipt_ID', label: 'Receipt', sortable: true, minWidth: '170px', render: r => (
-      <div><span className="font-monospace fw-semibold text-dark">{r.Receipt_ID}</span><div className="small text-muted">{r.Submitted_At} · {r.Submitted_By_ID}</div></div>
+      <div><span className="font-monospace fw-semibold text-dark">{r.Receipt_ID}</span><div className="small text-muted">{fmtDateTime(r.Submitted_At)} · {r.Submitted_By_Name || r.Submitted_By_ID}</div></div>
     ) },
     { key: 'Source_Type', label: 'Source', sortable: true, minWidth: '180px', render: r => (
       <div>
@@ -134,14 +134,14 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
     ) },
     { key: 'Destination_Type', label: 'Destination', minWidth: '170px', render: r => (
       r.Destination_Type === 'ACTIVITY'
-        ? <>Activity <span className="font-monospace">{r.Activity_ID}</span></>
-        : <>Warehouse <span className="font-monospace">{r.Warehouse_Location}</span>{r.Area_ID ? <div className="small text-muted font-monospace">{r.Area_ID}</div> : null}</>
+        ? <>Activity <span className="fw-semibold">{r.Activity_Name || r.Activity_ID}</span></>
+        : <>{r.Warehouse_Name || r.Warehouse_Location}{r.Area_ID ? <div className="small text-muted">{r.Area_Name || r.Area_ID}</div> : null}</>
     ) },
-    { key: 'Receiver_ID', label: 'Goods issued to', sortable: true, minWidth: '160px' },
+    { key: 'Receiver_ID', label: 'Verifier', sortable: true, minWidth: '160px', render: r => r.Receiver_Name || r.Receiver_ID },
     { key: 'Status', label: 'Status', sortable: true, minWidth: '110px', render: r => (
       <div>
         <span className={`badge ${statusBadge(r.Status)}`}>{r.Status === 'PENDING_CONFIRMATION' ? 'Pending' : r.Status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}</span>
-        {r.Status === 'CONFIRMED' && <div className="small text-muted">{r.Confirmed_At}</div>}
+        {r.Status === 'CONFIRMED' && <div className="small text-muted">{fmtDateTime(r.Confirmed_At)}</div>}
       </div>
     ) },
     { key: 'actions', label: 'Actions', align: 'right', minWidth: '260px', render: r => (
@@ -150,7 +150,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
           {openId === r.Receipt_ID ? 'Hide items' : `Items (${r.items.length})`}
         </button>
         {r.Status === 'PENDING_CONFIRMATION' && r.canConfirm && (
-          <button type="button" className="btn btn-success btn-sm me-1" onClick={() => setConfirming(r)}>Confirm receipt</button>
+          <button type="button" className="btn btn-success btn-sm me-1" onClick={() => setConfirming(r)}>Verify and post</button>
         )}
         {r.Status === 'PENDING_CONFIRMATION' && (
           <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setCancelling(r)}>Cancel</button>
@@ -234,9 +234,9 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
 
       <ConfirmModal
         isOpen={!!confirming}
-        title="Confirm receipt"
-        message={confirming ? `Confirm that you received the items on ${confirming.Receipt_ID}? This posts the stock${confirming.Destination_Type === 'ACTIVITY' ? ` to activity ${confirming.Activity_ID}` : ` into ${confirming.Warehouse_Location}`} and cannot be undone here.` : ''}
-        confirmText="Yes, items received"
+        title="Verify and post"
+        message={confirming ? `Confirm that you received the items on ${confirming.Receipt_ID}? This posts the stock${confirming.Destination_Type === 'ACTIVITY' ? ` to activity ${confirming.Activity_Name || confirming.Activity_ID}` : ` into ${confirming.Warehouse_Name || confirming.Warehouse_Location}`} and cannot be undone here.` : ''}
+        confirmText="Verify and post"
         isLoading={busy}
         onConfirm={confirm}
         onCancel={() => setConfirming(null)}

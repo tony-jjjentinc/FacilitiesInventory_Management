@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loading } from './Loading';
+import { SlowHint } from './SlowHint';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -61,7 +62,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             {children}
           </div>
 
-          <div className="modal-footer py-2 px-4 bg-light border-top d-flex justify-content-end gap-2">
+          <div className="modal-footer py-2 px-4 bg-light border-top d-flex justify-content-end align-items-center gap-2">
+            <SlowHint busy={isLoading} />
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm"

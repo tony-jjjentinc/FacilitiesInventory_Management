@@ -10,6 +10,7 @@ import { Select } from '../components/Select';
 import { Loading } from '../components/Loading';
 import { getCurrentUser } from '../services/auth';
 import { getAccess, hideCosts } from '../services/access';
+import { WarehouseSelect } from '../components/form/WarehouseSelect';
 
 export const ProjectAllocation: React.FC = () => {
   const access = getAccess(getCurrentUser());
@@ -318,8 +319,8 @@ export const ProjectAllocation: React.FC = () => {
       {/* Header */}
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
         <div>
-          <h4 className="fw-bold text-dark mb-1">Project Allocation & Material Consumption</h4>
-          <p className="text-secondary small mb-0">
+          <h5 className="fw-bold mb-0 text-dark">Project Allocation & Material Consumption</h5>
+          <p className="small text-muted mb-0">
             Dispatch inventory to active activities, log on-site field usage, and return surplus stock to warehouse.
           </p>
         </div>
@@ -443,12 +444,7 @@ export const ProjectAllocation: React.FC = () => {
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Warehouse Location</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      value={dispatchForm.warehouseLocation}
-                      onChange={(e) => setDispatchForm({ ...dispatchForm, warehouseLocation: e.target.value })}
-                    />
+                    <WarehouseSelect value={dispatchForm.warehouseLocation} onChange={(code) => setDispatchForm({ ...dispatchForm, warehouseLocation: code })} />
                   </div>
                   <DispatchPileSection
                     itemId={dispatchForm.itemId}
@@ -602,12 +598,7 @@ export const ProjectAllocation: React.FC = () => {
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Destination Warehouse</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      value={surplusForm.warehouseLocation}
-                      onChange={(e) => setSurplusForm({ ...surplusForm, warehouseLocation: e.target.value })}
-                    />
+                    <WarehouseSelect value={surplusForm.warehouseLocation} onChange={(code) => setSurplusForm({ ...surplusForm, warehouseLocation: code })} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Remarks</label>

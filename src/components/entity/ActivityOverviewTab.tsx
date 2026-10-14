@@ -13,6 +13,7 @@ import { entityPath, peso } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
+import { fmtDate } from '../../utils/datetime';
 
 const days = (n: number | null) => (n === null ? 'TBD' : `${n} day${n === 1 ? '' : 's'}`);
 
@@ -35,14 +36,14 @@ export const ActivityOverviewTab: React.FC<{ activityId: string; onOpenTab?: (ke
         <div className="d-flex align-items-center gap-3">{onOpenTab && <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => onOpenTab('usage')}>View stock usage <i className="bi bi-arrow-right"></i></button>}<RefreshButton onClick={reload} loading={refreshing} /></div>
       </div>
       <div className="row g-3">
-        {costs && <ChartCard wide title="Cost over time" subtitle={`Cumulative net cost of the items issued${s.targetEnd ? `, target end ${s.targetEnd}` : ''}`} empty={data.burn.cumulative.length === 0}>
+        {costs && <ChartCard wide title="Cost over time" subtitle={`Cumulative net cost of the items issued${s.targetEnd ? `, target end ${fmtDate(s.targetEnd)}` : ''}`} empty={data.burn.cumulative.length === 0}>
           <Line
             data={{ labels: data.burn.labels, datasets: [{ label: 'Net cost', data: data.burn.cumulative, borderColor: '#184421', backgroundColor: '#184421', stepped: true }] }}
             options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => peso(Number(c.raw)) } } }, scales: { y: { ticks: { callback: v => peso(Number(v)) } } } }}
           />
         </ChartCard>}
-        <ChartCard title="Inventory type" subtitle={costs ? 'Share of the net cost by type' : 'Share of the quantity by type'} empty={data.byType.length === 0}><MixChart groups={data.byType} byQty={!costs} /></ChartCard>
-        <ChartCard title="Inventory category" subtitle={costs ? 'Share of the net cost by category' : 'Share of the quantity by category'} empty={data.byCategory.length === 0}><MixChart groups={data.byCategory} byQty={!costs} /></ChartCard>
+        <ChartCard pie title="Inventory type" subtitle={costs ? 'Share of the net cost by type' : 'Share of the quantity by type'} empty={data.byType.length === 0}><MixChart groups={data.byType} byQty={!costs} /></ChartCard>
+        <ChartCard pie title="Inventory category" subtitle={costs ? 'Share of the net cost by category' : 'Share of the quantity by category'} empty={data.byCategory.length === 0}><MixChart groups={data.byCategory} byQty={!costs} /></ChartCard>
       </div>
       {data.meta.notes.map(n => <div key={n} className="small text-muted mt-2">{n}</div>)}
     </>

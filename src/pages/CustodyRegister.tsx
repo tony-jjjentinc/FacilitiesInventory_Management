@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom';
 import { entityPath } from '../components/entity/entityPaths';
 import { getCurrentUser } from '../services/auth';
 import { getAccess, hideCosts, holdsTool } from '../services/access';
+import { fmtDate } from '../utils/datetime';
+import { WarehouseSelect } from '../components/form/WarehouseSelect';
 
 export const CustodyRegister: React.FC = () => {
   const access = getAccess(getCurrentUser());
@@ -58,8 +60,8 @@ export const CustodyRegister: React.FC = () => {
     setIsLoading(true);
     try {
       await fetchWithSwr<InHouseCustodyItem[]>(
-        `custody:list:${statusFilter}`,
-        () => apiRequest<InHouseCustodyItem[]>('custody:getList', { status: statusFilter }),
+        'custody:list:ALL', // always every record: the cards count them all, the status filter only narrows the table
+        () => apiRequest<InHouseCustodyItem[]>('custody:getList', { status: 'ALL' }),
         (data) => {
           if (Array.isArray(data)) {
             setCustodyItems(data);
@@ -71,7 +73,7 @@ export const CustodyRegister: React.FC = () => {
       console.error('Failed to load custody list:', err);
       setIsLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   useEffect(() => {
     fetchCustody();
@@ -93,6 +95,7 @@ export const CustodyRegister: React.FC = () => {
   const lostCount = custodyItems.filter(c => c.Status === 'LOST').length;
 
   const filteredItems = custodyItems.filter(item => {
+    if (statusFilter !== 'ALL' && item.Status !== statusFilter) return false;
     const q = search.toLowerCase().trim();
     if (!q) return true;
     return (
@@ -258,7 +261,7 @@ export const CustodyRegister: React.FC = () => {
       label: 'Date Assigned',
       sortable: true,
       minWidth: '120px',
-      render: (row) => row.Date_Assigned || 'N/A'
+      render: (row) => fmtDate(row.Date_Assigned, 'N/A')
     },
     {
       key: 'Unit_Cost',
@@ -327,8 +330,8 @@ export const CustodyRegister: React.FC = () => {
       {/* Header */}
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
         <div>
-          <h4 className="fw-bold text-dark mb-1">In-House Tool & Equipment Custody Register</h4>
-          <p className="text-secondary small mb-0">
+          <h5 className="fw-bold mb-0 text-dark">In-House Tool & Equipment Custody Register</h5>
+          <p className="small text-muted mb-0">
             Track toolkits assigned to technicians, execute peer-to-peer handovers (TRANSFER:IN_HOUSE), and process returns (IN:RETRIEVE).
           </p>
         </div>
@@ -485,12 +488,7 @@ export const CustodyRegister: React.FC = () => {
                     </div>
                     <div className="col-6">
                       <label className="form-label small fw-semibold">Origin Warehouse</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        value={deployForm.warehouseLocation}
-                        onChange={(e) => setDeployForm({ ...deployForm, warehouseLocation: e.target.value })}
-                      />
+                      <WarehouseSelect value={deployForm.warehouseLocation} onChange={(code) => setDeployForm({ ...deployForm, warehouseLocation: code })} />
                     </div>
                   </div>
                   <div className="row g-3 mb-3">
@@ -609,12 +607,7 @@ export const CustodyRegister: React.FC = () => {
                   {feedbackError && <div className="alert alert-danger small py-2">{feedbackError}</div>}
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Destination Warehouse</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      value={retrieveForm.warehouseLocation}
-                      onChange={(e) => setRetrieveForm({ ...retrieveForm, warehouseLocation: e.target.value })}
-                    />
+                    <WarehouseSelect value={retrieveForm.warehouseLocation} onChange={(code) => setRetrieveForm({ ...retrieveForm, warehouseLocation: code })} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-semibold">Inspection Remarks</label>

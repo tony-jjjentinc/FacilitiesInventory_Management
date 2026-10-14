@@ -11,6 +11,7 @@ import { entityPath, peso, qty } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess, hideCosts } from '../../services/access';
+import { fmtDate } from '../../utils/datetime';
 
 interface Props { scopeType: EntityScopeType; scopeRef: string; showArea?: boolean }
 
@@ -25,7 +26,7 @@ export const StockTab: React.FC<Props> = ({ scopeType, scopeRef, showArea = true
   const access = getAccess(getCurrentUser());
   const badge = (r: EntityStockRow) => r.ropStatus === 'CRITICAL_DEPLETION' ? <span className="badge bg-danger-subtle text-danger border">Critical</span>
     : r.ropStatus === 'REORDER_WARNING' ? <span className="badge bg-warning-subtle text-warning-emphasis border">Warning</span> : null;
-  const day = (v?: string) => (v ? v.substring(0, 10) : '–');
+  const day = (v?: string) => fmtDate(v);
   const itemName = (r: EntityStockRow) => scopeType === 'ITEM' ? <span className="fw-semibold text-dark">{r.name}</span> : <Link to={entityPath('ITEM', r.itemId)} className="fw-semibold text-dark text-decoration-none">{r.name}</Link>;
   const ids = (r: EntityStockRow) => <div className="small text-muted font-monospace text-break">{r.itemId}{r.sku ? ` · ${r.sku}` : ''}{r.serialNumber && r.serialNumber !== 'N/A' ? ` · S/N ${r.serialNumber}` : ''}</div>;
   const area = (r: EntityStockRow) => r.areaId ? <Link to={entityPath('AREA', r.areaId)} className="text-decoration-none">{r.areaName || r.areaId}</Link> : <span className="text-muted">–</span>;

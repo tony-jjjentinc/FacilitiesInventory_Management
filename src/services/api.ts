@@ -33,8 +33,8 @@ function friendlyError(error: string | null | undefined, code: string | null | u
 
 /** Fired after any call that can change data, so the notification bell refreshes right away instead of at its next poll. */
 export const DATA_CHANGED_EVENT = 'jjjei:data-changed';
-/** Fired by the Confirmation list with the exact number of receipts waiting for this person, so the nav badge updates at once. */
-export const RECEIPTS_COUNT_EVENT = 'jjjei:receipts-count';
+/** Fired by the Deliveries page with the exact counts of work waiting for this person ({ tasks, pending }), so the nav badge updates at once. */
+export const DELIVERIES_COUNT_EVENT = 'jjjei:deliveries-count';
 const READS = /:(get|list|check|info)[A-Za-z]*$/;
 
 export const SESSION_EXPIRED_EVENT = 'jjjei:session-expired';
@@ -78,7 +78,7 @@ export async function apiRequest<T = any>(action: string, payload: any = {}): Pr
       clearStoredToken();
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
-    throw new ApiError(result.errorCode === 'SESSION_EXPIRED' ? SESSION_EXPIRED_MESSAGE : friendlyError(result.error, result.errorCode), result.errorCode);
+    throw new ApiError(result.errorCode === 'SESSION_EXPIRED' ? SESSION_EXPIRED_MESSAGE : friendlyError(result.error, result.errorCode) + (result.detail ? ` [${result.detail}]` : ''), result.errorCode);
   }
 
   if (!READS.test(action) && action !== 'auth:login') window.dispatchEvent(new Event(DATA_CHANGED_EVENT));

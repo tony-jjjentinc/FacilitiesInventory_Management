@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { DataTable, type Column } from '../../components/DataTable';
 import type { AnalyticsGroup, AnalyticsOverviewResponse, AnalyticsRow } from '../../types';
+import { todayInputDate } from '../../utils/datetime';
 
 const GROUPS: { key: AnalyticsGroup; label: string }[] = [
   { key: 'SUBDEPARTMENT', label: 'Sub-Department' },
@@ -16,7 +17,7 @@ const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { m
 const qty = (n: number) => (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
 
 function period(kind: 'month' | 'quarter' | 'year') {
-  const now = new Date();
+  const now = new Date(todayInputDate() + 'T00:00:00'); // today in Manila, not the browser's zone
   if (kind === 'month') return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
   if (kind === 'quarter') {
     const q = Math.floor(now.getMonth() / 3) * 3;

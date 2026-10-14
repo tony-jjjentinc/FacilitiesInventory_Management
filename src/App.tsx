@@ -16,6 +16,7 @@ import { Loading } from './components/Loading';
 const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, name: K) => lazy(() => load().then(m => ({ default: m[name] })));
 const AnalyticsHub = page(() => import('./pages/hubs/AnalyticsHub'), 'AnalyticsHub');
 const InventoryStockHub = page(() => import('./pages/hubs/InventoryStockHub'), 'InventoryStockHub');
+const DeliveriesHub = page(() => import('./pages/hubs/DeliveriesHub'), 'DeliveriesHub');
 const ActivitiesHub = page(() => import('./pages/hubs/ActivitiesHub'), 'ActivitiesHub');
 const AdminHub = page(() => import('./pages/hubs/AdminHub'), 'AdminHub');
 const Configuration = page(() => import('./pages/Configuration'), 'Configuration');
@@ -38,6 +39,17 @@ export const App: React.FC = () => {
   const toast = useToast();
   const [currentUser, setCurrentUser] = useState<UserClaims | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Escape closes the top dialog (every dialog has a close button; a busy dialog keeps it disabled)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const close = [...document.querySelectorAll<HTMLButtonElement>('.modal .btn-close:not([disabled])')].pop();
+      close?.click();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     const hadToken = !!getStoredToken();
@@ -86,6 +98,7 @@ export const App: React.FC = () => {
 
   const isHeadOrAdmin = isUserHeadOrAdmin(currentUser);
   const canSeeAnalytics = getAccess(currentUser).canSeeAnalytics;
+  const canField = getAccess(currentUser).canField;
 
   if (isLoading) {
     return (
@@ -125,6 +138,7 @@ export const App: React.FC = () => {
             <Route path="/test" element={<ComponentTest />} />
             <Route path="/analytics" element={canSeeAnalytics ? <AnalyticsHub /> : <Navigate to="/overview" replace />} />
             <Route path="/inventory" element={<InventoryStockHub />} />
+            <Route path="/deliveries" element={canField ? <DeliveriesHub /> : <Navigate to="/overview" replace />} />
             <Route path="/activities" element={<ActivitiesHub />} />
             <Route path="/transactions" element={<LegacyRedirect to={(q) => { const t = q.get('tab'); return t === 'ledger' ? '/analytics?tab=ledger' : t ? `/inventory?tab=${encodeURIComponent(t)}` : '/inventory'; }} />} />
             <Route path="/configuration" element={isHeadOrAdmin ? <Configuration /> : <Navigate to="/overview" replace />} />
@@ -138,7 +152,7 @@ export const App: React.FC = () => {
             <Route path="/allocation" element={<Navigate to="/activities" replace />} />
             <Route
               path="/receiving"
-              element={<LegacyRedirect to={(q) => { const t = q.get('tab'); return t === 'manual' ? '/inventory?tab=receive-manual' : t === 'pending' ? '/inventory?tab=pending' : '/inventory'; }} />}
+              element={<LegacyRedirect to={(q) => { const t = q.get('tab'); return t === 'manual' ? '/deliveries?tab=receive-manual' : t === 'pending' ? '/deliveries?tab=tasks' : '/deliveries'; }} />}
             />
             <Route
               path="/costs"

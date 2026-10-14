@@ -113,7 +113,7 @@ export const ManualReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewP
         </div>
       )}
 
-      <DraftResume draft={draft} what="a manual receipt" />
+      <DraftResume draft={draft} what="a manual receipt" waiting />
       <StepCard title="1. Source" hint="Where the items came from.">
         <div className="row g-3">
           <div className="col-12">

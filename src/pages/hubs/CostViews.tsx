@@ -4,6 +4,7 @@ import { apiRequest } from '../../services/api';
 import type { OpenActivity, ProjectCostsResponse, StockCostsResponse, StorageOptions } from '../../types';
 import { Select } from '../../components/Select';
 import { Loading } from '../../components/Loading';
+import { fmtDateTime } from '../../utils/datetime';
 
 const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const cost4 = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
@@ -73,7 +74,7 @@ export const CostOfStock: React.FC<{ isAdmin: boolean; onSetPrice: (d: PriceDraf
                               {i.piles.map(p => (
                                 <tr key={p.layerId || p.sourceTransactionId + p.areaId}>
                                   <td className="font-monospace">{p.layerId || '—'}</td>
-                                  <td>{p.receivedAt}</td>
+                                  <td>{fmtDateTime(p.receivedAt)}</td>
                                   <td className="font-monospace">{p.areaId || '—'}</td>
                                   <td className="text-end">{p.quantityRemaining} / {p.quantityReceived}</td>
                                   <td className="text-end">{p.unitCost > 0 ? cost4(p.unitCost) : <span className="badge bg-warning text-dark">no price</span>}</td>

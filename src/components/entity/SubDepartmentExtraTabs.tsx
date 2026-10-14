@@ -14,6 +14,7 @@ import { entityPath, peso, qty } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess, hideCosts } from '../../services/access';
+import { fmtDate } from '../../utils/datetime';
 
 /** Activities whose sub-department is this one. Clicking a card opens the activity page. */
 export const SubDepartmentActivitiesTab: React.FC<{ name: string }> = ({ name }) => {
@@ -38,7 +39,7 @@ export const SubDepartmentLossTab: React.FC<{ name: string }> = ({ name }) => {
   const [search, setSearch] = useState('');
   const rows = useMemo(() => (data?.rows || []).filter(r => !search.trim() || `${r.lossId} ${r.type} ${r.description}`.toLowerCase().includes(search.trim().toLowerCase())), [data, search]);
   const columns: Column<LossRow>[] = [
-    { key: 'date', label: 'Date', sortable: true, minWidth: '100px', render: r => r.date || '–' },
+    { key: 'date', label: 'Date', sortable: true, minWidth: '100px', render: r => fmtDate(r.date) },
     { key: 'lossId', label: 'Incident', sortable: true, minWidth: '120px' },
     { key: 'type', label: 'Type', sortable: true, minWidth: '130px' },
     { key: 'qty', label: 'Quantity', align: 'right', minWidth: '90px', render: r => qty(r.qty) },

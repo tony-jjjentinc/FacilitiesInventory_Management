@@ -9,6 +9,7 @@ import { DataCard } from '../components/DataCard';
 import { ReportIncidentModal } from '../components/ReportIncidentModal';
 import { getCurrentUser } from '../services/auth';
 import { Loading } from '../components/Loading';
+import { fmtDate } from '../utils/datetime';
 
 const isOwnIncident = (liablePartyId?: string) => {
   const me = getCurrentUser();
@@ -119,7 +120,7 @@ export const ApprovalsQueue: React.FC = () => {
       align: 'left',
       minWidth: '130px',
       sortable: true,
-      render: (row) => <span className="small text-muted">{row.incidentDate}</span>
+      render: (row) => <span className="small text-muted">{fmtDate(row.incidentDate)}</span>
     },
     {
       key: 'lossType',
@@ -237,7 +238,7 @@ export const ApprovalsQueue: React.FC = () => {
   ];
 
   return (
-    <div className="container px-4 py-4">
+    <div className="container py-4 px-3 px-md-4">
       <DataCard<any>
         title="Loss & Disposal Approvals Queue"
         description="Review and digitally sign off on damage, expiration, and scrap reports requiring inventory disposal write-off."

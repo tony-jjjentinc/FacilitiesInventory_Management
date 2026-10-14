@@ -3,7 +3,7 @@
  * @description Pick a person by typing part of their name or email (the browser filters the list as you type), instead of
  * scrolling a long dropdown. The value is the person's email; the chosen person's name shows under the field.
  */
-import React, { useId } from 'react';
+import React, { useId, useState } from 'react';
 
 export interface PersonOption { email: string; label: string }
 
@@ -20,13 +20,21 @@ export const PersonSelect: React.FC<Props> = ({ id, value, onChange, options, pl
   const list = useId();
   const typed = value.trim().toLowerCase();
   const match = options.find(o => o.email.toLowerCase() === typed);
+  const [touched, setTouched] = useState(false); // no red message while the person is still typing
+  // leaving the field with text that names exactly one person picks that person
+  const settle = () => {
+    setTouched(true);
+    if (!typed || match) return;
+    const one = options.filter(o => `${o.label} ${o.email}`.toLowerCase().includes(typed));
+    if (one.length === 1) onChange(one[0].email);
+  };
   return (
     <>
-      <input id={id} type="search" autoComplete="off" list={list} className={`${className}${typed && !match ? ' is-invalid' : ''}`} placeholder={placeholder}
-        value={value} onChange={e => onChange(e.target.value)} />
+      <input id={id} type="search" autoComplete="off" list={list} className={`${className}${touched && typed && !match ? ' is-invalid' : ''}`} placeholder={placeholder}
+        value={value} onChange={e => onChange(e.target.value)} onBlur={settle} />
       <datalist id={list}>{options.map(o => <option key={o.email} value={o.email}>{o.label}</option>)}</datalist>
       {match && <div className="form-text">{match.label}</div>}
-      {typed && !match && <div className="invalid-feedback d-block">Pick someone from the list.</div>}
+      {touched && typed && !match && <div className="invalid-feedback d-block">Pick someone from the list.</div>}
     </>
   );
 };

@@ -106,7 +106,7 @@ export const RopAlertCenter: React.FC = () => {
       align: 'left',
       minWidth: '140px',
       sortable: true,
-      render: (row) => <span className="small text-muted">{row.Warehouse_Location}</span>
+      render: (row) => <span className="small text-muted">{row.Warehouse_Name || row.Warehouse_Location}</span>
     },
     {
       key: 'On_Hand_Qty',
@@ -170,8 +170,8 @@ export const RopAlertCenter: React.FC = () => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2">
         <div>
-          <h4 className="fw-bold mb-1 text-dark">Reorder Point (ROP) Alerts</h4>
-          <p className="text-muted small mb-0">
+          <h5 className="fw-bold mb-0 text-dark">Reorder Point (ROP) Alerts</h5>
+          <p className="small text-muted mb-0">
             Stockout prediction based on 90-day consumption velocity, supplier lead time, and safety stock.
           </p>
         </div>

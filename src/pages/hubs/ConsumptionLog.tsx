@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { entityPath } from '../../components/entity/entityPaths';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess, hideCosts } from '../../services/access';
+import { fmtDateTime } from '../../utils/datetime';
 
 /** Every material consumption logged against an activity, newest first. */
 export const ConsumptionLog: React.FC = () => {
@@ -61,7 +62,7 @@ export const ConsumptionLog: React.FC = () => {
       render: (row) => (
         <div>
           <span className="font-monospace fw-semibold text-success">{row.Consumption_ID}</span>
-          <div className="small text-muted">{row.Timestamp}</div>
+          <div className="small text-muted">{fmtDateTime(row.Timestamp)}</div>
         </div>
       )
     },

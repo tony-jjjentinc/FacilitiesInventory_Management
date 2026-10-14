@@ -4,6 +4,7 @@ import type { ActivityRecord } from '../types';
 import { entityPath } from './entity/entityPaths';
 import { getCurrentUser } from '../services/auth';
 import { getAccess } from '../services/access';
+import { fmtDate } from '../utils/datetime';
 
 interface Props {
   activities: ActivityRecord[];
@@ -32,7 +33,7 @@ const badgeOf = (status?: string) => {
   return 'bg-secondary';
 };
 
-const day = (v?: string) => (v ? String(v).slice(0, 10) : '—');
+const day = (v?: string) => fmtDate(v, '—');
 
 /** Activities as cards with search, status and type filters and sorting. Clicking a card selects it. */
 export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelect, loading }) => {

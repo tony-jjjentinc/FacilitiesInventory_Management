@@ -91,7 +91,8 @@ body {
 .table-compact .badge { padding: 2px 6px; font-size: 0.68rem; }
 
 /* Card view */
-.data-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 0.75rem; }
+.data-card-grid { display: grid; /* never more than 3 across */ grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr)); gap: 0.75rem; }
+@media (min-width: 1200px) { .data-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .data-card { border: 1px solid var(--border-color); border-radius: 6px; background: #fff; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
 .data-card:hover { background: #f8fafc; }
 .data-card-foot { border-top: 1px solid #f1f5f9; padding-top: 0.4rem; margin-top: auto; display: flex; justify-content: space-between; gap: 0.5rem; }
@@ -311,7 +312,7 @@ body.modal-open {
   position: fixed;
   top: 4.25rem;
   right: 1rem;
-  z-index: 2000;
+  z-index: 3000; /* above every modal and dialog (they use up to 2000), so an error raised inside one is never hidden */
   width: 380px;
   max-width: calc(100vw - 2rem);
   display: flex;
@@ -510,3 +511,4 @@ body.modal-open {
 
 /* quick actions: a divider between the two columns on wide screens */
 @media (min-width: 992px) { .border-lg-start { border-left: 1px solid var(--border-color); } }
+@media (min-width: 768px) { .border-md-start { border-left: 1px solid var(--border-color); } }

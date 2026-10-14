@@ -19,6 +19,7 @@ import { Loading } from '../Loading';
 import type { EntityFigure, EntityProfile, EntityScopeType } from '../../types';
 import { ENTITY_LABEL, entityPath, peso, qty } from './entityPaths';
 import { entityErrorText, useEntityData } from './useEntity';
+import { fmtDate } from '../../utils/datetime';
 
 export interface EntityTab {
   key: string;
@@ -34,7 +35,7 @@ interface Props {
   backTo?: { path: string; label: string };
 }
 
-const show = (f: EntityFigure) => (f.kind === 'money' ? peso(Number(f.value)) : f.kind === 'qty' ? qty(Number(f.value)) : String(f.value));
+const show = (f: EntityFigure) => (f.kind === 'money' ? peso(Number(f.value)) : f.kind === 'qty' ? qty(Number(f.value)) : /^\d{4}-\d{2}-\d{2}/.test(String(f.value)) ? fmtDate(f.value) : String(f.value)); // the API sends dates as text
 
 export const EntityPage: React.FC<Props> = ({ scopeType, scopeRef, tabs, backTo }) => {
   const { data: profile, loading, error, reload } = useEntityData<EntityProfile>('getProfile', scopeType, scopeRef);

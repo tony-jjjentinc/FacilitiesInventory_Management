@@ -4,6 +4,7 @@ import { Bar } from 'react-chartjs-2';
 import { apiRequest } from '../../services/api';
 import { RefreshButton } from '../../components/RefreshButton';
 import type { AnalyticsGroup, AnalyticsPeriod, AnalyticsPerformanceResponse, PerformanceCell } from '../../types';
+import { fmtDate } from '../../utils/datetime';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
@@ -121,7 +122,7 @@ export const AnalyticsPerformance: React.FC = () => {
               <div className="fw-semibold small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.04em' }}>
                 {measureLabel}: {metric === 'cost' ? 'cost' : 'quantity'} per {PERIODS.find(p => p.key === period)!.label.toLowerCase().replace('ly', '')}
               </div>
-              <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{data.from} to {data.to}, by {GROUPS.find(g => g.key === groupBy)!.label}</div>
+              <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{fmtDate(data.from)} to {fmtDate(data.to)}, by {GROUPS.find(g => g.key === groupBy)!.label}</div>
             </div>
             <div className="card-body">
               <div style={{ height: '300px' }} className={hasData ? '' : 'd-flex align-items-center justify-content-center text-muted small'}>

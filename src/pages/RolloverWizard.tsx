@@ -248,7 +248,7 @@ export const RolloverWizard: React.FC<RolloverWizardProps> = ({ onClose, isModal
   }
 
   return (
-    <div className="container py-4" style={{ maxWidth: '780px' }}>
+    <div className="container py-4 px-3 px-md-4" style={{ maxWidth: '780px' }}>
       {content}
     </div>
   );

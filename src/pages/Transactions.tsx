@@ -12,6 +12,7 @@ import { getAccess } from '../services/access';
 import { useDraft } from '../components/drafts/useDraft';
 import { useResumeParam } from '../components/drafts/useResumeParam';
 import { DraftActions, DraftResume } from '../components/drafts/DraftBar';
+import { fmtDateTime } from '../utils/datetime';
 
 export const Transactions: React.FC = () => {
   const toast = useToast();
@@ -222,7 +223,7 @@ export const Transactions: React.FC = () => {
       align: 'left',
       minWidth: '140px',
       sortable: true,
-      render: (row) => <span className="small text-muted">{row.timestamp}</span>
+      render: (row) => <span className="small text-muted">{fmtDateTime(row.timestamp)}</span>
     },
     {
       key: 'transactionType',
@@ -377,7 +378,7 @@ export const Transactions: React.FC = () => {
                   <h5 className="modal-title fw-bold font-monospace text-primary mb-0">
                     {selectedTx.transactionId}
                   </h5>
-                  <span className="small text-muted">{selectedTx.timestamp} • {selectedTx.transactionType}</span>
+                  <span className="small text-muted">{fmtDateTime(selectedTx.timestamp)} • {selectedTx.transactionType}</span>
                 </div>
                 <button type="button" className="btn-close" onClick={() => setSelectedTx(null)}></button>
               </div>

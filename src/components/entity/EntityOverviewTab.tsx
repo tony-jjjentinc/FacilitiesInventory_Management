@@ -31,8 +31,8 @@ export const EntityOverviewTab: React.FC<Props> = ({ scopeType, scopeRef, onOpen
         <div className="d-flex align-items-center gap-3">{onOpenTab && <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={() => onOpenTab('stock')}>View stock <i className="bi bi-arrow-right"></i></button>}<RefreshButton onClick={reload} loading={refreshing} /></div>
       </div>
       <div className="row g-3">
-        <ChartCard title={costs ? 'Stock value by inventory type' : 'Stock quantity by inventory type'} subtitle={costs ? 'Share of the current stock value' : 'Share of the current stock quantity'} empty={data.byType.length === 0}><MixChart groups={data.byType} byQty={!costs} /></ChartCard>
-        <ChartCard title={costs ? 'Stock value by inventory category' : 'Stock quantity by inventory category'} subtitle={costs ? 'Share of the current stock value' : 'Share of the current stock quantity'} empty={data.byCategory.length === 0}><MixChart groups={data.byCategory} byQty={!costs} /></ChartCard>
+        <ChartCard pie title={costs ? 'Stock value by inventory type' : 'Stock quantity by inventory type'} subtitle={costs ? 'Share of the current stock value' : 'Share of the current stock quantity'} empty={data.byType.length === 0}><MixChart groups={data.byType} byQty={!costs} /></ChartCard>
+        <ChartCard pie title={costs ? 'Stock value by inventory category' : 'Stock quantity by inventory category'} subtitle={costs ? 'Share of the current stock value' : 'Share of the current stock quantity'} empty={data.byCategory.length === 0}><MixChart groups={data.byCategory} byQty={!costs} /></ChartCard>
         {costs && <ChartCard wide title="Cost handled per month" subtitle="Value that came in and went out, last 12 months of the current fiscal year" empty={!hasMonths}>
           <Bar
             data={{ labels: data.costHandled.labels, datasets: [
