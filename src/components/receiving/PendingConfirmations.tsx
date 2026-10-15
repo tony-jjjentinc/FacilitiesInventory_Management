@@ -226,7 +226,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
         keyField="Receipt_ID"
         searchQuery={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search by receipt, MRL, project, person..."
+        searchPlaceholder="Search by receipt, MRL, activity, person..."
         isLoading={loading && receipts.length === 0}
         emptyMessage="Nothing here."
         renderExpanded={expanded}

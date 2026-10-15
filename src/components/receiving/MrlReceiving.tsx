@@ -119,11 +119,11 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
     const problem = validateReceiving('MRL', mrlNumber, lines, party, me);
     if (!details) { toast.error('Fetch the MRL first.'); return; }
     if (problem) { toast.error(problem); return; }
-    // an activity of another project: only a Head or Super Admin, with a written reason (the server checks too)
+    // an activity of another activity: only a Head or Super Admin, with a written reason (the server checks too)
     const act = lookups.activities.find(a => a.Activity_ID === party.activityId);
     if (party.destinationType === 'ACTIVITY' && act && !sameProject(act.ProcInv_Class_Ref, details.mrq.classificationId)) {
-      if (!isUserHeadOrAdmin(getCurrentUser())) { toast.error('That activity belongs to another project. Choose the matching activity, or ask a Head or Super Admin.'); return; }
-      if ((party.mismatchReason || '').trim().length < 5) { toast.error('Give a reason (at least 5 characters) for charging another project.'); return; }
+      if (!isUserHeadOrAdmin(getCurrentUser())) { toast.error('That activity belongs to another activity. Choose the matching activity, or ask a Head or Super Admin.'); return; }
+      if ((party.mismatchReason || '').trim().length < 5) { toast.error('Give a reason (at least 5 characters) for charging another activity.'); return; }
     }
     submit();
   };
@@ -198,7 +198,7 @@ export const MrlReceiving: React.FC<Props> = ({ lookups, onSubmitted, onViewPend
               {fact('MRQ', <span className="font-monospace">{q.mrqNumber}</span>)}
               {fact('Integr8 GI', m.integr8GiNumber)}
               {fact('Released', [simpleDate(m.releasedAt), m.batchNumber].filter(Boolean).join(' · '))}
-              {fact('Project', q.activityName)}
+              {fact('Activity Title', q.activityName)}
               {fact('Classification No.', <span className="font-monospace">{q.classificationId}</span>)}
               {fact('Location', [q.location, q.costCenter].filter(Boolean).join(' · '))}
               {fact('Requested by', [q.requestedBy, q.department].filter(Boolean).join(' · '))}

@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onFeed }) => {
     { id: 'overview', path: '/overview', label: 'Dashboard' },
     { id: 'inventory', path: '/inventory', label: 'Inventory' },
     ...(access.canField ? [{ id: 'deliveries', path: '/deliveries', label: 'Deliveries', badge: live ? live.tasks + live.pending : counts.receipts }] : []),
-    { id: 'activities', path: '/activities', label: 'Projects & Activities' },
+    { id: 'activities', path: '/activities', label: 'Activities' },
     ...(canSeeAnalytics ? [{ id: 'analytics', path: '/analytics', label: 'Analytics' }] : []),
     ...(isHeadOrAdmin ? [{ id: 'admin', path: '/admin', label: 'Admin', badge: counts.approvals }, { id: 'configuration', path: '/configuration', label: 'Configuration' }] : [])
   ];

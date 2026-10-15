@@ -73,7 +73,7 @@ export const MrlPickerModal: React.FC<Props> = ({ open, onClose, onSelect }) => 
   const columns: Column<Row>[] = [
     { key: 'mrlNumber', label: 'MRL', sortable: true, minWidth: '90px', render: r => <span className="font-monospace fw-semibold text-dark">{r.mrlNumber}</span> },
     { key: 'mrqNumber', label: 'MRQ', sortable: true, minWidth: '90px', render: r => <span className="font-monospace">{r.mrqNumber}</span> },
-    { key: 'projectName', label: 'Project', sortable: true, minWidth: '220px', render: r => (<div>{r.projectName || '—'}<div className="small text-muted">{r.location}</div></div>) },
+    { key: 'projectName', label: 'Activity Title', sortable: true, minWidth: '220px', render: r => (<div>{r.projectName || '—'}<div className="small text-muted">{r.location}</div></div>) },
     { key: 'classificationId', label: 'Classification', sortable: true, minWidth: '120px', render: r => <span className="font-monospace small">{r.classificationId || '—'}</span> },
     { key: 'releasedTs', label: 'Released', sortable: true, minWidth: '130px', render: r => (<div>{simpleDate(r.releasedAt) || '—'}<div className="small text-muted">{r.batchNumber}</div></div>) },
     { key: 'lineCount', label: 'Lines', sortable: true, align: 'right', minWidth: '70px' },

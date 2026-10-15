@@ -120,7 +120,7 @@ export const DispatchPileSection: React.FC<Props> = ({ itemId, location, quantit
           {(value.customize ? zeroPicked : zeroDefault) && (
             <div className="alert alert-warning py-2 small mt-2 mb-0">
               <i className="bi bi-exclamation-triangle-fill me-2"></i>
-              Part of this dispatch comes from a delivery with no price. The project is charged ₱0 for it until a Head or Super Admin sets the price.
+              Part of this dispatch comes from a delivery with no price. The activity is charged ₱0 for it until a Head or Super Admin sets the price.
             </div>
           )}
         </div>

@@ -200,7 +200,7 @@ export const RopAlertCenter: React.FC = () => {
           <div className="card border shadow-sm p-3 bg-white">
             <div className="text-muted small text-uppercase fw-semibold mb-1">Critical Depletion (Safety Stock Breached)</div>
             <h4 className="fw-bold mb-1 text-danger">{criticalCount} items</h4>
-            <div className="text-muted small">Immediate stockout risk for ongoing projects</div>
+            <div className="text-muted small">Immediate stockout risk for ongoing activities</div>
           </div>
         </div>
 

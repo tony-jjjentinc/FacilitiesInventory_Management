@@ -50,15 +50,15 @@ const pages = (a: SearchAccess): SearchResult[] => [
   { group: 'Pages', id: 'p-dash', title: 'Dashboard', path: '/overview' },
   { group: 'Pages', id: 'p-deliveries', title: 'Deliveries · My tasks', path: '/deliveries' },
   { group: 'Pages', id: 'p-warehouses', title: 'Inventory · Warehouses', path: '/inventory?tab=warehouses' },
-  { group: 'Pages', id: 'p-subdepts', title: 'Projects & Activities · Sub-Departments', path: '/activities?tab=sub-departments' },
-  ...(a.analytics ? ['overview:Overview', 'performance:Performance', 'breakdown:Breakdown', 'stock:Cost of Stock', 'projects:Cost per Project', 'ledger:Ledger'].map(t => {
+  { group: 'Pages', id: 'p-subdepts', title: 'Activities · Sub-Departments', path: '/activities?tab=sub-departments' },
+  ...(a.analytics ? ['overview:Overview', 'performance:Performance', 'breakdown:Breakdown', 'stock:Cost of Stock', 'projects:Cost per Activity', 'ledger:Ledger'].map(t => {
     const [k, l] = t.split(':'); return { group: 'Pages' as const, id: `p-an-${k}`, title: `Analytics · ${l}`, path: `/analytics?tab=${k}` };
   }) : []),
   ...['warehouse:Warehouse Stock', 'catalog:Inventory Catalog', 'custody:Tool Custody', 'alerts:Reorder Alerts'].map(t => {
     const [k, l] = t.split(':'); return { group: 'Pages' as const, id: `p-inv-${k}`, title: `Inventory · ${l}`, path: `/inventory?tab=${k}` };
   }),
-  { group: 'Pages', id: 'p-act-alloc', title: 'Projects & Activities · Allocation', path: '/activities?tab=allocation' },
-  { group: 'Pages', id: 'p-act-cons', title: 'Projects & Activities · Consumption Log', path: '/activities?tab=consumption' },
+  { group: 'Pages', id: 'p-act-alloc', title: 'Activities · Allocation', path: '/activities?tab=allocation' },
+  { group: 'Pages', id: 'p-act-cons', title: 'Activities · Consumption Log', path: '/activities?tab=consumption' },
   ...(a.admin ? [
     { group: 'Pages' as const, id: 'p-admin', title: 'Admin · Approvals', path: '/admin' },
     { group: 'Pages' as const, id: 'p-admin-price', title: 'Admin · Set Price', path: '/admin?tab=price' },

@@ -161,7 +161,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     onChange={(e) => { setOriginType(e.target.value); setOriginRefId(''); }}
                   >
                     <option value="INVENTORY">Warehouse Storage (INVENTORY)</option>
-                    <option value="ACTIVITY">Project Work Order (ACTIVITY)</option>
+                    <option value="ACTIVITY">Activity Work Order (ACTIVITY)</option>
                     <option value="IN_HOUSE">Staff Tool Custody (IN_HOUSE)</option>
                   </select>
                 </div>

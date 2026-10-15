@@ -527,3 +527,17 @@ body.modal-open {
 /* quick actions: a divider between the two columns on wide screens */
 @media (min-width: 992px) { .border-lg-start { border-left: 1px solid var(--border-color); } }
 @media (min-width: 768px) { .border-md-start { border-left: 1px solid var(--border-color); } }
+
+/* Links look like links: blue, underlined, pointer. One rule, so a link never hides in plain text.
+   !important beats the `text-dark` / `text-decoration-none` utilities that older markup still carries.
+   Navigation (navbar, tabs, menus) and real buttons keep their own look. */
+a[href]:not(.btn):not(.nav-link):not(.nav-tab-link):not(.dropdown-item):not(.navbar-brand):not(.list-group-item):not(.page-link):not(.plain-link),
+.btn-link {
+  color: #1d4ed8 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+a[href]:not(.btn):not(.nav-link):not(.nav-tab-link):not(.dropdown-item):not(.navbar-brand):not(.list-group-item):not(.page-link):not(.plain-link):hover,
+.btn-link:hover { color: #1e3a8a !important; }
+a[href]:focus-visible, .btn-link:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; border-radius: 2px; }

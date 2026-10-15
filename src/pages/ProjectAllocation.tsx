@@ -175,7 +175,7 @@ export const ProjectAllocation: React.FC = () => {
         activityId: selectedActivity.Activity_ID,
         itemId: consumeForm.itemId.trim(),
         quantityExpended: Number(consumeForm.quantity) || 1,
-        purpose: consumeForm.purpose.trim() || 'Project Field Installation',
+        purpose: consumeForm.purpose.trim() || 'Activity Field Installation',
         workDescription: consumeForm.workDescription.trim() || `Installed on ${selectedActivity.Activity_ID}`,
         accountablePartyId: selectedActivity.Site_Supervisor_ID
       });
@@ -320,7 +320,7 @@ export const ProjectAllocation: React.FC = () => {
       {/* Header */}
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
         <div>
-          <h5 className="fw-bold mb-0 text-dark">Project Allocation & Material Consumption</h5>
+          <h5 className="fw-bold mb-0 text-dark">Activity Allocation & Material Consumption</h5>
           <p className="small text-muted mb-0">
             Dispatch inventory to active activities, log on-site field usage, and return surplus stock to warehouse.
           </p>
@@ -357,7 +357,7 @@ export const ProjectAllocation: React.FC = () => {
             <div className="card-body">
               <span className="text-secondary small fw-medium">Total Work Orders</span>
               <h3 className="fw-bold text-dark mt-1 mb-0">{totalProjects}</h3>
-              <small className="text-muted">{activeProjects} Active Projects</small>
+              <small className="text-muted">{activeProjects} Active Activities</small>
             </div>
           </div>
         </div>

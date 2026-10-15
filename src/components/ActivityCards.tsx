@@ -69,7 +69,7 @@ export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelec
   return (
     <div className="card border shadow-sm bg-white overflow-hidden mb-4">
       <div className="card-header bg-white py-3 px-3 px-md-4 border-bottom">
-        <h5 className="fw-bold text-dark mb-0">Facilities Work Orders & Maintenance Projects</h5>
+        <h5 className="fw-bold text-dark mb-0">Facilities Work Orders & Maintenance Activities</h5>
         <div className="small text-muted">Select an activity to inspect and manage the materials allocated to it.</div>
       </div>
 

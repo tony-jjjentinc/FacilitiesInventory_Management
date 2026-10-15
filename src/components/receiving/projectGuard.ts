@@ -9,4 +9,4 @@ export const sameProject = (a?: string, b?: string): boolean => !a?.trim() || !b
 
 /** The sentence shown next to an activity of another project. */
 export const mismatchText = (mrl: string, activity: string): string =>
-  `This MRL is for project ${mrl}, but this activity is ${activity}. The materials would be charged to the wrong project.`;
+  `This MRL is for ${mrl}, but this activity is ${activity}. The materials would be charged to the wrong activity.`;

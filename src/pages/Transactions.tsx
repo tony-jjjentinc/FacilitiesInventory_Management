@@ -511,9 +511,9 @@ export const Transactions: React.FC = () => {
                           }
                         }}
                       >
-                        {!access.fieldOnly && <option value="OUT:RELEASE">Outbound Project Dispatch (OUT:RELEASE)</option>}
+                        {!access.fieldOnly && <option value="OUT:RELEASE">Outbound Activity Dispatch (OUT:RELEASE)</option>}
                         {!access.fieldOnly && <option value="OUT:DEPLOY">Staff Tool Custody Assignment (OUT:DEPLOY)</option>}
-                        <option value="IN:EXCESS">Surplus Return from Project (IN:EXCESS)</option>
+                        <option value="IN:EXCESS">Surplus Return from Activity (IN:EXCESS)</option>
                         {!access.fieldOnly && <option value="IN:RETRIEVE">Tool Custody Surrender (IN:RETRIEVE)</option>}
                         {!access.fieldOnly && <option value="TRANSFER:INVENTORY">Internal Warehouse Relocation (TRANSFER:INVENTORY)</option>}
                       </select>

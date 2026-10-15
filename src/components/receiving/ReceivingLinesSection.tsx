@@ -147,7 +147,7 @@ export const ReceivingLinesSection: React.FC<Props> = ({ mode, title, hint, acti
       </div>
       {unpriced > 0 && (
         <div className="mt-3 px-3 py-2 small text-warning-emphasis border-top bg-warning-subtle">
-          {unpriced} item{unpriced > 1 ? 's have' : ' has'} no price. {unpriced > 1 ? 'They are' : 'It is'} received at ₱0, and a project is charged ₱0 for {unpriced > 1 ? 'them' : 'it'} until the price is set (by a Head, a Super Admin or the receiving sub-department).
+          {unpriced} item{unpriced > 1 ? 's have' : ' has'} no price. {unpriced > 1 ? 'They are' : 'It is'} received at ₱0, and an activity is charged ₱0 for {unpriced > 1 ? 'them' : 'it'} until the price is set (by a Head, a Super Admin or the receiving sub-department).
         </div>
       )}
       {editLine && <LineEditModal line={editLine} mode={mode} uoms={uoms} spotOptions={spotOptions} allStorage={allStorage} onClose={() => setEditKey('')} onApply={next => { update(editLine.key, next); setEditKey(''); }} />}

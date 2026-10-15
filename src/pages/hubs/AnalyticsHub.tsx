@@ -18,7 +18,7 @@ export const AnalyticsHub: React.FC = () => {
 
   return (
     <>
-      <TabBar label="Analytics" active={tab} onChange={setTab} tabs={[{ key: 'overview', label: 'Overview' }, { key: 'performance', label: 'Performance' }, { key: 'breakdown', label: 'Breakdown' }, { key: 'stock', label: 'Cost of Stock' }, { key: 'projects', label: 'Cost per Project' }, { key: 'ledger', label: 'Ledger' }]} />
+      <TabBar label="Analytics" active={tab} onChange={setTab} tabs={[{ key: 'overview', label: 'Overview' }, { key: 'performance', label: 'Performance' }, { key: 'breakdown', label: 'Breakdown' }, { key: 'stock', label: 'Cost of Stock' }, { key: 'projects', label: 'Cost per Activity' }, { key: 'ledger', label: 'Ledger' }]} />
       <div className="container py-4 px-3 px-md-4">
         {tab === 'overview' && <AnalyticsTrackers />}
         {tab === 'performance' && <AnalyticsPerformance />}
