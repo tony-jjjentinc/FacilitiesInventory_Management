@@ -210,6 +210,8 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
         </>
       )}
 
+      {showSpend && <SpendChart refreshKey={refreshKey} />}
+
       <Panel title="Stock alerts" to="/inventory?tab=alerts" state={stockState} empty={alerts.length === 0 ? 'No items need reordering.' : undefined}>
         <ul className="list-group list-group-flush">
           {alerts.map(r => <Row key={r.Inventory_ID} to={entityPath('ITEM', r.Item_ID)} main={r.Item_Name} sub={r.Warehouse_Name || r.Warehouse_Location}
@@ -242,7 +244,6 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
         </Panel>
       )}
 
-      {showSpend && <SpendChart refreshKey={refreshKey} />}
     </div>
   );
 };
