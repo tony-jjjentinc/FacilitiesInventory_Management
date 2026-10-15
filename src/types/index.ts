@@ -195,6 +195,17 @@ export interface ActivityRecord {
   Current_Net_Cost: number;
   Status: 'PLANNED' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
   Sub_Department?: string;
+  ProcInv_Class_Ref?: string;
+  /** what the activity has used; money fields are absent for a role that may not see costs */
+  usage?: ActivityUsage;
+}
+
+/** Used, from the consumption log (cost at the time of use), and tools still allocated on site. */
+export interface ActivityUsage {
+  consumedQty: number; consumedCost?: number;
+  toolsQty: number; toolsValue?: number;
+  sparesQty: number; sparesCost?: number;
+  byCategory: { label: string; qty: number; cost?: number }[];
 }
 
 export interface ActivityInventoryItem {
@@ -693,6 +704,7 @@ export interface ActivityOverview {
   schedule: { start: string; targetEnd: string; completedAt: string; plannedDays: number | null; actualDays: number | null; overdue: boolean };
   returns: { issued: number; returned: number; rate: number | null };
   subDepartments: string[];
+  usage: ActivityUsage;
   meta: { notes: string[] };
 }
 

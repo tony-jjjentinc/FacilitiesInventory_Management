@@ -13,11 +13,11 @@ interface Props {
   loading?: boolean;
 }
 
-type SortKey = 'Activity_ID' | 'Activity_Name' | 'Current_Net_Cost' | 'Status' | 'Start_Date';
+type SortKey = 'Activity_ID' | 'Activity_Name' | 'Consumed_Cost' | 'Status' | 'Start_Date';
 const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'Activity_ID', label: 'Activity ID' },
+  { key: 'Activity_ID', label: 'Classification No.' },
   { key: 'Activity_Name', label: 'Name' },
-  { key: 'Current_Net_Cost', label: 'Net cost' },
+  { key: 'Consumed_Cost', label: 'Cost consumed' },
   { key: 'Status', label: 'Status' },
   { key: 'Start_Date', label: 'Start date' }
 ];
@@ -34,6 +34,10 @@ const badgeOf = (status?: string) => {
 };
 
 const day = (v?: string) => fmtDate(v, '—');
+/** The classification number people know the activity by; older activities without one show their ID. */
+const refOf = (a: ActivityRecord) => a.ProcInv_Class_Ref || a.Activity_ID;
+const pesos = (n?: number) => `₱${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const qtyOf = (n?: number) => (n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 /** Activities as cards with search, status and type filters and sorting. Clicking a card selects it. */
 export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelect, loading }) => {
@@ -55,11 +59,12 @@ export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelec
     const rows = activities.filter(a =>
       (!status || (a.Status || '').toUpperCase() === status) &&
       (!type || a.Activity_Type === type) &&
-      (!q || [a.Activity_ID, a.Activity_Name, a.Site_Location, a.Site_Supervisor_ID, a.Activity_Type].join(' ').toLowerCase().includes(q))
+      (!q || [a.Activity_ID, a.ProcInv_Class_Ref, a.Activity_Name, a.Site_Location, a.Site_Supervisor_ID, a.Activity_Type].join(' ').toLowerCase().includes(q))
     );
     const dir = asc ? 1 : -1;
     return [...rows].sort((a, b) => {
-      if (sortKey === 'Current_Net_Cost') return ((Number(a.Current_Net_Cost) || 0) - (Number(b.Current_Net_Cost) || 0)) * dir;
+      if (sortKey === 'Consumed_Cost') return ((a.usage?.consumedCost || 0) - (b.usage?.consumedCost || 0)) * dir;
+      if (sortKey === 'Activity_ID') return refOf(a).localeCompare(refOf(b), undefined, { numeric: true, sensitivity: 'base' }) * dir;
       return String(a[sortKey] ?? '').localeCompare(String(b[sortKey] ?? ''), undefined, { numeric: true, sensitivity: 'base' }) * dir;
     });
   }, [activities, search, status, type, sortKey, asc]);
@@ -88,8 +93,8 @@ export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelec
           {types.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <div className="d-flex gap-1 ms-md-auto">
-          <select className="form-select form-select-sm" style={{ width: '140px' }} aria-label="Sort by" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}>
-            {SORTS.filter(s => costs || s.key !== 'Current_Net_Cost').map(s => <option key={s.key} value={s.key}>Sort: {s.label}</option>)}
+          <select className="form-select form-select-sm" style={{ width: '190px' }} aria-label="Sort by" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)}>
+            {SORTS.filter(s => costs || s.key !== 'Consumed_Cost').map(s => <option key={s.key} value={s.key}>Sort: {s.label}</option>)}
           </select>
           <button type="button" className="btn btn-secondary btn-sm" style={{ width: '34px', padding: 0 }} onClick={() => setAsc(!asc)}
             title={asc ? 'Ascending' : 'Descending'} aria-label={asc ? 'Ascending' : 'Descending'}>
@@ -121,21 +126,19 @@ export const ActivityCards: React.FC<Props> = ({ activities, selectedId, onSelec
                 >
                   <div className="card-body">
                     <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                      <span className="font-monospace small text-primary">{a.Activity_ID}</span>
+                      <span className="font-monospace small text-primary" title={a.Activity_ID}>{refOf(a)}</span>
                       <span className={`badge ${badgeOf(a.Status)}`}>{a.Status}</span>
                     </div>
                     <div className="fw-medium text-dark mb-1">{a.Activity_Name}</div>
                     <div className="small text-secondary mb-3">{a.Site_Location || 'No Data'}</div>
-                    <div className="d-flex justify-content-between align-items-end">
-                      {costs ? <div>
-                        <div className="text-muted" style={{ fontSize: '0.72rem' }}>Net cost</div>
-                        <div className="fw-bold text-dark">₱{(Number(a.Current_Net_Cost) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                      </div> : <span />}
-                      {a.Activity_Type && <span className="badge bg-secondary">{a.Activity_Type}</span>}
+                    <div className="row g-2 text-center border-top pt-2">
+                      {costs && <div className="col"><div className="text-muted" style={{ fontSize: '0.72rem' }}>Cost consumed</div><div className="fw-bold text-dark">{pesos(a.usage?.consumedCost)}</div></div>}
+                      <div className="col"><div className="text-muted" style={{ fontSize: '0.72rem' }}>Tools allocated</div><div className="fw-bold text-dark">{qtyOf(a.usage?.toolsQty)}</div></div>
+                      <div className="col"><div className="text-muted" style={{ fontSize: '0.72rem' }}>Spare parts used</div><div className="fw-bold text-dark">{qtyOf(a.usage?.sparesQty)}</div></div>
                     </div>
+                    {a.Activity_Type && <div className="mt-2"><span className="badge bg-secondary">{a.Activity_Type}</span></div>}
                   </div>
                   <div className="card-footer bg-white small text-muted d-flex justify-content-between gap-2">
-                    <span className="text-truncate" title={a.Site_Supervisor_ID}>{a.Site_Supervisor_ID || 'No supervisor'}</span>
                     <span className="text-nowrap">{day(a.Start_Date)} → {a.Target_End_Date ? day(a.Target_End_Date) : 'TBD'}</span>
                     <Link to={entityPath('ACTIVITY', a.Activity_ID)} className="text-decoration-none text-nowrap" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>View page</Link>
                   </div>
