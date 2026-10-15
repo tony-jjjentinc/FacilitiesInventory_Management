@@ -2,6 +2,7 @@ import React from 'react';
 import type { MixGroup } from '../../types';
 import { peso } from '../../utils/format';
 import { DoughnutChart } from './DoughnutChart';
+import { ChartBoundary, ChartMessage, ChartSkeleton, GhostBars } from './ChartStates';
 
 /** A faded empty ring with "No data" in the middle, shown where a doughnut would be (same slot, so the layout does not jump). */
 export const GhostDoughnut: React.FC = () => (
@@ -26,10 +27,16 @@ interface CardProps {
   pie?: boolean;
   /** three across on extra-large screens (the dashboard's pie row) instead of two */
   third?: boolean;
+  /** where the chart's data is: still loading, loaded, or failed to load (shows a message with a retry instead of the chart) */
+  status?: 'loading' | 'ready' | 'error';
+  /** why the data failed to load, shown under the message */
+  error?: string;
+  /** a "Try again" button for a failed load or a chart that crashed */
+  onRetry?: () => void;
 }
 
 /** Card with an uppercase title and a fixed-height chart area. Two across on extra-large screens by default. */
-export const ChartCard: React.FC<CardProps> = ({ title, subtitle, empty, children, wide, pie, third }) => (
+export const ChartCard: React.FC<CardProps> = ({ title, subtitle, empty, children, wide, pie, third, status = 'ready', error, onRetry }) => (
   <div className={`col-12 ${wide ? '' : third ? 'col-xl-4' : 'col-xl-6'}`}>
     <div className="card border shadow-sm h-100 bg-white">
       <div className="card-header bg-white border-bottom">
@@ -37,8 +44,11 @@ export const ChartCard: React.FC<CardProps> = ({ title, subtitle, empty, childre
         <div className="small text-muted" style={{ fontSize: '0.8rem' }}>{subtitle}</div>
       </div>
       <div className="card-body">
-        <div style={{ height: '260px' }} className={empty ? 'd-flex align-items-center justify-content-center text-muted small' : ''}>
-          {empty ? (pie ? <GhostDoughnut /> : '–') : children}
+        <div style={{ height: '260px' }}>
+          {status === 'loading' ? <ChartSkeleton />
+            : status === 'error' ? <ChartMessage title="Couldn't load this chart" detail={error || 'The data did not load. Check the connection and try again.'} onRetry={onRetry} />
+            : empty ? (pie ? <GhostDoughnut /> : <GhostBars />)
+            : <ChartBoundary onRetry={onRetry}>{children}</ChartBoundary>}
         </div>
       </div>
     </div>

@@ -14,15 +14,18 @@ export const AnalyticsTrackers: React.FC = () => {
   const [stock, setStock] = useState<WarehouseStockItem[]>([]);
   const [history, setHistory] = useState<TransactionEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState('');
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again"
 
   useEffect(() => {
     let alive = true;
+    setLoading(true); setFailure('');
     Promise.all([
       fetchWithSwr('inventory:stock:all', () => apiRequest<WarehouseStockItem[]>('inventory:getWarehouseStock'), d => { if (alive && Array.isArray(d)) setStock(d); }),
       fetchWithSwr('transaction:history:ALL', () => apiRequest<TransactionEntry[]>('transaction:getHistory', { status: 'ALL' }), d => { if (alive && Array.isArray(d)) setHistory(d); })
-    ]).catch(err => console.warn('Analytics overview fetch failed:', err)).finally(() => { if (alive) setLoading(false); });
+    ]).catch(err => { console.warn('Analytics overview fetch failed:', err); if (alive) setFailure(String(err?.message || 'The data did not load.')); }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [attempt]);
 
   const data = useMemo(() => {
     // value by trade category (second part of the SKU: TYPE-CATEGORY-NNNN)
@@ -63,6 +66,9 @@ export const AnalyticsTrackers: React.FC = () => {
     return { byCategory, byClass, byLocation, health, months, top, total: stock.reduce((s, i) => s + valueOf(i), 0) };
   }, [stock, history]);
 
+  // the charts show a skeleton while nothing has loaded, and a message with a retry when the load failed and there is nothing to draw
+  const status = stock.length === 0 && history.length === 0 ? (loading ? 'loading' : failure ? 'error' : 'ready') : 'ready';
+  const chartState = { status: status as 'loading' | 'ready' | 'error', error: failure, onRetry: () => setAttempt(n => n + 1) };
   const sorted = (m: Map<string, number>) => Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   const cat = sorted(data.byCategory);
   const cls = sorted(data.byClass);
@@ -81,31 +87,31 @@ export const AnalyticsTrackers: React.FC = () => {
         </div>
       )}
       <div className="row g-3">
-        <ChartCard title="Stock value by trade category" subtitle={`Valuation of stock on hand, ${pesoWhole(data.total)} in total`} empty={cat.length === 0}>
+        <ChartCard {...chartState} title="Stock value by trade category" subtitle={`Valuation of stock on hand, ${pesoWhole(data.total)} in total`} empty={cat.length === 0}>
           <BarChart labels={cat.map(c => c[0])} legend={false} lightGrid thickness={32} format={pesoWhole} tickFormat={pesoK}
             series={[{ label: 'Valuation', data: cat.map(c => Math.round(c[1])), color: COLOR.strong }]} />
         </ChartCard>
 
-        <ChartCard title="Stock in vs stock out" subtitle="Posted ledger cost per month, last 6 months" empty={!hasMonths}>
+        <ChartCard {...chartState} title="Stock in vs stock out" subtitle="Posted ledger cost per month, last 6 months" empty={!hasMonths}>
           <BarChart labels={data.months.map(m => m.label)} legend="bottom" lightGrid thickness={18} format={pesoWhole} tickFormat={pesoK} series={[
             { label: 'Stock in', data: data.months.map(m => Math.round(m.inCost)), color: COLOR.strong },
             { label: 'Stock out', data: data.months.map(m => Math.round(m.outCost)), color: COLOR.out }
           ]} />
         </ChartCard>
 
-        <ChartCard pie title="Stock health" subtitle="Items by reorder-point status" empty={healthTotal === 0}>
+        <ChartCard pie {...chartState} title="Stock health" subtitle="Items by reorder-point status" empty={healthTotal === 0}>
           <DoughnutChart labels={healthEntries.map(e => e[0])} values={healthEntries.map(e => e[1])} colors={HEALTH} legend="bottom" separated />
         </ChartCard>
 
-        <ChartCard pie title="Value by warehouse" subtitle="Where the stock value sits" empty={loc.length === 0 || data.total === 0}>
+        <ChartCard pie {...chartState} title="Value by warehouse" subtitle="Where the stock value sits" empty={loc.length === 0 || data.total === 0}>
           <DoughnutChart labels={loc.map(e => e[0])} values={loc.map(e => Math.round(e[1]))} format={pesoWhole} legend="bottom" separated />
         </ChartCard>
 
-        <ChartCard pie title="Items by classification" subtitle="Consumables, tools, spare parts and others (number of items)" empty={cls.length === 0}>
+        <ChartCard pie {...chartState} title="Items by classification" subtitle="Consumables, tools, spare parts and others (number of items)" empty={cls.length === 0}>
           <DoughnutChart labels={cls.map(e => e[0])} values={cls.map(e => Math.round(e[1]))} legend="bottom" separated />
         </ChartCard>
 
-        <ChartCard title="Highest-value items" subtitle="Top 8 by stock valuation" empty={data.top.length === 0}>
+        <ChartCard {...chartState} title="Highest-value items" subtitle="Top 8 by stock valuation" empty={data.top.length === 0}>
           <BarChart horizontal labels={data.top.map(i => i.Item_Name)} legend={false} lightGrid thickness={22} format={pesoWhole} tickFormat={pesoK}
             series={[{ label: 'Valuation', data: data.top.map(i => Math.round(valueOf(i))), color: COLOR.in }]} />
         </ChartCard>

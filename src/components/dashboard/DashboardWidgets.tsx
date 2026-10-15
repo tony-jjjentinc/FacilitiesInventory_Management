@@ -10,7 +10,7 @@ import { fetchWithSwr } from '../../services/cache';
 import { getAccess } from '../../services/access';
 import { getCurrentUser } from '../../services/auth';
 import type { AnalyticsOverviewResponse, LossIncident, MixGroup, ReceiptRecord, TransactionEntry, WarehouseStockItem } from '../../types';
-import { BarChart, ChartCard, MixChart, PALETTE } from '../charts';
+import { BarChart, ChartBoundary, ChartCard, ChartMessage, ChartSkeleton, GhostBars, MixChart, PALETTE } from '../charts';
 import { entityPath, peso } from '../entity/entityPaths';
 import { Loading } from '../Loading';
 import type { DraftSummary } from '../drafts/useDraft';
@@ -105,20 +105,22 @@ const SpendChart: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const [data, setData] = useState<AnalyticsOverviewResponse | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [seen, setSeen] = useState(false);
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again"
+  const [failure, setFailure] = useState('');
   const ref = useWhenVisible(() => setSeen(true));
 
   useEffect(() => {
     if (!seen) return;
     const { from, to } = range(span);
-    setState(s => (data ? s : 'loading'));
+    setState(s => (data ? s : 'loading')); setFailure('');
     fetchWithSwr<AnalyticsOverviewResponse>(
       `dash:spend:${from}:${to}`,
       () => apiRequest<AnalyticsOverviewResponse>('analytics:getOverview', { from, to, groupBy: 'SUBDEPARTMENT' }),
       d => { if (d && Array.isArray(d.rows)) { setData(d); setState('ready'); } },
       { persist: true }
-    ).catch(() => setState('error'));
+    ).catch((e: any) => { setFailure(String(e?.message || '')); setState('error'); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seen, span, refreshKey]);
+  }, [seen, span, refreshKey, attempt]);
 
   const rows = (data?.rows || []).filter(r => r.receivedCost || r.issuedCost || r.consumedCost).slice(0, ROWS);
   return (
@@ -133,15 +135,15 @@ const SpendChart: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
             <option value="month">This month</option><option value="quarter">This quarter</option><option value="year">This year</option>
           </select>
         </div>
-        <div className="card-body" style={state === 'ready' && rows.length > 0 ? { height: '300px' } : undefined}>
-          {state === 'error' ? <div className="small text-muted">Couldn't load. Use Refresh above.</div>
-            : state !== 'ready' ? <Loading variant="text" label="Loading…" />
-            : rows.length === 0 ? <div className="small text-muted">No spend in this period.</div>
-            : <BarChart labels={rows.map(r => r.label)} legend="bottom" format={peso} series={[
+        <div className="card-body" style={{ height: '300px' }}>
+          {state === 'error' ? <ChartMessage title="Couldn't load the spend" detail={failure || 'The data did not load. Check the connection and try again.'} onRetry={() => setAttempt(n => n + 1)} />
+            : state !== 'ready' ? <ChartSkeleton />
+            : rows.length === 0 ? <GhostBars message="No spend in this period" />
+            : <ChartBoundary onRetry={() => setAttempt(n => n + 1)}><BarChart labels={rows.map(r => r.label)} legend="bottom" format={peso} series={[
                 { label: 'Received', data: rows.map(r => r.receivedCost), color: PALETTE[3] },
                 { label: 'Issued', data: rows.map(r => r.issuedCost), color: PALETTE[1] },
                 { label: 'Consumed', data: rows.map(r => r.consumedCost), color: PALETTE[0] }
-              ]} />}
+              ]} /></ChartBoundary>}
         </div>
       </div>
     </div>
@@ -154,9 +156,11 @@ export interface DashboardWidgetsProps {
   incidents: LossIncident[];
   /** bumped by the dashboard's Refresh button */
   refreshKey: number;
+  /** reloads the dashboard's data (the "Try again" of a chart that failed to load) */
+  onRetry?: () => void;
 }
 
-export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stockState, incidents, refreshKey }) => {
+export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stockState, incidents, refreshKey, onRetry }) => {
   const access = getAccess(getCurrentUser());
   const showTransactions = access.canSeeAnalytics; // the ledger lives in Analytics
   const showSpend = access.canSeeAnalytics && access.canSeeCosts;
@@ -198,13 +202,9 @@ export const DashboardWidgets: React.FC<DashboardWidgetsProps> = ({ stock, stock
   return (
     <div className="row g-3 mb-4">
       {/* the pie charts come first, above the lists */}
-      {stockState === 'ready' && stock.length > 0 && (
-        <>
-          <ChartCard pie third title="Stock by type" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.type.length === 0}><MixChart groups={mixes.type} byQty={byQty} /></ChartCard>
-          <ChartCard pie third title="Stock by category" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.category.length === 0}><MixChart groups={mixes.category} byQty={byQty} /></ChartCard>
-          <ChartCard pie third title="Stock by warehouse" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.warehouse.length === 0}><MixChart groups={mixes.warehouse} byQty={byQty} /></ChartCard>
-        </>
-      )}
+      <ChartCard pie third status={stockState} onRetry={onRetry} error="The stock balances did not load." title="Stock by type" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.type.length === 0}><MixChart groups={mixes.type} byQty={byQty} /></ChartCard>
+      <ChartCard pie third status={stockState} onRetry={onRetry} error="The stock balances did not load." title="Stock by category" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.category.length === 0}><MixChart groups={mixes.category} byQty={byQty} /></ChartCard>
+      <ChartCard pie third status={stockState} onRetry={onRetry} error="The stock balances did not load." title="Stock by warehouse" subtitle={byQty ? 'On-hand quantity' : 'Stock value'} empty={mixes.warehouse.length === 0}><MixChart groups={mixes.warehouse} byQty={byQty} /></ChartCard>
 
       {showSpend && <SpendChart refreshKey={refreshKey} />}
 

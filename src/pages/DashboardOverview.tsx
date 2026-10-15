@@ -150,7 +150,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       </div>
 
       <UnpricedBanner stock={warehouseStock} />
-      <DashboardWidgets stock={warehouseStock} stockState={stockLoad} incidents={pendingIncidents} refreshKey={refreshKey} />
+      <DashboardWidgets stock={warehouseStock} stockState={stockLoad} incidents={pendingIncidents} refreshKey={refreshKey} onRetry={() => loadAll(true)} />
 
       {/* ------------------------------------------------------------------- */}
       {/* Others: what this person opened last, and their saved drafts (last on purpose: it fills in after the rest) */}
