@@ -3,7 +3,7 @@
  * @description Inventory item overview: purchase price history, supplier prices, reorder status and usage rate with days of cover.
  */
 import React from 'react';
-import { BarChart, COLOR, LineChart } from '../charts';
+import { BarChart, ChartBoundary, COLOR, GhostBars, LineChart } from '../charts';
 import { Loading } from '../Loading';
 import { RefreshButton } from '../RefreshButton';
 import type { ItemOverview } from '../../types';
@@ -28,7 +28,7 @@ const Card: React.FC<{ title: string; subtitle?: string; children: React.ReactNo
   </div>
 );
 
-const none = <div className="d-flex align-items-center justify-content-center text-muted small" style={{ height: '220px' }}>No Data</div>;
+const none = <div style={{ height: '220px' }}><GhostBars /></div>;
 
 export const ItemOverviewTab: React.FC<{ itemId: string; onOpenTab?: (key: string) => void }> = ({ itemId, onOpenTab }) => {
   const { data, loading, refreshing, error, reload } = useEntityData<ItemOverview>('getOverview', 'ITEM', itemId);
@@ -50,19 +50,19 @@ export const ItemOverviewTab: React.FC<{ itemId: string; onOpenTab?: (key: strin
       <div className="row g-3">
         {costs && <Card title="Price paid per unit" subtitle="Each purchase of this item, oldest first">
           {data.received.length === 0 ? none : (
-            <div style={{ height: '220px' }}>
+            <div style={{ height: '220px' }}><ChartBoundary>
               <LineChart labels={data.received.map(r => r.at)} format={peso} series={[{ label: 'Unit cost', data: data.received.map(r => r.unitCost), color: COLOR.strong }]} />
-            </div>
+            </ChartBoundary></div>
           )}
         </Card>}
         <Card title="Usage per month" subtitle="Issued to activities and consumed, last 6 months">
           {usage.issued.every(v => v === 0) && usage.consumed.every(v => v === 0) ? none : (
-            <div style={{ height: '220px' }}>
+            <div style={{ height: '220px' }}><ChartBoundary>
               <BarChart labels={usage.labels} stacked series={[
                 { label: 'Issued', data: usage.issued, color: COLOR.in },
                 { label: 'Consumed', data: usage.consumed, color: COLOR.out }
               ]} />
-            </div>
+            </ChartBoundary></div>
           )}
         </Card>
         {costs && <Card title="Supplier prices" subtitle="From the item's price cards">

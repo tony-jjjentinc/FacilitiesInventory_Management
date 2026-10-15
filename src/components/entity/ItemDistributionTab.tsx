@@ -13,7 +13,7 @@ import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
 import { useEntityData } from './useEntity';
 
-import { DoughnutChart, GhostDoughnut } from '../charts';
+import { ChartBoundary, DoughnutChart, GhostDoughnut } from '../charts';
 
 const Section: React.FC<{ title: string; empty: string; isEmpty: boolean; children: React.ReactNode }> = ({ title, empty, isEmpty, children }) => (
   <div className="col-12 col-xl-6">
@@ -41,7 +41,7 @@ export const ItemDistributionTab: React.FC<{ itemId: string }> = ({ itemId }) =>
               <div className="row align-items-center g-3">
                 <div className="col-md-5" style={{ height: '220px' }}>
                   {total === 0 ? <GhostDoughnut /> : (
-                    <DoughnutChart labels={data.destinations.map(d => d.label)} values={data.destinations.map(d => d.qty)} />
+                    <ChartBoundary><DoughnutChart labels={data.destinations.map(d => d.label)} values={data.destinations.map(d => d.qty)} /></ChartBoundary>
                   )}
                 </div>
                 <div className="col-md-7">

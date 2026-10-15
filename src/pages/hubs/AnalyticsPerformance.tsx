@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart, OTHERS, SERIES, type ChartSeries } from '../../components/charts';
+import { BarChart, ChartBoundary, ChartMessage, ChartSkeleton, GhostBars, OTHERS, SERIES, type ChartSeries } from '../../components/charts';
 import { apiRequest } from '../../services/api';
 import { RefreshButton } from '../../components/RefreshButton';
 import type { AnalyticsGroup, AnalyticsPeriod, AnalyticsPerformanceResponse, PerformanceCell } from '../../types';
@@ -103,11 +103,11 @@ export const AnalyticsPerformance: React.FC = () => {
         </div>
       </div>
 
-      {error && <div className="alert alert-danger py-2 small">{error}</div>}
-      {loading && !data && (
-        <div className="d-flex align-items-center gap-2 small text-secondary mb-3" role="status">
-          <span className="spinner-border spinner-border-sm text-primary"></span> Loading…
-        </div>
+      {error && data && <div className="alert alert-danger py-2 small">{error}</div>}
+      {!data && (
+        <div className="card border shadow-sm bg-white mb-4"><div className="card-body" style={{ height: '300px' }}>
+          {loading ? <ChartSkeleton /> : <ChartMessage title="Couldn't load this chart" detail={error || 'The data did not load.'} onRetry={load} />}
+        </div></div>
       )}
 
       {data && (
@@ -120,10 +120,12 @@ export const AnalyticsPerformance: React.FC = () => {
               <div className="small text-muted" style={{ fontSize: '0.75rem' }}>{fmtDate(data.from)} to {fmtDate(data.to)}, by {GROUPS.find(g => g.key === groupBy)!.label}</div>
             </div>
             <div className="card-body">
-              <div style={{ height: '300px' }} className={hasData ? '' : 'd-flex align-items-center justify-content-center text-muted small'}>
+              <div style={{ height: '300px' }}>
                 {hasData && chart ? (
-                  <BarChart labels={chart.labels} series={chart.series} stacked lightGrid legend="bottom" format={fmt} tickFormat={metric === 'cost' ? pesoK : (n => String(n))} />
-                ) : 'No data for this period.'}
+                  <ChartBoundary onRetry={load}>
+                    <BarChart labels={chart.labels} series={chart.series} stacked lightGrid legend="bottom" format={fmt} tickFormat={metric === 'cost' ? pesoK : (n => String(n))} />
+                  </ChartBoundary>
+                ) : <GhostBars message="No data for this period" />}
               </div>
             </div>
           </div>
