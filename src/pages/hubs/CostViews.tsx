@@ -5,8 +5,8 @@ import type { OpenActivity, ProjectCostsResponse, StockCostsResponse, StorageOpt
 import { Select } from '../../components/Select';
 import { Loading } from '../../components/Loading';
 import { fmtDateTime } from '../../utils/datetime';
+import { peso } from '../../utils/format';
 
-const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const cost4 = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 
 export interface PriceDraft { scopeType: string; scopeRef: string; itemId: string; }

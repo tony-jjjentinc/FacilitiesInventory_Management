@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { BarChart, OTHERS, SERIES, type ChartSeries } from '../../components/charts';
 import { apiRequest } from '../../services/api';
 import { RefreshButton } from '../../components/RefreshButton';
 import type { AnalyticsGroup, AnalyticsPeriod, AnalyticsPerformanceResponse, PerformanceCell } from '../../types';
 import { fmtDate } from '../../utils/datetime';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+import { peso, pesoK, qty as num } from '../../utils/format';
 
 const GROUPS: { key: AnalyticsGroup; label: string }[] = [
   { key: 'SUBDEPARTMENT', label: 'Sub-Department' },
@@ -25,10 +23,7 @@ const MEASURES = [
 ] as const;
 type Measure = typeof MEASURES[number]['key'];
 
-const COLORS = ['#184421', '#2f6f3e', '#5c9a6a', '#93bf9d', '#64748b', '#94a3b8', '#b45309', '#cbd5e1'];
 const MAX_SERIES = 6;
-const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const num = (n: number) => (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
 
 const pick = (c: PerformanceCell | undefined, measure: Measure, metric: 'qty' | 'cost') =>
   c ? Number(c[`${measure}${metric === 'qty' ? 'Qty' : 'Cost'}` as keyof PerformanceCell]) || 0 : 0;
@@ -63,13 +58,13 @@ export const AnalyticsPerformance: React.FC = () => {
     const ranked = [...data.rows].sort((a, b) => pick(b.totals, measure, metric) - pick(a.totals, measure, metric));
     const top = ranked.slice(0, MAX_SERIES);
     const rest = ranked.slice(MAX_SERIES);
-    const datasets = top.map((r, i) => ({
-      label: r.label, data: data.buckets.map(b => pick(r.cells[b.key], measure, metric)), backgroundColor: COLORS[i % COLORS.length], borderRadius: 2
+    const series: ChartSeries[] = top.map((r, i) => ({
+      label: r.label, data: data.buckets.map(b => pick(r.cells[b.key], measure, metric)), color: SERIES[i % SERIES.length]
     }));
     if (rest.length) {
-      datasets.push({ label: 'Others', data: data.buckets.map(b => rest.reduce((s, r) => s + pick(r.cells[b.key], measure, metric), 0)), backgroundColor: '#e2e8f0', borderRadius: 2 });
+      series.push({ label: 'Others', data: data.buckets.map(b => rest.reduce((s, r) => s + pick(r.cells[b.key], measure, metric), 0)), color: OTHERS });
     }
-    return { labels: data.buckets.map(b => b.label), datasets };
+    return { labels: data.buckets.map(b => b.label), series };
   }, [data, measure, metric]);
 
   const hasData = !!data && data.rows.length > 0 && pick(data.totals, measure, metric) > 0;
@@ -127,11 +122,7 @@ export const AnalyticsPerformance: React.FC = () => {
             <div className="card-body">
               <div style={{ height: '300px' }} className={hasData ? '' : 'd-flex align-items-center justify-content-center text-muted small'}>
                 {hasData && chart ? (
-                  <Bar data={chart} options={{
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(Number(c.raw))}` } } },
-                    scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: '#f1f5f9' }, ticks: { callback: v => (metric === 'cost' ? `₱${(Number(v) / 1000).toFixed(0)}k` : String(v)) } } }
-                  }} />
+                  <BarChart labels={chart.labels} series={chart.series} stacked lightGrid legend="bottom" format={fmt} tickFormat={metric === 'cost' ? pesoK : (n => String(n))} />
                 ) : 'No data for this period.'}
               </div>
             </div>

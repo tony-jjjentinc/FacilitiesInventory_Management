@@ -6,6 +6,7 @@ import { getCurrentUser } from '../../services/auth';
 import { useAccountDirectory } from './useAccountDirectory';
 import { activityLabel, nodeLabel } from './receivingUtils';
 import { Loading } from '../Loading';
+import { peso } from '../../utils/format';
 
 interface Props {
   title: string;
@@ -22,7 +23,6 @@ interface Props {
   extra?: React.ReactNode;
 }
 
-const peso = (n: number) => `₱${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Overview of what will be enrolled in the system, and the button that sends it to the receiving party. */
 export const ConfirmationSection: React.FC<Props> = ({ title, reference, lines, party, storage, activities, busy, onClear, onSubmit, extra }) => {

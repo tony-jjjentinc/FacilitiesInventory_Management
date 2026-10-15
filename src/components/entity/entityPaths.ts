@@ -19,5 +19,4 @@ export const ENTITY_CONFIG: Partial<Record<EntityScopeType, { table: string; slu
   ITEM: { table: 'Item', slug: 'item', label: 'Catalog item' }
 };
 
-export const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-export const qty = (n: number) => (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
+export { peso, qty } from '../../utils/format'; // kept here so the entity screens import them from one place; the formatters live in utils/format.ts

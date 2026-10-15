@@ -3,8 +3,7 @@
  * @description Inventory item overview: purchase price history, supplier prices, reorder status and usage rate with days of cover.
  */
 import React from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend } from 'chart.js';
-import { Bar, Line } from 'react-chartjs-2';
+import { BarChart, COLOR, LineChart } from '../charts';
 import { Loading } from '../Loading';
 import { RefreshButton } from '../RefreshButton';
 import type { ItemOverview } from '../../types';
@@ -14,7 +13,6 @@ import { getAccess } from '../../services/access';
 import { useEntityData } from './useEntity';
 import { fmtDate, fmtDateTime } from '../../utils/datetime';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend);
 
 const ROP: Record<string, string> = { NORMAL: 'Normal', REORDER_WARNING: 'Reorder soon', CRITICAL_DEPLETION: 'Critical' };
 
@@ -53,23 +51,17 @@ export const ItemOverviewTab: React.FC<{ itemId: string; onOpenTab?: (key: strin
         {costs && <Card title="Price paid per unit" subtitle="Each purchase of this item, oldest first">
           {data.received.length === 0 ? none : (
             <div style={{ height: '220px' }}>
-              <Line
-                data={{ labels: data.received.map(r => r.at), datasets: [{ label: 'Unit cost', data: data.received.map(r => r.unitCost), borderColor: '#184421', backgroundColor: '#184421', tension: 0.2 }] }}
-                options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => peso(Number(c.raw)) } } }, scales: { y: { ticks: { callback: v => peso(Number(v)) } } } }}
-              />
+              <LineChart labels={data.received.map(r => r.at)} format={peso} series={[{ label: 'Unit cost', data: data.received.map(r => r.unitCost), color: COLOR.strong }]} />
             </div>
           )}
         </Card>}
         <Card title="Usage per month" subtitle="Issued to activities and consumed, last 6 months">
           {usage.issued.every(v => v === 0) && usage.consumed.every(v => v === 0) ? none : (
             <div style={{ height: '220px' }}>
-              <Bar
-                data={{ labels: usage.labels, datasets: [
-                  { label: 'Issued', data: usage.issued, backgroundColor: '#2f6f3e' },
-                  { label: 'Consumed', data: usage.consumed, backgroundColor: '#94a3b8' }
-                ] }}
-                options={{ maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }}
-              />
+              <BarChart labels={usage.labels} stacked series={[
+                { label: 'Issued', data: usage.issued, color: COLOR.in },
+                { label: 'Consumed', data: usage.consumed, color: COLOR.out }
+              ]} />
             </div>
           )}
         </Card>

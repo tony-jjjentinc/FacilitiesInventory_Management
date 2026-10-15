@@ -4,11 +4,10 @@
  * The same component serves both pages; only the scope differs.
  */
 import React from 'react';
-import { Bar } from 'react-chartjs-2';
 import { Loading } from '../Loading';
 import { RefreshButton } from '../RefreshButton';
 import type { EntityOverview, EntityScopeType } from '../../types';
-import { ChartCard, MixChart } from './charts';
+import { BarChart, COLOR, ChartCard, MixChart } from '../charts';
 import { peso } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
@@ -34,19 +33,14 @@ export const EntityOverviewTab: React.FC<Props> = ({ scopeType, scopeRef, onOpen
         <ChartCard pie title={costs ? 'Stock value by inventory type' : 'Stock quantity by inventory type'} subtitle={costs ? 'Share of the current stock value' : 'Share of the current stock quantity'} empty={data.byType.length === 0}><MixChart groups={data.byType} byQty={!costs} /></ChartCard>
         <ChartCard pie title={costs ? 'Stock value by inventory category' : 'Stock quantity by inventory category'} subtitle={costs ? 'Share of the current stock value' : 'Share of the current stock quantity'} empty={data.byCategory.length === 0}><MixChart groups={data.byCategory} byQty={!costs} /></ChartCard>
         {costs && <ChartCard wide title="Cost handled per month" subtitle="Value that came in and went out, last 12 months of the current fiscal year" empty={!hasMonths}>
-          <Bar
-            data={{ labels: data.costHandled.labels, datasets: [
-              { label: 'Received', data: data.costHandled.received, backgroundColor: '#2f6f3e' },
-              { label: 'Issued', data: data.costHandled.issued, backgroundColor: '#94a3b8' }
-            ] }}
-            options={{ maintainAspectRatio: false, scales: { y: { ticks: { callback: v => peso(Number(v)) } } }, plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${peso(Number(c.raw))}` } } } }}
-          />
+          <BarChart labels={data.costHandled.labels} format={peso} series={[
+            { label: 'Received', data: data.costHandled.received, color: COLOR.in },
+            { label: 'Issued', data: data.costHandled.issued, color: COLOR.out }
+          ]} />
         </ChartCard>}
         <ChartCard wide title="Stock age" subtitle={costs ? 'Value by how long the stock has been here' : 'Quantity by how long the stock has been here'} empty={data.stockAge.every(g => (costs ? g.value : g.qty) === 0)}>
-          <Bar
-            data={{ labels: data.stockAge.map(g => g.label), datasets: [{ label: costs ? 'Value' : 'Quantity', data: data.stockAge.map(g => (costs ? g.value : g.qty)), backgroundColor: '#5c9a6a' }] }}
-            options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => (costs ? peso(Number(c.raw)) : Number(c.raw).toLocaleString()) } } }, scales: { y: { ticks: { callback: v => (costs ? peso(Number(v)) : Number(v).toLocaleString()) } } } }}
-          />
+          <BarChart labels={data.stockAge.map(g => g.label)} legend={false} format={costs ? peso : (n => n.toLocaleString())}
+            series={[{ label: costs ? 'Value' : 'Quantity', data: data.stockAge.map(g => (costs ? g.value : g.qty)), color: COLOR.soft }]} />
         </ChartCard>
       </div>
       {data.meta.notes.map(n => <div key={n} className="small text-muted mt-2">{n}</div>)}

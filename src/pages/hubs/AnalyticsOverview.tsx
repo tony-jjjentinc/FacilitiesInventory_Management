@@ -3,6 +3,7 @@ import { apiRequest } from '../../services/api';
 import { DataTable, type Column } from '../../components/DataTable';
 import type { AnalyticsGroup, AnalyticsOverviewResponse, AnalyticsRow } from '../../types';
 import { todayInputDate } from '../../utils/datetime';
+import { peso } from '../../utils/format';
 
 const GROUPS: { key: AnalyticsGroup; label: string }[] = [
   { key: 'SUBDEPARTMENT', label: 'Sub-Department' },
@@ -13,7 +14,6 @@ const GROUPS: { key: AnalyticsGroup; label: string }[] = [
 ];
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const peso = (n: number) => `₱${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const qty = (n: number) => (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
 
 function period(kind: 'month' | 'quarter' | 'year') {

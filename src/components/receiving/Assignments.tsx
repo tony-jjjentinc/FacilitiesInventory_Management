@@ -23,11 +23,11 @@ import { PersonSelect } from '../form/PersonSelect';
 import { spotPath, spotsInArea } from './receivingUtils';
 import { Loading } from '../Loading';
 import type { DirectoryAccount, MrlListResponse, MrlTask, OpenActivity, StagedMrlSummary, StorageOptions, TaskLine } from '../../types';
+import { peso } from '../../utils/format';
 
 const OPEN = ['PLANNED', 'ACTIVE', 'ON_HOLD'];
 const TYPES: [string, string][] = [['ITEM', 'Wrong item'], ['SPECIFICATION', 'Wrong specification'], ['BRAND', 'Wrong brand'], ['DAMAGED', 'Damaged or defective'], ['QTY_SHORT', 'Short'], ['QTY_OVER', 'More than released']];
 const n = (v: unknown) => Number(v) || 0;
-const fmtMoney = (v: number) => `₱${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const STATUS_LABEL: Record<string, string> = { ASSIGNED: 'Assigned', DELEGATED: 'Delegated', CONFIRMED: 'Verified', CANCELLED: 'Cancelled' };
 
 function useDirectory() {
@@ -355,7 +355,7 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
                   {pricing && (
                     <td style={{ minWidth: 150 }} data-label="Price">
                       {n(f.recv) <= 0 ? <span className="text-muted">-</span> : catalogPrice(l) > 0
-                        ? <span>{fmtMoney(catalogPrice(l))}<div className="text-muted small">{l.price?.supplierName || (l.price?.source === 'BASE' ? 'Base price' : 'Catalog')}</div></span>
+                        ? <span>{peso(catalogPrice(l))}<div className="text-muted small">{l.price?.supplierName || (l.price?.source === 'BASE' ? 'Base price' : 'Catalog')}</div></span>
                         : (
                           <>
                             <input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Price each" placeholder="No price: enter one" value={f.cost || ''} onChange={e => set(l.Receipt_Line_ID, { cost: e.target.value })} />

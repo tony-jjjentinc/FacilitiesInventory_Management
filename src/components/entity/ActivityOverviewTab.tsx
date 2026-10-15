@@ -3,12 +3,11 @@
  * @description Activity overview: cost over time, type and category mix of what it holds, schedule and surplus return rate.
  */
 import React from 'react';
-import { Line } from 'react-chartjs-2';
 import { Link } from 'react-router-dom';
 import { Loading } from '../Loading';
 import { RefreshButton } from '../RefreshButton';
 import type { ActivityOverview } from '../../types';
-import { ChartCard, MixChart } from './charts';
+import { ChartCard, COLOR, LineChart, MixChart } from '../charts';
 import { entityPath, peso } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
@@ -37,10 +36,7 @@ export const ActivityOverviewTab: React.FC<{ activityId: string; onOpenTab?: (ke
       </div>
       <div className="row g-3">
         {costs && <ChartCard wide title="Cost over time" subtitle={`Cumulative net cost of the items issued${s.targetEnd ? `, target end ${fmtDate(s.targetEnd)}` : ''}`} empty={data.burn.cumulative.length === 0}>
-          <Line
-            data={{ labels: data.burn.labels, datasets: [{ label: 'Net cost', data: data.burn.cumulative, borderColor: '#184421', backgroundColor: '#184421', stepped: true }] }}
-            options={{ maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => peso(Number(c.raw)) } } }, scales: { y: { ticks: { callback: v => peso(Number(v)) } } } }}
-          />
+          <LineChart labels={data.burn.labels} format={peso} stepped series={[{ label: 'Net cost', data: data.burn.cumulative, color: COLOR.strong }]} />
         </ChartCard>}
         <ChartCard pie title="Inventory type" subtitle={costs ? 'Share of the net cost by type' : 'Share of the quantity by type'} empty={data.byType.length === 0}><MixChart groups={data.byType} byQty={!costs} /></ChartCard>
         <ChartCard pie title="Inventory category" subtitle={costs ? 'Share of the net cost by category' : 'Share of the quantity by category'} empty={data.byCategory.length === 0}><MixChart groups={data.byCategory} byQty={!costs} /></ChartCard>

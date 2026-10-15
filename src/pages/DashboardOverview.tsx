@@ -10,6 +10,7 @@ import { DashboardWidgets, DraftsList } from '../components/dashboard/DashboardW
 import { pushRecent, readRecent, type RecentEntry } from '../services/recent';
 import { fmtAgo } from '../utils/datetime';
 import { UnpricedBanner } from '../components/UnpricedBanner';
+import { KpiTile } from '../components/charts';
 
 const ago = fmtAgo;
 
@@ -140,22 +141,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       <div className="kpi-grid">
         {kpis.filter(k => k.show !== false).map(k => (
           <div key={k.label}>
-            <div
-              className={`kpi-card h-100${k.alert ? ` kpi-${k.alert}` : ''}`}
-              onClick={() => open({ label: k.label, to: k.to })}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open({ label: k.label, to: k.to }); } }}
-              role="button"
-              tabIndex={0}
-              title={k.title}
-            >
-              <div className="kpi-label">{k.label}</div>
-              <div className="kpi-value">
-                {shown(k.load, k.value) === null
-                  ? <span className="kpi-skeleton" role="status" aria-label="Loading"></span>
-                  : <>{shown(k.load, k.value)}{k.load === 'ready' && <span className="kpi-unit">{k.unit}</span>}</>}
-              </div>
-              {k.load === 'error' && <div className="kpi-unit ms-0">Couldn't load, use Refresh</div>}
-            </div>
+            <KpiTile label={k.label} unit={k.unit} alert={k.alert} title={k.title} state={k.load}
+              value={shown(k.load, k.value)} onClick={() => open({ label: k.label, to: k.to })} />
           </div>
         ))}
       </div>

@@ -1,17 +1,7 @@
-/**
- * @file charts.tsx
- * @description Chart pieces shared by the entity overview tabs: a titled card, a doughnut for a mix, the colour palette.
- * Chart.js elements are registered here once.
- */
 import React from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, ArcElement } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
 import type { MixGroup } from '../../types';
-import { peso } from './entityPaths';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, ArcElement);
-
-export const PALETTE = ['#184421', '#2f6f3e', '#5c9a6a', '#93bf9d', '#c5ddca', '#64748b', '#94a3b8', '#cbd5e1'];
+import { peso } from '../../utils/format';
+import { DoughnutChart } from './DoughnutChart';
 
 /** A faded empty ring with "No data" in the middle, shown where a doughnut would be (same slot, so the layout does not jump). */
 export const GhostDoughnut: React.FC = () => (
@@ -24,8 +14,22 @@ export const GhostDoughnut: React.FC = () => (
   </div>
 );
 
-/** Card with an uppercase title and a fixed-height chart area; `empty` shows "No Data" instead of the chart. */
-export const ChartCard: React.FC<{ title: string; subtitle: string; empty: boolean; children: React.ReactNode; wide?: boolean; pie?: boolean; /** three across on extra-large screens (the dashboard's pie row) instead of two */ third?: boolean }> = ({ title, subtitle, empty, children, wide, pie, third }) => (
+interface CardProps {
+  title: string;
+  subtitle: string;
+  /** shows "No data" (or the ghost ring when `pie`) instead of the chart */
+  empty: boolean;
+  children: React.ReactNode;
+  /** the full width of the row */
+  wide?: boolean;
+  /** this card holds a doughnut: the empty state is the ghost ring */
+  pie?: boolean;
+  /** three across on extra-large screens (the dashboard's pie row) instead of two */
+  third?: boolean;
+}
+
+/** Card with an uppercase title and a fixed-height chart area. Two across on extra-large screens by default. */
+export const ChartCard: React.FC<CardProps> = ({ title, subtitle, empty, children, wide, pie, third }) => (
   <div className={`col-12 ${wide ? '' : third ? 'col-xl-4' : 'col-xl-6'}`}>
     <div className="card border shadow-sm h-100 bg-white">
       <div className="card-header bg-white border-bottom">
@@ -45,10 +49,5 @@ export const ChartCard: React.FC<{ title: string; subtitle: string; empty: boole
 export const MixChart: React.FC<{ groups: MixGroup[]; byQty?: boolean }> = ({ groups, byQty }) => {
   const values = groups.map(g => Number(byQty ? g.qty : g.value) || 0);
   if (!values.some(v => v > 0)) return <GhostDoughnut />; // no groups, or every group is 0 (stock with no price): a doughnut would draw nothing
-  return (
-    <Doughnut
-      data={{ labels: groups.map(g => g.label), datasets: [{ data: values, backgroundColor: groups.map((_, i) => PALETTE[i % PALETTE.length]), borderWidth: 1 }] }}
-      options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: c => `${c.label}: ${byQty ? Number(c.raw).toLocaleString() : peso(Number(c.raw))}` } } } }}
-    />
-  );
+  return <DoughnutChart labels={groups.map(g => g.label)} values={values} format={byQty ? (n => n.toLocaleString()) : peso} />;
 };

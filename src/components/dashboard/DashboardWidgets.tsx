@@ -5,13 +5,12 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
 import { apiRequest } from '../../services/api';
 import { fetchWithSwr } from '../../services/cache';
 import { getAccess } from '../../services/access';
 import { getCurrentUser } from '../../services/auth';
 import type { AnalyticsOverviewResponse, LossIncident, MixGroup, ReceiptRecord, TransactionEntry, WarehouseStockItem } from '../../types';
-import { ChartCard, MixChart, PALETTE } from '../entity/charts';
+import { BarChart, ChartCard, MixChart, PALETTE } from '../charts';
 import { entityPath, peso } from '../entity/entityPaths';
 import { Loading } from '../Loading';
 import type { DraftSummary } from '../drafts/useDraft';
@@ -138,14 +137,11 @@ const SpendChart: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
           {state === 'error' ? <div className="small text-muted">Couldn't load. Use Refresh above.</div>
             : state !== 'ready' ? <Loading variant="text" label="Loading…" />
             : rows.length === 0 ? <div className="small text-muted">No spend in this period.</div>
-            : <Bar
-                data={{ labels: rows.map(r => r.label), datasets: [
-                  { label: 'Received', data: rows.map(r => r.receivedCost), backgroundColor: PALETTE[3] },
-                  { label: 'Issued', data: rows.map(r => r.issuedCost), backgroundColor: PALETTE[1] },
-                  { label: 'Consumed', data: rows.map(r => r.consumedCost), backgroundColor: PALETTE[0] }
-                ] }}
-                options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${peso(Number(c.raw))}` } } } }}
-              />}
+            : <BarChart labels={rows.map(r => r.label)} legend="bottom" format={peso} series={[
+                { label: 'Received', data: rows.map(r => r.receivedCost), color: PALETTE[3] },
+                { label: 'Issued', data: rows.map(r => r.issuedCost), color: PALETTE[1] },
+                { label: 'Consumed', data: rows.map(r => r.consumedCost), color: PALETTE[0] }
+              ]} />}
         </div>
       </div>
     </div>

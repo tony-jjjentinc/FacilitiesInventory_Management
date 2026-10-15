@@ -5,8 +5,6 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
 import { Loading } from '../Loading';
 import { RefreshButton } from '../RefreshButton';
 import type { ItemDistribution } from '../../types';
@@ -15,9 +13,7 @@ import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
 import { useEntityData } from './useEntity';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
-import { GhostDoughnut } from './charts';
-const PALETTE = ['#184421', '#5c9a6a', '#93bf9d', '#64748b', '#cbd5e1'];
+import { DoughnutChart, GhostDoughnut } from '../charts';
 
 const Section: React.FC<{ title: string; empty: string; isEmpty: boolean; children: React.ReactNode }> = ({ title, empty, isEmpty, children }) => (
   <div className="col-12 col-xl-6">
@@ -45,10 +41,7 @@ export const ItemDistributionTab: React.FC<{ itemId: string }> = ({ itemId }) =>
               <div className="row align-items-center g-3">
                 <div className="col-md-5" style={{ height: '220px' }}>
                   {total === 0 ? <GhostDoughnut /> : (
-                    <Doughnut
-                      data={{ labels: data.destinations.map(d => d.label), datasets: [{ data: data.destinations.map(d => d.qty), backgroundColor: PALETTE, borderWidth: 1 }] }}
-                      options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }}
-                    />
+                    <DoughnutChart labels={data.destinations.map(d => d.label)} values={data.destinations.map(d => d.qty)} />
                   )}
                 </div>
                 <div className="col-md-7">

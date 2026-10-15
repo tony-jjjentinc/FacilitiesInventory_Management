@@ -5,11 +5,10 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
 import { Loading } from '../Loading';
 import { RefreshButton } from '../RefreshButton';
 import type { SubDepartmentOverview } from '../../types';
-import { ChartCard } from './charts';
+import { BarChart, COLOR, ChartCard } from '../charts';
 import { entityPath, peso, qty } from './entityPaths';
 import { useEntityData } from './useEntity';
 import { getCurrentUser } from '../../services/auth';
@@ -38,13 +37,10 @@ export const SubDepartmentOverviewTab: React.FC<{ name: string; onOpenTab: (key:
       </div>
       <div className="row g-3">
         <ChartCard wide title={costs ? 'Cost per month' : 'Quantity per month'} subtitle="Issued to activities and consumed, last 12 months" empty={!hasCost}>
-          <Bar
-            data={{ labels: t.labels, datasets: [
-              { label: 'Issued', data: issued, backgroundColor: '#2f6f3e' },
-              { label: 'Consumed', data: consumed, backgroundColor: '#94a3b8' }
-            ] }}
-            options={{ maintainAspectRatio: false, scales: { y: { ticks: { callback: v => fmt(Number(v)) } } }, plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(Number(c.raw))}` } } } }}
-          />
+          <BarChart labels={t.labels} format={fmt} series={[
+            { label: 'Issued', data: issued, color: COLOR.in },
+            { label: 'Consumed', data: consumed, color: COLOR.out }
+          ]} />
         </ChartCard>
         <div className="col-12 col-xl-6">
           <div className="card border shadow-sm h-100 bg-white">

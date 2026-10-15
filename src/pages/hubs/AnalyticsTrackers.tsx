@@ -1,18 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend, ArcElement
-} from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
-import { ChartCard } from '../../components/entity/charts';
+import { BarChart, ChartCard, COLOR, DoughnutChart, HEALTH } from '../../components/charts';
 import { apiRequest } from '../../services/api';
 import { fetchWithSwr } from '../../services/cache';
 import type { TransactionEntry, WarehouseStockItem } from '../../types';
 import { parseDateTime, todayInputDate } from '../../utils/datetime';
+import { pesoK, pesoWhole } from '../../utils/format';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend, ArcElement);
-
-const PALETTE = ['#184421', '#2f6f3e', '#5c9a6a', '#93bf9d', '#c5ddca', '#64748b', '#94a3b8', '#cbd5e1'];
-const peso = (n: number) => `₱${Math.round(n).toLocaleString()}`;
 const valueOf = (i: WarehouseStockItem) => Number(i.Valuation) || (Number(i.On_Hand_Qty || 0) * Number(i.Unit_Cost || 0)) || 0;
 
 
@@ -71,10 +64,6 @@ export const AnalyticsTrackers: React.FC = () => {
   }, [stock, history]);
 
   const sorted = (m: Map<string, number>) => Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  const doughnut = (entries: [string, number][]) => ({
-    labels: entries.map(e => e[0]),
-    datasets: [{ data: entries.map(e => Math.round(e[1])), backgroundColor: PALETTE, borderWidth: 2, borderColor: '#ffffff' }]
-  });
   const cat = sorted(data.byCategory);
   const cls = sorted(data.byClass);
   const loc = sorted(data.byLocation);
@@ -83,7 +72,6 @@ export const AnalyticsTrackers: React.FC = () => {
     ['Normal', data.health.NORMAL || 0], ['Reorder warning', data.health.REORDER_WARNING || 0], ['Critical', data.health.CRITICAL_DEPLETION || 0]
   ];
   const healthTotal = healthEntries.reduce((s, e) => s + e[1], 0);
-  const legend = { position: 'bottom' as const, labels: { boxWidth: 12, font: { size: 11 } } };
 
   return (
     <div>
@@ -93,46 +81,33 @@ export const AnalyticsTrackers: React.FC = () => {
         </div>
       )}
       <div className="row g-3">
-        <ChartCard title="Stock value by trade category" subtitle={`Valuation of stock on hand, ${peso(data.total)} in total`} empty={cat.length === 0}>
-          <Bar
-            data={{ labels: cat.map(c => c[0]), datasets: [{ label: 'Valuation', data: cat.map(c => Math.round(c[1])), backgroundColor: '#184421', borderRadius: 4, maxBarThickness: 32 }] }}
-            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => peso(Number(c.raw)) } } },
-              scales: { x: { grid: { display: false } }, y: { grid: { color: '#f1f5f9' }, ticks: { callback: v => `₱${(Number(v) / 1000).toFixed(0)}k` } } } }}
-          />
+        <ChartCard title="Stock value by trade category" subtitle={`Valuation of stock on hand, ${pesoWhole(data.total)} in total`} empty={cat.length === 0}>
+          <BarChart labels={cat.map(c => c[0])} legend={false} lightGrid thickness={32} format={pesoWhole} tickFormat={pesoK}
+            series={[{ label: 'Valuation', data: cat.map(c => Math.round(c[1])), color: COLOR.strong }]} />
         </ChartCard>
 
         <ChartCard title="Stock in vs stock out" subtitle="Posted ledger cost per month, last 6 months" empty={!hasMonths}>
-          <Bar
-            data={{ labels: data.months.map(m => m.label), datasets: [
-              { label: 'Stock in', data: data.months.map(m => Math.round(m.inCost)), backgroundColor: '#184421', borderRadius: 3, maxBarThickness: 18 },
-              { label: 'Stock out', data: data.months.map(m => Math.round(m.outCost)), backgroundColor: '#94a3b8', borderRadius: 3, maxBarThickness: 18 }
-            ] }}
-            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${peso(Number(c.raw))}` } } },
-              scales: { x: { grid: { display: false } }, y: { grid: { color: '#f1f5f9' }, ticks: { callback: v => `₱${(Number(v) / 1000).toFixed(0)}k` } } } }}
-          />
+          <BarChart labels={data.months.map(m => m.label)} legend="bottom" lightGrid thickness={18} format={pesoWhole} tickFormat={pesoK} series={[
+            { label: 'Stock in', data: data.months.map(m => Math.round(m.inCost)), color: COLOR.strong },
+            { label: 'Stock out', data: data.months.map(m => Math.round(m.outCost)), color: COLOR.out }
+          ]} />
         </ChartCard>
 
         <ChartCard pie title="Stock health" subtitle="Items by reorder-point status" empty={healthTotal === 0}>
-          <Doughnut
-            data={{ labels: healthEntries.map(e => e[0]), datasets: [{ data: healthEntries.map(e => e[1]), backgroundColor: ['#198754', '#f59f00', '#dc3545'], borderWidth: 2, borderColor: '#ffffff' }] }}
-            options={{ responsive: true, maintainAspectRatio: false, plugins: { legend } }}
-          />
+          <DoughnutChart labels={healthEntries.map(e => e[0])} values={healthEntries.map(e => e[1])} colors={HEALTH} legend="bottom" separated />
         </ChartCard>
 
         <ChartCard pie title="Value by warehouse" subtitle="Where the stock value sits" empty={loc.length === 0 || data.total === 0}>
-          <Doughnut data={doughnut(loc)} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: { callbacks: { label: c => `${c.label}: ${peso(Number(c.raw))}` } } } }} />
+          <DoughnutChart labels={loc.map(e => e[0])} values={loc.map(e => Math.round(e[1]))} format={pesoWhole} legend="bottom" separated />
         </ChartCard>
 
         <ChartCard pie title="Items by classification" subtitle="Consumables, tools, spare parts and others (number of items)" empty={cls.length === 0}>
-          <Doughnut data={doughnut(cls)} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend } }} />
+          <DoughnutChart labels={cls.map(e => e[0])} values={cls.map(e => Math.round(e[1]))} legend="bottom" separated />
         </ChartCard>
 
         <ChartCard title="Highest-value items" subtitle="Top 8 by stock valuation" empty={data.top.length === 0}>
-          <Bar
-            data={{ labels: data.top.map(i => i.Item_Name), datasets: [{ label: 'Valuation', data: data.top.map(i => Math.round(valueOf(i))), backgroundColor: '#2f6f3e', borderRadius: 4, maxBarThickness: 22 }] }}
-            options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => peso(Number(c.raw)) } } },
-              scales: { x: { grid: { color: '#f1f5f9' }, ticks: { callback: v => `₱${(Number(v) / 1000).toFixed(0)}k` } }, y: { grid: { display: false } } } }}
-          />
+          <BarChart horizontal labels={data.top.map(i => i.Item_Name)} legend={false} lightGrid thickness={22} format={pesoWhole} tickFormat={pesoK}
+            series={[{ label: 'Valuation', data: data.top.map(i => Math.round(valueOf(i))), color: COLOR.in }]} />
         </ChartCard>
       </div>
     </div>

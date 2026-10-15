@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { WarehouseStockItem } from '../types';
 import { entityPath } from './entity/entityPaths';
 import { fmtDate, fmtDateTime } from '../utils/datetime';
+import { peso } from '../utils/format';
 
 interface Props {
   row: WarehouseStockItem;
@@ -11,7 +12,6 @@ interface Props {
   onClose: () => void;
 }
 
-const peso = (n: unknown) => `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const day = (v?: string) => fmtDate(v, '—');
 const STATUS: Record<string, { text: string; cls: string }> = {
   NORMAL: { text: 'Normal', cls: 'bg-success-subtle text-success' },

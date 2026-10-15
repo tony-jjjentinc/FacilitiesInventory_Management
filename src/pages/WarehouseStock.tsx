@@ -14,6 +14,7 @@ import { getCurrentUser } from '../services/auth';
 import { getAccess, hideCosts } from '../services/access';
 import { fmtDate } from '../utils/datetime';
 import { UnpricedBanner } from '../components/UnpricedBanner';
+import { peso } from '../utils/format';
 
 export const WarehouseStock: React.FC = () => {
   const access = getAccess(getCurrentUser());
@@ -69,7 +70,6 @@ export const WarehouseStock: React.FC = () => {
     );
   });
 
-  const peso = (n: unknown) => `₱${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const day = (v?: string) => fmtDate(v, '—');
   const ropBadge = (row: WarehouseStockItem) => row.ROP_Status === 'CRITICAL_DEPLETION'
     ? <span className="badge bg-danger-subtle text-danger border">Critical</span>
