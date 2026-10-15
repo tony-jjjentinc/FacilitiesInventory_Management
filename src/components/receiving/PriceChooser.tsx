@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ReceivingLine } from '../../types';
+import { PriceCalcButton } from '../PriceModal';
 
 type Choice = string; // 'SUPPLIER:<id>' | 'BASE' | 'CUSTOM'
 
@@ -57,6 +58,7 @@ export const PriceChooser: React.FC<Props> = ({ line, onChange }) => {
           <div className="input-group input-group-sm" style={{ maxWidth: '200px' }}>
             <span className="input-group-text">₱</span>
             <input type="number" min="0" step="0.01" className="form-control" aria-label="Base price" value={baseValue} onChange={e => setBaseValue(e.target.value)} />
+            <PriceCalcButton itemName={line.itemName} uom={line.uom} quantity={Number(line.receivedQty)} value={baseValue} onApply={setBaseValue} />
           </div>
           <div className="form-text">{baseChanged ? (base ? 'Saves this as the new base price for the item.' : "Saves this as the item's first base price.") : 'Keeps the current base price.'}</div>
         </div>
@@ -71,6 +73,7 @@ export const PriceChooser: React.FC<Props> = ({ line, onChange }) => {
           <div className="input-group input-group-sm" style={{ maxWidth: '200px' }}>
             <span className="input-group-text">₱</span>
             <input type="number" min="0" step="0.01" className="form-control" aria-label="Custom price" value={customValue} onChange={e => setCustomValue(e.target.value)} />
+            <PriceCalcButton itemName={line.itemName} uom={line.uom} quantity={Number(line.receivedQty)} value={customValue} onApply={setCustomValue} />
           </div>
           <div className="form-text">Not saved anywhere else.</div>
         </div>

@@ -4,6 +4,7 @@
  * and the delegate (verify, delegate to an FMS, take back, reassign, close a balance), the verification and delegation dialogs,
  * and the destination fields they share.
  */
+import { PriceCalcButton } from '../PriceModal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../../services/api';
 import { fetchWithSwr, invalidateCache } from '../../services/cache';
@@ -358,7 +359,8 @@ const VerifyModal: React.FC<{ task: MrlTask; onClose: () => void; onDone: () => 
                         ? <span>{peso(catalogPrice(l))}<div className="text-muted small">{l.price?.supplierName || (l.price?.source === 'BASE' ? 'Base price' : 'Catalog')}</div></span>
                         : (
                           <>
-                            <input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Price each" placeholder="No price: enter one" value={f.cost || ''} onChange={e => set(l.Receipt_Line_ID, { cost: e.target.value })} />
+                            <div className="d-flex gap-1"><input type="number" min="0" step="any" className="form-control form-control-sm" aria-label="Price each" placeholder="No price: enter one" value={f.cost || ''} onChange={e => set(l.Receipt_Line_ID, { cost: e.target.value })} />
+                              <PriceCalcButton itemName={l.Item_Name} uom={l.UOM} quantity={n(f.recv)} value={f.cost} onApply={v => set(l.Receipt_Line_ID, { cost: v })} /></div>
                             {n(f.cost) > 0 && <label className="form-check small mt-1 mb-0"><input type="checkbox" className="form-check-input" checked={!!f.base} onChange={e => set(l.Receipt_Line_ID, { base: e.target.checked })} /> Keep as the base price</label>}
                           </>
                         )}

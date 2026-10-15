@@ -1,3 +1,4 @@
+import { PriceCalcButton } from '../../components/PriceModal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../../services/api';
@@ -262,7 +263,8 @@ export const SetPrice: React.FC = () => {
           <div className="col-md-6">
             <label className="form-label small fw-semibold">Unit cost *</label>
             <div className="input-group input-group-sm"><span className="input-group-text">₱</span>
-              <input type="number" min="0" step="0.01" className="form-control" required value={unitCost} onChange={e => setUnitCost(e.target.value)} /></div>
+              <input type="number" min="0" step="0.01" className="form-control" required value={unitCost} onChange={e => setUnitCost(e.target.value)} />
+              <PriceCalcButton value={unitCost} onApply={setUnitCost} /></div>
           </div>
           <div className="col-12">
             <label className="form-label small fw-semibold">Reason *</label>

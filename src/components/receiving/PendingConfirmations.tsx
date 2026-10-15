@@ -10,6 +10,7 @@ import type { Column } from '../DataTable';
 import { getCurrentUser } from '../../services/auth';
 import { getAccess } from '../../services/access';
 import { fmtDateTime } from '../../utils/datetime';
+import { PriceCalcButton } from '../PriceModal';
 
 interface Props {
   active: boolean;
@@ -196,6 +197,7 @@ export const PendingConfirmations: React.FC<Props> = ({ active, refreshKey, onCo
                   <span className="input-group-text">₱</span>
                   <input type="number" min="0" step="0.01" className="form-control" aria-label="Unit cost" value={priceInputs[l.Receipt_Line_ID] || ''}
                     onChange={e => setPriceInputs({ ...priceInputs, [l.Receipt_Line_ID]: e.target.value })} />
+                  <PriceCalcButton itemName={l.Item_Name} quantity={Number(l.Received_Qty)} value={priceInputs[l.Receipt_Line_ID]} onApply={v => setPriceInputs({ ...priceInputs, [l.Receipt_Line_ID]: v })} />
                 </div>
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => savePrice(l)}>Save price</button>
               </div>
